@@ -11,6 +11,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="style.css" />
+
+  <!-- =========================================
+       PAYPAL CONFIGURATION — merchant cart script
+       Loads PayPal's cart widgets (Add to Cart /
+       View Cart) used further down this page.
+  ========================================= -->
+  <script src="https://www.paypalobjects.com/ncp/cart/cart.js" data-merchant-id="8PPXEZK84LENQ"></script>
 </head>
 <body>
 
@@ -61,21 +68,24 @@
 
             <!-- =========================================
                  PAYPAL CONFIGURATION
-                 Insert PayPal integration here.
-                 This can be PayPal button code, the PayPal
-                 JavaScript SDK, or a hosted payment link.
-                 The surrounding .paypal-placeholder styling
-                 can be removed once real PayPal code is added.
+                 Uses PayPal's hosted Cart buttons (Add to
+                 Cart + View Cart). The merchant script that
+                 powers these lives in the <head> of this page.
+                 To swap in a different product later, update
+                 data-id below to the new PayPal button ID.
             ========================================= -->
 
             <!-- PAYPAL PAYMENT INTEGRATION START -->
 
-            <div class="paypal-placeholder">
-              PayPal payment button will appear here.<br />
-              Replace this block with your PayPal button code, PayPal JS SDK snippet, or payment link.
+            <div class="paypal-buttons">
+              <paypal-add-to-cart-button data-id="L7MC2JYQU4LQJ"></paypal-add-to-cart-button>
+              <paypal-cart-button data-id="pp-view-cart"></paypal-cart-button>
             </div>
 
-            <!-- PAYPAL CODE GOES HERE -->
+            <script>
+              cartPaypal.AddToCart({ id: "L7MC2JYQU4LQJ" });
+              cartPaypal.Cart({ id: "pp-view-cart" });
+            </script>
 
             <!-- PAYPAL PAYMENT INTEGRATION END -->
 

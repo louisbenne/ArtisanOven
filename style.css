@@ -393,6 +393,13 @@ button:focus-visible,
   background: rgba(111, 143, 114, 0.06);
 }
 
+.paypal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
 /* ---------- Order page / Google Form embed ---------- */
 
 .form-wrapper {
