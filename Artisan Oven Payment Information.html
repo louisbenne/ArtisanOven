@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment — Artisan Oven</title>
+<meta name="description" content="Payment information for Artisan Oven — handmade wood-fired pizza.">
+<style>
+  :root{
+    --char: #211a16;
+    --char-soft: #2c231d;
+    --cream: #f6efe4;
+    --cream-dim: #cfc3ae;
+    --ember: #c65a2e;
+    --ember-bright: #e07a3f;
+    --line: #45392f;
+    --ok: #7d9471;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--char);
+    color: var(--cream);
+    font-family: 'Iowan Old Style','Palatino Linotype',Georgia,serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  header.top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 28px 0 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand{
+    font-family: 'Trebuchet MS', 'Futura', sans-serif;
+    letter-spacing: 0.22em;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cream-dim);
+    text-transform: uppercase;
+  }
+  .back{
+    font-family: 'Trebuchet MS', sans-serif;
+    font-size: 13px;
+    color: var(--ember-bright);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+  }
+  .back:hover{ text-decoration: underline; }
+
+  h1.page-title{
+    font-size: 40px;
+    margin: 44px 0 6px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+  .kicker{
+    color: var(--cream-dim);
+    font-size: 16px;
+    margin: 0 0 40px;
+    max-width: 46ch;
+  }
+
+  .section-label{
+    font-family: 'Trebuchet MS', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 12px;
+    color: var(--ember-bright);
+    margin: 0 0 14px;
+    display:flex;
+    align-items:center;
+    gap: 10px;
+  }
+  .section-label::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background: var(--line);
+  }
+
+  .method{
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    background: var(--char-soft);
+  }
+  .method h2{
+    font-family: 'Trebuchet MS', sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cream);
+    margin: 0 0 16px;
+  }
+
+  .field{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--line);
+    font-size: 16px;
+  }
+  .field:last-child{ border-bottom:none; }
+  .field .k{ color: var(--cream-dim); font-size: 13.5px; }
+  .field .v{
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.03em;
+    text-align:right;
+  }
+
+  .or{
+    text-align:center;
+    font-family:'Trebuchet MS', sans-serif;
+    letter-spacing:0.2em;
+    font-size:12px;
+    color: var(--cream-dim);
+    margin: 10px 0 22px;
+  }
+
+  .btn{
+    display:inline-block;
+    width:100%;
+    text-align:center;
+    background: var(--ember);
+    color: var(--cream);
+    text-decoration:none;
+    font-family:'Trebuchet MS', sans-serif;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    font-size: 13px;
+    padding: 14px 18px;
+    border-radius: 3px;
+    margin-top: 6px;
+    transition: background 0.15s ease;
+  }
+  .btn:hover{ background: var(--ember-bright); }
+  .btn.secondary{
+    background: transparent;
+    border: 1px solid var(--ember);
+    color: var(--ember-bright);
+  }
+  .btn.secondary:hover{ background: rgba(198,90,46,0.12); }
+  .btn + .btn{ margin-top: 12px; }
+
+  .note{
+    font-size: 14.5px;
+    color: var(--cream-dim);
+    margin: 12px 0 0;
+  }
+
+  .cash-lines p{
+    margin: 6px 0;
+    font-size: 15.5px;
+  }
+
+  .signoff{
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 15px;
+    color: var(--cream-dim);
+  }
+  .signoff .thanks{ color: var(--cream); margin-bottom: 18px; }
+  .signoff .names{
+    font-family:'Trebuchet MS', sans-serif;
+    letter-spacing: 0.03em;
+    color: var(--cream);
+  }
+
+  footer{
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-family:'Trebuchet MS', sans-serif;
+    font-size: 12.5px;
+    color: var(--cream-dim);
+    text-align:center;
+    letter-spacing: 0.04em;
+  }
+  footer .fbrand{
+    letter-spacing: 0.22em;
+    color: var(--cream);
+    margin-bottom: 6px;
+  }
+
+  @media (max-width: 480px){
+    h1.page-title{ font-size: 32px; }
+    .field{ flex-direction:column; align-items:flex-start; gap:2px; }
+    .field .v{ text-align:left; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">Artisan Oven</div>
+      <a class="back" href="index.html">&larr; Back to Home</a>
+    </header>
+
+    <h1 class="page-title">Payment Information</h1>
+    <p class="kicker">Please pay using one of the following three methods.</p>
+
+    <div class="section-label">Bank Transfer</div>
+    <div class="method">
+      <div class="field"><span class="k">Account Name</span><span class="v">Louis Benne</span></div>
+      <div class="field"><span class="k">Sort Code</span><span class="v">07-09-76</span></div>
+      <div class="field"><span class="k">Account Number</span><span class="v">11427310</span></div>
+    </div>
+
+    <div class="or">— OR —</div>
+
+    <div class="section-label">PayPal</div>
+    <div class="method">
+      <p class="note" style="margin-top:0;">Pay via PayPal.Me, or use our secure payment link below.</p>
+      <a class="btn" href="http://paypal.me/ArtisanOven" target="_blank" rel="noopener">paypal.me/ArtisanOven</a>
+      <a class="btn secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">Pay securely via PayPal link</a>
+    </div>
+
+    <div class="or">— OR —</div>
+
+    <div class="section-label">Cash</div>
+    <div class="method cash-lines">
+      <p>Cash payments may be sent with your child.</p>
+      <p>Please ensure that the exact amount is provided, as we are unable to give change.</p>
+    </div>
+
+    <div class="section-label">Collection</div>
+    <div class="method cash-lines">
+      <p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>
+    </div>
+
+    <div class="signoff">
+      <p class="thanks">Thank you.</p>
+      <p>Kind regards,<br><span class="names">Marlow, Louis, and Quinton</span></p>
+    </div>
+
+    <footer>
+      <div class="fbrand">ARTISAN OVEN</div>
+      <div>Email: [INSERT EMAIL]</div>
+      <div>© 2026 Artisan Oven</div>
+    </footer>
+  </div>
+</body>
+</html>
