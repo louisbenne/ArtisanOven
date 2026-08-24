@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment — Artisan Oven</title>
+  <meta name="description" content="Complete a secure payment for your Artisan Oven order via PayPal." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header secondary-header">
+    <div class="container">
+      <a class="back-link" href="index.html">&larr; Back to Home</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <section class="page-intro">
+        <h1>Payment</h1>
+        <p>Please review your payment details below and complete your payment securely using PayPal.</p>
+      </section>
+
+      <section class="page-content">
+        <div class="payment-card">
+          <h3>Order Details</h3>
+
+          <div class="payment-row">
+            <span class="label">Amount Due</span>
+            <!-- =========================================
+                 EDIT ME: replace with the actual amount due
+            ========================================= -->
+            <span class="value payment-amount">£XX.XX</span>
+          </div>
+
+          <div class="payment-row">
+            <span class="label">Description</span>
+            <!-- EDIT ME: replace with a short order description -->
+            <span class="value">[Payment description goes here]</span>
+          </div>
+
+          <div class="payment-row">
+            <span class="label">Order / Customer Reference</span>
+            <!-- EDIT ME: optional — order number, name, or reference -->
+            <span class="value">[Reference goes here, if applicable]</span>
+          </div>
+
+          <p class="payment-note">
+            <!-- EDIT ME: any additional notes for the customer -->
+            [Additional notes go here — e.g. collection time, allergen reminders, or payment terms.]
+          </p>
+
+          <div class="paypal-section">
+            <h3>Pay with PayPal</h3>
+
+            <!-- =========================================
+                 PAYPAL CONFIGURATION
+                 Insert PayPal integration here.
+                 This can be PayPal button code, the PayPal
+                 JavaScript SDK, or a hosted payment link.
+                 The surrounding .paypal-placeholder styling
+                 can be removed once real PayPal code is added.
+            ========================================= -->
+
+            <!-- PAYPAL PAYMENT INTEGRATION START -->
+
+            <div class="paypal-placeholder">
+              PayPal payment button will appear here.<br />
+              Replace this block with your PayPal button code, PayPal JS SDK snippet, or payment link.
+            </div>
+
+            <!-- PAYPAL CODE GOES HERE -->
+
+            <!-- PAYPAL PAYMENT INTEGRATION END -->
+
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <dl class="footer-grid">
+        <div>
+          <dt>Email</dt>
+          <dd>[INSERT EMAIL]</dd>
+        </div>
+        <div>
+          <dt>Opening Hours</dt>
+          <dd>[INSERT HOURS]</dd>
+        </div>
+      </dl>
+      <div class="footer-bottom">
+        <span id="footer-year">© 2026</span> Artisan Oven
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

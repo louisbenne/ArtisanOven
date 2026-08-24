@@ -1,0 +1,495 @@
+/* =========================================
+   ARTISAN OVEN — Stylesheet
+   Palette, type, and layout tokens live at
+   the top. Section styles follow the page
+   order: header, hero, cards, payment,
+   order, footer, utilities.
+========================================= */
+
+:root {
+  /* Colour palette */
+  --forest: #1F3A2E;
+  --forest-deep: #16281F;
+  --cream: #F7F3EC;
+  --cream-warm: #F1EADD;
+  --terracotta: #C65D3B;
+  --terracotta-deep: #A84A2C;
+  --sage: #6F8F72;
+  --text: #333333;
+  --text-soft: #5B5F5C;
+  --white: #FFFFFF;
+
+  /* Type */
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Layout */
+  --max-width: 1080px;
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --shadow-soft: 0 12px 30px rgba(31, 58, 46, 0.12);
+  --shadow-lift: 0 18px 40px rgba(31, 58, 46, 0.18);
+}
+
+/* ---------- Reset & base ---------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--cream);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  color: var(--forest);
+  margin: 0;
+  font-weight: 600;
+}
+
+p { margin: 0; }
+
+a { color: inherit; }
+
+img { max-width: 100%; display: block; }
+
+button, .btn {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible keyboard focus everywhere */
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+  outline: 3px solid var(--terracotta);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---------- Site header ---------- */
+
+.site-header {
+  padding: 28px 0 8px;
+  text-align: center;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--forest);
+  text-decoration: none;
+}
+
+.wordmark .flame-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--terracotta);
+  display: inline-block;
+}
+
+/* Back link used on secondary pages */
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--forest);
+  text-decoration: none;
+  padding: 8px 4px;
+  border-radius: 8px;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.back-link:hover {
+  color: var(--terracotta);
+  transform: translateX(-3px);
+}
+
+.secondary-header {
+  padding: 24px 0 4px;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  padding: 56px 0 40px;
+  text-align: center;
+}
+
+.hero-heading {
+  font-size: clamp(2.1rem, 5.5vw, 3.4rem);
+  line-height: 1.12;
+  max-width: 15ch;
+  margin: 0 auto;
+}
+
+/* Hand-drawn scorch-mark underline beneath the tagline —
+   references the char marks on a wood-fired crust rather
+   than a generic gradient rule. */
+.scorch-underline {
+  display: block;
+  width: 210px;
+  height: 18px;
+  margin: 14px auto 0;
+}
+
+.scorch-underline path {
+  fill: none;
+  stroke: var(--terracotta);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 340;
+  stroke-dashoffset: 340;
+  animation: draw-scorch 0.9s 0.15s ease-out forwards;
+}
+
+@keyframes draw-scorch {
+  to { stroke-dashoffset: 0; }
+}
+
+.hero-sub {
+  margin: 22px auto 0;
+  max-width: 42ch;
+  color: var(--text-soft);
+  font-size: 1.08rem;
+}
+
+/* ---------- Choice cards (oven-doorway motif) ---------- */
+
+.choices {
+  padding: 20px 0 72px;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.choice-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--forest);
+  color: var(--cream);
+  padding: 52px 30px 36px;
+  text-decoration: none;
+  /* Arched top, like a wood-fired oven doorway */
+  border-radius: 200px 200px var(--radius-md) var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.choice-card::before {
+  /* Warm glow inside the "oven mouth" */
+  content: "";
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  width: 140%;
+  height: 65%;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(198, 93, 59, 0.55), rgba(198, 93, 59, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+
+.choice-card:hover,
+.choice-card:focus-visible {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lift);
+}
+
+.choice-card:hover::before,
+.choice-card:focus-visible::before {
+  opacity: 1;
+}
+
+.choice-icon {
+  position: relative;
+  z-index: 1;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  color: var(--terracotta);
+}
+
+.choice-icon svg { width: 100%; height: 100%; }
+
+.choice-card h2 {
+  position: relative;
+  z-index: 1;
+  color: var(--cream);
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.choice-card p {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+  color: rgba(247, 243, 236, 0.8);
+  font-size: 0.98rem;
+  max-width: 24ch;
+}
+
+.choice-btn {
+  position: relative;
+  z-index: 1;
+  margin-top: 26px;
+  display: inline-block;
+  background: var(--terracotta);
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  padding: 14px 30px;
+  border-radius: 999px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.choice-card:hover .choice-btn {
+  background: var(--terracotta-deep);
+}
+
+/* ---------- Generic page sections (payment / order) ---------- */
+
+.page-intro {
+  padding: 18px 0 8px;
+  text-align: left;
+  max-width: 640px;
+}
+
+.page-intro h1 {
+  font-size: clamp(1.9rem, 4.5vw, 2.6rem);
+}
+
+.page-intro p {
+  margin-top: 14px;
+  color: var(--text-soft);
+  font-size: 1.05rem;
+  max-width: 55ch;
+}
+
+.page-content {
+  padding: 24px 0 72px;
+}
+
+/* ---------- Payment card ---------- */
+
+.payment-card {
+  background: var(--white);
+  border: 1px solid rgba(31, 58, 46, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 34px;
+  max-width: 620px;
+}
+
+.payment-card h3 {
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 18px;
+}
+
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(31, 58, 46, 0.08);
+}
+
+.payment-row:last-of-type { border-bottom: none; }
+
+.payment-row .label {
+  font-weight: 600;
+  color: var(--forest);
+  font-size: 0.95rem;
+}
+
+.payment-row .value {
+  color: var(--text-soft);
+  text-align: right;
+}
+
+.payment-amount {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--terracotta);
+}
+
+.payment-note {
+  margin-top: 20px;
+  padding: 16px 18px;
+  background: var(--cream-warm);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  color: var(--text-soft);
+}
+
+.paypal-section {
+  margin-top: 30px;
+  padding-top: 26px;
+  border-top: 1px dashed rgba(31, 58, 46, 0.18);
+}
+
+.paypal-section h3 {
+  margin-bottom: 14px;
+}
+
+.paypal-placeholder {
+  border: 1.5px dashed var(--sage);
+  border-radius: var(--radius-sm);
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  background: rgba(111, 143, 114, 0.06);
+}
+
+/* ---------- Order page / Google Form embed ---------- */
+
+.form-wrapper {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+}
+
+.form-wrapper iframe {
+  width: 100%;
+  border: none;
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  background: var(--forest);
+  color: rgba(247, 243, 236, 0.85);
+  padding: 44px 0 28px;
+  margin-top: 40px;
+}
+
+.footer-brand {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  color: var(--cream);
+  margin-bottom: 18px;
+}
+
+.footer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  font-size: 0.92rem;
+}
+
+.footer-grid dt {
+  color: var(--sage);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  margin-bottom: 4px;
+}
+
+.footer-grid dd {
+  margin: 0;
+}
+
+.footer-optional {
+  margin-top: 24px;
+  font-size: 0.85rem;
+  color: rgba(247, 243, 236, 0.5);
+}
+
+.footer-bottom {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(247, 243, 236, 0.15);
+  font-size: 0.82rem;
+  color: rgba(247, 243, 236, 0.55);
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 720px) {
+  .choice-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .choice-card {
+    border-radius: 130px 130px var(--radius-md) var(--radius-md);
+    padding: 44px 24px 30px;
+  }
+
+  .payment-card { padding: 26px 20px; }
+
+  .payment-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .payment-row .value { text-align: left; }
+
+  .form-wrapper { padding: 10px; }
+
+  .footer-grid { gap: 22px; }
+}
+
+@media (max-width: 400px) {
+  .container { padding: 0 18px; }
+  body { font-size: 16px; }
+}
