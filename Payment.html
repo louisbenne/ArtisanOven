@@ -1,162 +1,623 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Payment — Artisan Oven</title>
-  <meta name="description" content="Artisan Oven — pay for your order by bank transfer, PayPal, or cash." />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment — Artisan Oven</title>
+<meta name="description" content="Artisan Oven — pay for your order by bank transfer, PayPal, or cash.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<!-- Brand display font: Baar Sophia (not on Google Fonts — served via cdnfonts.com).
+     If you already self-host Baar Sophia elsewhere on the site, swap this <link>
+     for your own @font-face block so the whole site pulls from one source. -->
+<link href="https://fonts.cdnfonts.com/css/baar-sophia" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F2E7;
+    --paper-raised: #FFFDF8;
+    --ink: #2B2320;
+    --ink-soft: #6E6055;
+    --line: #E6D9C1;
+    --crust: #D69A3C;
+    --crust-deep: #B87B24;
+    --tomato: #BC4630;
+    --tomato-deep: #9E3A27;
+    --basil: #55684A;
+    --basil-tint: rgba(85,104,74,0.10);
+    --shadow: 0 1px 2px rgba(43,35,32,0.04), 0 8px 24px -12px rgba(43,35,32,0.18);
+    --font-display: 'Baar Sophia', 'Trebuchet MS', sans-serif;
+  }
 
-  <link rel="stylesheet" href="style.css" />
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 480px at 50% -8%, rgba(214,154,60,0.16), transparent 60%),
+      var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a{ color: var(--tomato); }
+
+  .wrap{
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ---------- Top nav ---------- */
+  .topbar{
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 24px;
+    background: linear-gradient(var(--paper) 70%, transparent);
+  }
+  .back-link{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-decoration:none;
+    padding: 6px 4px;
+  }
+  .back-link:hover{ color: var(--tomato); }
+  .back-link svg{ width:16px; height:16px; }
+
+  .menu-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1.5px solid var(--line);
+    background: var(--paper-raised);
+    color: var(--ink);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .menu-btn:hover{ border-color: var(--crust); }
+  .menu-btn svg{ width:20px; height:20px; }
+
+  .nav-wrap{ position:relative; }
+  .nav-menu{
+    position:absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 190px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 8px;
+    display:none;
+    flex-direction:column;
+    gap: 2px;
+  }
+  .nav-menu.open{ display:flex; }
+  .nav-menu a{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-decoration:none;
+  }
+  .nav-menu a:hover{ background: rgba(214,154,60,0.14); }
+  .nav-menu a svg{ width:17px; height:17px; color: var(--crust-deep); flex-shrink:0; }
+  .nav-menu .current{ color: var(--tomato); }
+
+  /* ---------- Header ---------- */
+  header.hero{
+    text-align:center;
+    padding: 12px 0 36px;
+  }
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--crust-deep);
+    margin-bottom: 18px;
+  }
+  .eyebrow::before, .eyebrow::after{
+    content:"";
+    width: 22px;
+    height:1px;
+    background: var(--crust-deep);
+    opacity:0.55;
+  }
+  h1{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.1rem, 6vw, 2.7rem);
+    line-height: 1.1;
+    margin: 0 0 14px;
+  }
+  .hero p{
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+    max-width: 46ch;
+    margin: 0 auto;
+  }
+
+  /* ---------- Perforated divider ---------- */
+  .tear{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin: 44px 0 32px;
+  }
+  .tear::before, .tear::after{
+    content:"";
+    flex:1;
+    height:0;
+    border-top: 2px dashed var(--line);
+  }
+  .tear span{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    white-space:nowrap;
+  }
+
+  /* ---------- Card ---------- */
+  .card{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 30px 28px;
+    margin-bottom: 20px;
+  }
+  .card h2{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+    text-align:center;
+  }
+  .card > .lede{
+    text-align:center;
+    color: var(--ink-soft);
+    font-size: 0.94rem;
+    margin: 0 0 22px;
+  }
+
+  /* ---------- Lookup form ---------- */
+  form.lookup{
+    display:flex;
+    flex-direction:column;
+    gap: 12px;
+  }
+  label{
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-align:center;
+  }
+  input[type="text"], input[type="email"]{
+    width:100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    font-family:'Inter', sans-serif;
+    font-size: 0.98rem;
+    color: var(--ink);
+    text-align:center;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  input::placeholder{ color: #A79B8C; }
+  input:focus{
+    outline:none;
+    border-color: var(--crust);
+    box-shadow: 0 0 0 4px rgba(214,154,60,0.18);
+  }
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    font-family:'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    cursor:pointer;
+    text-decoration:none;
+    transition: transform .12s ease, box-shadow .12s ease, background .15s ease, border-color .15s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{
+    background: var(--tomato);
+    color: #FFF6EC;
+    box-shadow: 0 8px 18px -8px rgba(188,70,48,0.55);
+    margin-top: 4px;
+  }
+  .btn-primary:hover{ background: var(--tomato-deep); }
+  .btn-secondary{
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+  }
+  .btn-secondary:hover{ border-color: var(--crust); background: rgba(214,154,60,0.08); }
+
+  /* Preferred (fee-free) styling — quietly encouraging, not primary-loud */
+  .btn-preferred{
+    background: var(--basil);
+    color: #FBF8F0;
+    border: none;
+  }
+  .btn-preferred:hover{ background: #465939; }
+
+  /* ---------- Payment method list ---------- */
+  .methods{
+    display:flex;
+    flex-direction:column;
+    gap: 16px;
+  }
+  .method{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    position:relative;
+  }
+  .method.is-preferred{ border-color: rgba(85,104,74,0.35); }
+
+  .pref-tag{
+    position:absolute;
+    top: 16px;
+    right: 16px;
+    display:inline-flex;
+    align-items:center;
+    gap: 5px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--basil);
+    background: var(--basil-tint);
+    border: 1px solid rgba(85,104,74,0.25);
+    border-radius: 999px;
+    padding: 5px 10px 5px 8px;
+  }
+  .pref-tag svg{ width:12px; height:12px; }
+
+  .method-head{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 10px;
+    padding: 20px 24px 0;
+  }
+  .badge{
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: rgba(214,154,60,0.16);
+    color: var(--crust-deep);
+    flex-shrink:0;
+  }
+  .method.is-preferred .badge{
+    background: var(--basil-tint);
+    color: var(--basil);
+  }
+  .badge svg{ width:18px; height:18px; }
+  .method h3{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.28rem;
+    margin:0;
+  }
+  .method-body{
+    padding: 16px 24px 24px;
+    text-align:center;
+  }
+  .method-body > p{
+    color: var(--ink-soft);
+    font-size: 0.93rem;
+    max-width: 40ch;
+    margin: 0 auto 16px;
+  }
+
+  .detail-grid{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    max-width: 360px;
+    margin: 0 auto 6px;
+  }
+  .detail-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .detail-row .k{
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .detail-row .v{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.94rem;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+
+  .method-actions{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    max-width: 360px;
+    margin: 18px auto 0;
+  }
+
+  .note{
+    font-size: 0.86rem;
+    color: var(--ink-soft);
+    background: rgba(85,104,74,0.08);
+    border: 1px solid rgba(85,104,74,0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+    max-width: 400px;
+    margin: 14px auto 0;
+  }
+
+  .fee-note{
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    max-width: 340px;
+    margin: 10px auto 0;
+    line-height: 1.5;
+  }
+  .fee-note strong{ color: var(--ink); font-weight: 600; }
+
+  /* ---------- Collection & sign-off ---------- */
+  .signoff{ text-align:center; padding-top: 8px; }
+  .signoff p{ color: var(--ink-soft); font-size: 0.96rem; }
+  .signature{
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--ink);
+    margin-top: 6px;
+  }
+
+  /* ---------- Footer ---------- */
+  footer{
+    text-align:center;
+    margin-top: 56px;
+    padding-top: 32px;
+    border-top: 1px dashed var(--line);
+  }
+  .foot-mark{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+  }
+  .foot-grid{
+    display:flex;
+    justify-content:center;
+    gap: 36px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .foot-item .k{
+    display:block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .foot-item .v{ font-size: 0.9rem; }
+  footer .copyright{ font-size: 0.78rem; color: #A79B8C; }
+
+  @media (max-width: 420px){
+    .card{ padding: 24px 18px; }
+    .method-body{ padding: 14px 18px 22px; }
+  }
+</style>
 </head>
 <body>
 
-  <header class="site-header secondary-header">
-    <div class="container">
-      <a class="back-link" href="index.html">&larr; Back to Home</a>
+  <div class="topbar">
+    <a class="back-link" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to Home
+    </a>
+
+    <div class="nav-wrap">
+      <button class="menu-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <nav class="nav-menu" id="navMenu" role="menu">
+        <a href="index.html" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+          Home
+        </a>
+        <a href="order.html" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 0 1 8 0c0 2-2 2-2 4"/><path d="M12 17h.01"/></svg>
+          Place an Order
+        </a>
+        <a href="Payment.html" class="current" role="menuitem" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
+          Payment
+        </a>
+      </nav>
     </div>
-  </header>
+  </div>
 
-  <main>
-    <div class="container">
-      <section class="page-intro">
-        <h1>Payment & Order Lookup</h1>
-        <p>Look up your order below to view your balance and pay securely.</p>
-      </section>
+  <div class="wrap">
 
-      <!-- ORDER LOOKUP SECTION -->
-      <section class="lookup-section" aria-label="Find your pizza order">
-        <div class="lookup-card">
-          <h2>Find Your Order</h2>
-          <p class="lookup-desc">Enter the email address (or Order ID) you used when placing your order.</p>
+    <header class="hero">
+      <span class="eyebrow">Artisan Oven</span>
+      <h1>Payment &amp; Order Lookup</h1>
+      <p>Look up your order below to view your balance, then pay securely using any of the options underneath.</p>
+    </header>
 
-          <form id="order-lookup-form" class="lookup-form" novalidate>
-            <div class="lookup-input-group">
-              <label for="order-query-input" class="visually-hidden">Email Address or Order ID</label>
-              <input
-                type="text"
-                id="order-query-input"
-                class="lookup-input"
-                placeholder="e.g. your@email.com or AO-1001"
-                autocomplete="email"
-                required
-              />
-              <button type="submit" id="lookup-btn" class="btn-solid lookup-submit">
-                <span class="btn-text">Find My Order</span>
-                <span class="btn-spinner" aria-hidden="true"></span>
-              </button>
-            </div>
-          </form>
+    <section class="card" aria-labelledby="lookup-heading">
+      <h2 id="lookup-heading">Find Your Order</h2>
+      <p class="lede">Enter the email address (or Order ID) you used when placing your order.</p>
+      <form class="lookup" onsubmit="return false;">
+        <label for="lookup-field">Email address or Order ID</label>
+        <input id="lookup-field" type="text" placeholder="e.g. you@email.com or ORD-1042" autocomplete="email">
+        <button type="submit" class="btn btn-primary">Find My Order</button>
+      </form>
+    </section>
 
-          <!-- Feedback messages -->
-          <div id="lookup-feedback" class="lookup-feedback" role="alert" aria-live="polite" hidden></div>
-        </div>
-      </section>
+    <div class="tear"><span>All payment options</span></div>
 
-      <!-- ORDER RESULT CARD (Initially hidden) -->
-      <section id="order-result-section" class="order-result-section" hidden aria-live="polite">
-        <div class="order-summary-card">
-          <div class="order-card-header">
-            <span class="badge-order-id" id="result-order-id">AO-1001</span>
-            <span class="badge-status" id="result-order-status">Payment Pending</span>
-          </div>
+    <section class="methods" aria-label="Payment options">
 
-          <h2 class="order-customer-title" id="result-customer-name">Order for Customer</h2>
-
-          <div class="order-items-container">
-            <h4 class="order-items-heading">Your Order Details:</h4>
-            <ul id="result-items-list" class="order-items-list">
-              <!-- Dynamically populated -->
-            </ul>
-          </div>
-
-          <div class="order-total-banner">
-            <span class="total-label">Total to Pay</span>
-            <span class="total-amount" id="result-total-price">£0.00</span>
-          </div>
-
-          <div class="order-actions">
-            <a id="result-paypal-btn" class="btn-solid paypal-btn" href="#" target="_blank" rel="noopener">
-              <svg class="paypal-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.79.79 0 0 1 .778-.656h6.613c3.08 0 5.485.669 6.275 3.324.47 1.58.118 3.52-.962 4.793-1.077 1.27-2.829 1.838-5.068 1.838H9.688a.637.637 0 0 0-.63.535l-.982 7.783zm9.055-14.77c-.47-1.58-2.227-2.152-4.636-2.152H7.218L5.27 18.064h2.793l.85-6.73a1.597 1.597 0 0 1 1.579-1.341h2.152c3.056 0 5.17-1.127 5.867-3.426z"/>
-              </svg>
-              Pay with PayPal (<span id="result-paypal-amount">£0.00</span>)
-            </a>
-            <a id="result-paypal-ncp" class="btn-outline" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">
-              Alternative PayPal Payment Link
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <section class="page-content">
-        <h2 class="section-title-sub">All Payment Options</h2>
-
-        <div class="payment-card">
+      <article class="method is-preferred">
+        <span class="pref-tag">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Preferred · No fees
+        </span>
+        <div class="method-head">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
+          </span>
           <h3>Bank Transfer</h3>
-          <div class="payment-row">
-            <span class="label">Account Name</span>
-            <span class="value">Louis Benne</span>
-          </div>
-          <div class="payment-row">
-            <span class="label">Sort Code</span>
-            <span class="value">07-09-76</span>
-          </div>
-          <div class="payment-row">
-            <span class="label">Account Number</span>
-            <span class="value">11427310</span>
+        </div>
+        <div class="method-body">
+          <p>Send payment directly using the details below — every penny goes straight to the order.</p>
+          <div class="detail-grid">
+            <div class="detail-row"><span class="k">Account Name</span><span class="v">Louis Benne</span></div>
+            <div class="detail-row"><span class="k">Sort Code</span><span class="v">07-09-76</span></div>
+            <div class="detail-row"><span class="k">Account Number</span><span class="v">11427310</span></div>
           </div>
         </div>
+      </article>
 
-        <div class="method-divider">Or</div>
-
-        <div class="payment-card">
+      <article class="method is-preferred">
+        <span class="pref-tag">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Preferred · No fees
+        </span>
+        <div class="method-head">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8a5 5 0 0 0-5-5H7v14h4"/><path d="M7 17h5a5 5 0 0 0 5-5"/></svg>
+          </span>
           <h3>PayPal</h3>
-          <p class="payment-note" style="margin-top: 0;">Pay via PayPal.Me, or use our secure payment link below.</p>
-          <a class="btn-solid" href="http://paypal.me/ArtisanOven" target="_blank" rel="noopener">paypal.me/ArtisanOven</a>
-          <a class="btn-outline" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">Pay securely via PayPal link</a>
         </div>
+        <div class="method-body">
+          <p>Pay via our PayPal.Me link, or use the secure checkout link below.</p>
+          <div class="method-actions">
+            <a class="btn btn-preferred" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">paypal.me/ArtisanOven</a>
+            <a class="btn btn-secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">Pay via secure PayPal checkout</a>
+          </div>
+          <p class="fee-note"><strong>A note on fees:</strong> the secure checkout link passes on a small PayPal processing fee. Sending via PayPal.Me or bank transfer means we keep 100% of your order.</p>
+        </div>
+      </article>
 
-        <div class="method-divider">Or</div>
-
-        <div class="info-card">
-          <h3 style="margin-bottom: 14px;">Cash</h3>
+      <article class="method">
+        <div class="method-head">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3 2.45c-.9.2-1.5.9-1.5 1.55v.5M12 17h.01"/></svg>
+          </span>
+          <h3>Cash</h3>
+        </div>
+        <div class="method-body">
           <p>Cash payments may be sent with your child.</p>
-          <p>Please ensure that the exact amount is provided, as we are unable to give change.</p>
+          <div class="note">Please ensure the exact amount is provided, as we're unable to give change.</div>
         </div>
+      </article>
 
-        <div class="info-card">
-          <h3 style="margin-bottom: 14px;">Collection</h3>
-          <p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>
-        </div>
+    </section>
 
-        <div class="payment-signoff">
-          <p class="thanks">Thank you.</p>
-          <p class="names">Kind regards,<br>Marlow, Louis, and Quinton</p>
-        </div>
+    <div class="tear"><span>Collection</span></div>
 
-      </section>
-    </div>
-  </main>
+    <section class="card signoff">
+      <p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>
+      <p style="margin-bottom:0;">Thank you.</p>
+      <div class="signature">Marlow, Louis &amp; Quinton</div>
+    </section>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p class="footer-brand">ARTISAN OVEN</p>
-      <dl class="footer-grid">
-        <div>
-          <dt>Email</dt>
-          <dd>artisanovenst@gmail.com</dd>
+    <footer>
+      <div class="foot-mark">Artisan Oven</div>
+      <div class="foot-grid">
+        <div class="foot-item">
+          <span class="k">Email</span>
+          <span class="v"><a href="mailto:artisanovenst@gmail.com">artisanovenst@gmail.com</a></span>
         </div>
-        <div>
-          <dt>School Lunches</dt>
-          <dd>Every Tuesday</dd>
+        <div class="foot-item">
+          <span class="k">School Lunches</span>
+          <span class="v">Every Tuesday</span>
         </div>
-      </dl>
-      <div class="footer-bottom">
-        <span id="footer-year">© 2026</span> Artisan Oven
       </div>
-    </div>
-  </footer>
+      <div class="copyright">© 2026 Artisan Oven</div>
+    </footer>
 
-  <script src="script.js"></script>
+  </div>
+
+  <script>
+    (function(){
+      var btn = document.getElementById('menuBtn');
+      var menu = document.getElementById('navMenu');
+
+      function closeMenu(){
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+      function toggleMenu(e){
+        e.stopPropagation();
+        var isOpen = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', String(isOpen));
+      }
+      btn.addEventListener('click', toggleMenu);
+      document.addEventListener('click', function(e){
+        if (!menu.contains(e.target) && e.target !== btn) closeMenu();
+      });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') closeMenu();
+      });
+    })();
+  </script>
+
 </body>
 </html>
