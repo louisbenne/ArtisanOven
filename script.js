@@ -6,7 +6,7 @@
 // CONFIGURATION: Replace with your deployed Google Apps Script Web App URL
 // Example: "https://script.google.com/macros/s/AKfycbx.../exec"
 // ----------------------------------------------------------------------------
-const ORDER_API_URL = "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+const ORDER_API_URL = "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
 
 document.addEventListener("DOMContentLoaded", function () {
   // Keep footer year updated
