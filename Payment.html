@@ -19,11 +19,77 @@
   <main>
     <div class="container">
       <section class="page-intro">
-        <h1>Payment Information</h1>
-        <p>Please pay using one of the following three methods.</p>
+        <h1>Payment & Order Lookup</h1>
+        <p>Look up your order below to view your balance and pay securely.</p>
+      </section>
+
+      <!-- ORDER LOOKUP SECTION -->
+      <section class="lookup-section" aria-label="Find your pizza order">
+        <div class="lookup-card">
+          <h2>Find Your Order</h2>
+          <p class="lookup-desc">Enter the email address (or Order ID) you used when placing your order.</p>
+
+          <form id="order-lookup-form" class="lookup-form" novalidate>
+            <div class="lookup-input-group">
+              <label for="order-query-input" class="visually-hidden">Email Address or Order ID</label>
+              <input
+                type="text"
+                id="order-query-input"
+                class="lookup-input"
+                placeholder="e.g. your@email.com or AO-1001"
+                autocomplete="email"
+                required
+              />
+              <button type="submit" id="lookup-btn" class="btn-solid lookup-submit">
+                <span class="btn-text">Find My Order</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Feedback messages -->
+          <div id="lookup-feedback" class="lookup-feedback" role="alert" aria-live="polite" hidden></div>
+        </div>
+      </section>
+
+      <!-- ORDER RESULT CARD (Initially hidden) -->
+      <section id="order-result-section" class="order-result-section" hidden aria-live="polite">
+        <div class="order-summary-card">
+          <div class="order-card-header">
+            <span class="badge-order-id" id="result-order-id">AO-1001</span>
+            <span class="badge-status" id="result-order-status">Payment Pending</span>
+          </div>
+
+          <h2 class="order-customer-title" id="result-customer-name">Order for Customer</h2>
+
+          <div class="order-items-container">
+            <h4 class="order-items-heading">Your Order Details:</h4>
+            <ul id="result-items-list" class="order-items-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+
+          <div class="order-total-banner">
+            <span class="total-label">Total to Pay</span>
+            <span class="total-amount" id="result-total-price">£0.00</span>
+          </div>
+
+          <div class="order-actions">
+            <a id="result-paypal-btn" class="btn-solid paypal-btn" href="#" target="_blank" rel="noopener">
+              <svg class="paypal-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.79.79 0 0 1 .778-.656h6.613c3.08 0 5.485.669 6.275 3.324.47 1.58.118 3.52-.962 4.793-1.077 1.27-2.829 1.838-5.068 1.838H9.688a.637.637 0 0 0-.63.535l-.982 7.783zm9.055-14.77c-.47-1.58-2.227-2.152-4.636-2.152H7.218L5.27 18.064h2.793l.85-6.73a1.597 1.597 0 0 1 1.579-1.341h2.152c3.056 0 5.17-1.127 5.867-3.426z"/>
+              </svg>
+              Pay with PayPal (<span id="result-paypal-amount">£0.00</span>)
+            </a>
+            <a id="result-paypal-ncp" class="btn-outline" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">
+              Alternative PayPal Payment Link
+            </a>
+          </div>
+        </div>
       </section>
 
       <section class="page-content">
+        <h2 class="section-title-sub">All Payment Options</h2>
 
         <div class="payment-card">
           <h3>Bank Transfer</h3>
