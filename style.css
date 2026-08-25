@@ -6,6 +6,14 @@
    order, footer, utilities.
 ========================================= */
 
+@font-face {
+  font-family: "Baar Sophia";
+  src: url("fonts/BaarSophia.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Colour palette */
   --forest: #1F3A2E;
@@ -19,9 +27,9 @@
   --text-soft: #5B5F5C;
   --white: #FFFFFF;
 
-  /* Type */
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
-  --font-body: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Type — Baar Sophia throughout, for headings and body alike */
+  --font-display: "Baar Sophia", "Iowan Old Style", Georgia, serif;
+  --font-body: "Baar Sophia", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Layout */
   --max-width: 1080px;
@@ -54,7 +62,7 @@ h1, h2, h3 {
   font-family: var(--font-display);
   color: var(--forest);
   margin: 0;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 p { margin: 0; }
@@ -398,6 +406,118 @@ button:focus-visible,
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
+}
+
+/* Buttons used on the payment page (PayPal links, etc.) */
+
+.btn-solid,
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  padding: 14px 24px;
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.btn-solid {
+  background: var(--terracotta);
+  color: var(--white);
+  border: 1px solid var(--terracotta);
+}
+
+.btn-solid:hover,
+.btn-solid:focus-visible {
+  background: var(--terracotta-deep);
+  border-color: var(--terracotta-deep);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--forest);
+  border: 1.5px solid var(--forest);
+}
+
+.btn-outline:hover,
+.btn-outline:focus-visible {
+  background: var(--forest);
+  color: var(--cream);
+  transform: translateY(-2px);
+}
+
+.btn-solid + .btn-outline,
+.btn-outline + .btn-outline {
+  margin-top: 12px;
+}
+
+/* Divider used between payment methods */
+
+.method-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 30px 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.method-divider::before,
+.method-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(31, 58, 46, 0.15);
+}
+
+/* Generic info card — cash / collection notes, signoff */
+
+.info-card {
+  background: var(--white);
+  border: 1px solid rgba(31, 58, 46, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 30px 34px;
+  max-width: 620px;
+  margin: 0 0 24px;
+}
+
+.info-card p {
+  color: var(--text-soft);
+  font-size: 0.98rem;
+}
+
+.info-card p + p {
+  margin-top: 10px;
+}
+
+.payment-signoff {
+  max-width: 620px;
+  margin-top: 12px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(31, 58, 46, 0.12);
+}
+
+.payment-signoff .thanks {
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+.payment-signoff .names {
+  color: var(--text-soft);
+  font-size: 0.98rem;
 }
 
 /* ---------- Order page / Google Form embed ---------- */
