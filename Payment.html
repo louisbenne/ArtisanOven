@@ -460,6 +460,153 @@
     .card{ padding: 24px 18px; }
     .method-body{ padding: 14px 18px 22px; }
   }
+
+  /* ---------- Lookup form: loading + feedback states ---------- */
+  .lookup-submit{ position: relative; }
+  .lookup-submit .btn-spinner{
+    display:none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,246,236,0.35);
+    border-top-color: #FFF6EC;
+    border-radius: 50%;
+    position: absolute;
+    top: calc(50% - 9px);
+    left: calc(50% - 9px);
+    animation: btn-spin 0.8s linear infinite;
+  }
+  .lookup-submit.is-loading .btn-text{ visibility:hidden; }
+  .lookup-submit.is-loading .btn-spinner{ display:inline-block; }
+  @keyframes btn-spin{ to{ transform: rotate(360deg); } }
+
+  .lookup-feedback{
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    text-align: center;
+  }
+  .feedback-error{
+    background: #FBEAE6;
+    color: var(--tomato-deep);
+    border: 1px solid rgba(188,70,48,0.28);
+  }
+  .feedback-info{
+    background: var(--basil-tint);
+    color: var(--basil);
+    border: 1px solid rgba(85,104,74,0.25);
+  }
+
+  /* ---------- Order result card ---------- */
+  .order-result-card{
+    background: var(--paper-raised);
+    border: 2px solid var(--basil);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 30px 28px;
+    margin-top: 20px;
+  }
+  .order-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .badge-order-id{
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.98rem;
+    letter-spacing: 0.03em;
+    color: var(--tomato-deep);
+  }
+  .badge-status{
+    display:inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .status-pending{
+    background: rgba(214,154,60,0.18);
+    color: var(--crust-deep);
+    border: 1px solid rgba(214,154,60,0.35);
+  }
+  .status-paid{
+    background: var(--basil-tint);
+    color: var(--basil);
+    border: 1px solid rgba(85,104,74,0.3);
+  }
+  .order-customer-title{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.35rem;
+    margin: 0 0 20px;
+    text-align:center;
+  }
+  .order-items-container{
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .order-items-heading{
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+  }
+  .order-items-list{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+  }
+  .order-item-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap: 14px;
+    padding-bottom: 9px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .order-item-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .item-main{ display:flex; flex-direction:column; gap:2px; }
+  .item-quantity{ font-weight:700; color: var(--tomato); margin-right:4px; }
+  .item-name{ font-weight:600; color: var(--ink); }
+  .item-child{ font-size:0.84rem; color: var(--ink-soft); }
+  .item-price{ font-weight:600; color: var(--ink); white-space:nowrap; font-family:'IBM Plex Mono', monospace; }
+
+  .order-total-banner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 14px 18px;
+    background: var(--ink);
+    color: var(--paper-raised);
+    border-radius: 12px;
+    margin-bottom: 22px;
+  }
+  .order-total-banner .total-label{ font-family: var(--font-display); font-size: 1.05rem; }
+  .order-total-banner .total-amount{
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    color: #F2C879;
+  }
+
+  .order-actions{ display:flex; flex-direction:column; gap: 10px; }
+  .paypal-btn{ background:#0070BA; box-shadow:none; }
+  .paypal-btn:hover{ background:#005EA6; }
+  .paypal-icon{ flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -502,11 +649,47 @@
     <section class="card" aria-labelledby="lookup-heading">
       <h2 id="lookup-heading">Find Your Order</h2>
       <p class="lede">Enter the email address (or Order ID) you used when placing your order.</p>
-      <form class="lookup" onsubmit="return false;">
-        <label for="lookup-field">Email address or Order ID</label>
-        <input id="lookup-field" type="text" placeholder="e.g. you@email.com or ORD-1042" autocomplete="email">
-        <button type="submit" class="btn btn-primary">Find My Order</button>
+      <form class="lookup" id="order-lookup-form" novalidate>
+        <label for="order-query-input">Email address or Order ID</label>
+        <input id="order-query-input" type="text" placeholder="e.g. you@email.com or ORD-1042" autocomplete="email">
+        <button type="submit" id="lookup-btn" class="btn btn-primary lookup-submit">
+          <span class="btn-text">Find My Order</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
       </form>
+      <div id="lookup-feedback" class="lookup-feedback" role="alert" aria-live="polite" hidden></div>
+    </section>
+
+    <section id="order-result-section" hidden aria-live="polite">
+      <div class="order-result-card">
+        <div class="order-card-header">
+          <span class="badge-order-id" id="result-order-id">Order Details</span>
+          <span class="badge-status status-pending" id="result-order-status">Payment Pending</span>
+        </div>
+        <h3 class="order-customer-title" id="result-customer-name">Order for Customer</h3>
+
+        <div class="order-items-container">
+          <h4 class="order-items-heading">Your Order Details</h4>
+          <ul id="result-items-list" class="order-items-list"></ul>
+        </div>
+
+        <div class="order-total-banner">
+          <span class="total-label">Total to Pay</span>
+          <span class="total-amount" id="result-total-price">£0.00</span>
+        </div>
+
+        <div class="order-actions">
+          <a id="result-paypal-btn" class="btn btn-primary paypal-btn" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">
+            <svg class="paypal-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.79.79 0 0 1 .778-.656h6.613c3.08 0 5.485.669 6.275 3.324.47 1.58.118 3.52-.962 4.793-1.077 1.27-2.829 1.838-5.068 1.838H9.688a.637.637 0 0 0-.63.535l-.982 7.783zm9.055-14.77c-.47-1.58-2.227-2.152-4.636-2.152H7.218L5.27 18.064h2.793l.85-6.73a1.597 1.597 0 0 1 1.579-1.341h2.152c3.056 0 5.17-1.127 5.867-3.426z"/>
+            </svg>
+            Pay with PayPal (<span id="result-paypal-amount">£0.00</span>)
+          </a>
+          <a id="result-paypal-ncp" class="btn btn-secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">
+            Alternative PayPal Payment Link
+          </a>
+        </div>
+      </div>
     </section>
 
     <div class="tear"><span>All payment options</span></div>
@@ -590,7 +773,7 @@
           <span class="v">Every Tuesday</span>
         </div>
       </div>
-      <div class="copyright">© 2026 Artisan Oven</div>
+      <div class="copyright"><span id="footer-year">© 2026</span> Artisan Oven</div>
     </footer>
 
   </div>
@@ -619,5 +802,6 @@
     })();
   </script>
 
+  <script src="script.js"></script>
 </body>
 </html>
