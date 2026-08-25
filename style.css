@@ -138,7 +138,7 @@ button:focus-visible,
   font-weight: 600;
   color: var(--forest);
   text-decoration: none;
-  padding: 8px 4px;
+  padding: 8px 0;
   border-radius: 8px;
   transition: color 0.15s ease, transform 0.15s ease;
 }
@@ -150,6 +150,13 @@ button:focus-visible,
 
 .secondary-header {
   padding: 24px 0 4px;
+  text-align: left;
+}
+
+.secondary-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 /* ---------- Hero ---------- */
@@ -305,20 +312,24 @@ button:focus-visible,
 /* ---------- Generic page sections (payment / order) ---------- */
 
 .page-intro {
-  padding: 18px 0 8px;
-  text-align: left;
+  padding: 24px 0 16px;
+  text-align: center;
   max-width: 640px;
+  margin: 0 auto;
 }
 
 .page-intro h1 {
-  font-size: clamp(1.9rem, 4.5vw, 2.6rem);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  margin-bottom: 8px;
 }
 
 .page-intro p {
-  margin-top: 14px;
+  margin-top: 10px;
   color: var(--text-soft);
   font-size: 1.05rem;
   max-width: 55ch;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .page-content {
