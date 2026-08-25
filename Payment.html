@@ -60,6 +60,7 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
+    width: 100%;
     max-width: 600px;
     margin: 0 auto;
     padding: 20px 24px;
@@ -73,10 +74,12 @@
     font-weight: 600;
     color: var(--ink-soft);
     text-decoration:none;
-    padding: 6px 4px;
+    padding: 6px 0;
+    margin-right: auto;
+    transition: color 0.15s ease, transform 0.15s ease;
   }
-  .back-link:hover{ color: var(--tomato); }
-  .back-link svg{ width:16px; height:16px; }
+  .back-link:hover{ color: var(--tomato); transform: translateX(-3px); }
+  .back-link svg{ width:16px; height:16px; flex-shrink:0; }
 
   .menu-btn{
     display:flex;
