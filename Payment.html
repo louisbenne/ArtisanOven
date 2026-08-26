@@ -464,23 +464,6 @@
     .method-body{ padding: 14px 18px 22px; }
   }
 
-  /* Fix: on narrow phone widths the absolutely-positioned "Preferred · No fees"
-     tag sat on top of the centered method title (e.g. "Bank Transfer"). Below
-     this width, drop the tag into normal flow above the title instead of
-     floating over it. */
-  @media (max-width: 480px){
-    .method{ padding-top: 0; }
-    .method .pref-tag{
-      position: static;
-      display: flex;
-      width: fit-content;
-      margin: 14px auto 0;
-    }
-    .method.is-preferred .method-head{
-      padding-top: 10px;
-    }
-  }
-
   /* ---------- Lookup form: loading + feedback states ---------- */
   .lookup-submit{ position: relative; }
   .lookup-submit .btn-spinner{
