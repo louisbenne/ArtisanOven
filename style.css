@@ -1023,6 +1023,35 @@ button:focus-visible,
   color: var(--text-soft);
 }
 
+.tracker-disclaimer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(31, 58, 46, 0.1);
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.tracker-deadline {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--forest-deep);
+  background: var(--cream);
+  padding: 12px 14px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.tracker-deadline svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--terracotta);
+}
+
 /* ---------- Fully Booked Message ---------- */
 .closed-message {
   text-align: center;
