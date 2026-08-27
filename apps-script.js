@@ -491,14 +491,24 @@ function doGet(e) {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       var lastRow = raw.getLastRow();
-      var newStartRow = Math.max(2, lastRow + 1);
       
+      // 1. DELETE OLD RESPONSES (so next form submission is on row 2 = Order 1)
+      if (lastRow > 1) {
+        raw.deleteRows(2, lastRow - 1);
+      }
+      
+      // 2. CLEAR PIZZA ORDER UPDATE SHEET
+      var updateSheet = ss.getSheetByName('Pizza Order Update');
+      if (updateSheet) {
+        updateSheet.clear();
+      }
+
       var newDate = safeTrim(params.newServiceDate || '');
       var newMax = params.newMaxPizzas ? parseInt(params.newMaxPizzas, 10) : undefined;
       var newSessionId = 'session_' + Utilities.formatDate(new Date(), 'Europe/London', 'yyyyMMdd_HHmmss');
 
       var updatePayload = {
-        sessionStartRow: newStartRow,
+        sessionStartRow: 2, // Reset back to row 2
         sessionId: newSessionId,
         sessionStartDate: new Date().toISOString(),
         orderingEnabled: true
@@ -513,11 +523,14 @@ function doGet(e) {
       }
 
       var saved = saveSettings(updatePayload);
-      logAdminAction('New Week Started', 'Session: ' + newSessionId + ' (Row ' + newStartRow + '), Date: ' + (newDate || saved.serviceDate));
+      logAdminAction('New Week Started', 'Spreadsheet cleared. Session: ' + newSessionId + ', Date: ' + (newDate || saved.serviceDate));
+
+      // Rebuild the empty headers immediately
+      rebuildCleanSheets();
 
       return createJsonResponse({
         success: true,
-        message: 'New ordering session created successfully. Previous orders remain saved in Google Sheets.',
+        message: 'New ordering session created successfully. Old orders have been cleared.',
         settings: saved,
         stats: calculateCurrentSessionStats(saved)
       });
@@ -790,7 +803,6 @@ function rebuildCleanSheets() {
   });
 
   var data = raw.getDataRange().getValues();
-  if (data.length < 2) return;
 
   var sizeCounts = {};
   var sessionPizzas = 0;

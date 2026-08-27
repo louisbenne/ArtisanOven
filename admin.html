@@ -313,14 +313,14 @@
               </svg>
             </div>
             <div>
-              <h2 class="card-title">Start New Week / New Ordering Period</h2>
-              <p class="card-desc">Kick off a new session for the upcoming Tuesday. This resets the active order counter while safely preserving all historical responses in Google Sheets.</p>
+              <h2 class="card-title">Start New Week (Clear Spreadsheet Data)</h2>
+              <p class="card-desc">Kick off a new session for the upcoming Tuesday. This resets the active order counter and <strong>permanently deletes</strong> all historical responses in Google Sheets.</p>
             </div>
           </div>
 
           <div class="new-week-box">
             <p class="new-week-info">
-              Starting a new week creates a new session timestamp. Previous orders remain in your spreadsheet for your historical records, but only new incoming orders will count toward the new capacity limit.
+              Starting a new week creates a new session timestamp. <strong>All previous orders in your spreadsheet will be completely erased</strong> to start fresh for the new week. The layout and headers will rebuild themselves automatically upon the next incoming order.
             </p>
 
             <div class="settings-grid">
@@ -449,9 +449,9 @@
         <div class="modal-session-summary">
           <div><strong>New Service Date:</strong> <span id="modal-target-date">--</span></div>
           <div><strong>Capacity Limit:</strong> <span id="modal-target-max">-- pizzas</span></div>
-          <div><strong>Historical Orders:</strong> <span style="color: var(--sage);">Preserved safely in Google Sheets</span></div>
+          <div><strong>Historical Orders:</strong> <span style="color: #A83220; font-weight: bold;">WILL BE PERMANENTLY ERASED</span></div>
         </div>
-        <p class="modal-note">The public website tracker will reset to 0 pizzas claimed for the new date, and ordering will be set to OPEN.</p>
+        <p class="modal-note">The public website tracker will reset to 0 pizzas claimed for the new date, and ordering will be set to OPEN. The spreadsheet will be fully cleared and will rebuild on the next order.</p>
       </div>
 
       <div class="modal-actions">
@@ -701,7 +701,7 @@
 
             if (data.success) {
               newWeekModal.style.display = "none";
-              showToast("New week session initiated! Previous orders preserved.", "success");
+              showToast("New week session initiated! Spreadsheet successfully cleared.", "success");
               loadDashboardData();
             } else {
               showToast(data.message || "Failed to start new session.", "error");
