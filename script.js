@@ -71,16 +71,16 @@ function initAvailabilityTracker() {
         statusText.style.color = "var(--terracotta)";
       }
 
-      if (typeof data.currentOrders === 'number' && typeof data.maxOrders === 'number') {
-        const pct = Math.min(100, Math.max(0, (data.currentOrders / data.maxOrders) * 100));
+      if (typeof data.currentPizzas === 'number' && typeof data.maxPizzas === 'number') {
+        const pct = Math.min(100, Math.max(0, (data.currentPizzas / data.maxPizzas) * 100));
         progressFill.style.width = pct + "%";
         progressFill.style.opacity = "1";
-        ordersTaken.textContent = data.currentOrders + " of " + data.maxOrders + " orders taken";
+        ordersTaken.textContent = data.currentPizzas + " of " + data.maxPizzas + " pizzas claimed";
         
-        if (data.remainingOrders > 0 && data.orderingOpen) {
-          ordersRemaining.textContent = data.remainingOrders + " orders remaining";
+        if (data.remainingPizzas > 0 && data.orderingOpen) {
+          ordersRemaining.textContent = data.remainingPizzas + " pizzas remaining";
         } else {
-          ordersRemaining.textContent = "No orders remaining";
+          ordersRemaining.textContent = "No pizzas remaining";
         }
       }
     }

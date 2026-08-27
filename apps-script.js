@@ -11,9 +11,9 @@ var PAYPAL_NCP_LINK = 'https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA';
 
 // NEW: Live order capacity limits
 // Change ORDERING_ENABLED to false to manually shut off ordering completely.
-// Change MAX_ORDERS to the total limit of pizzas/orders you can handle.
+// Change MAX_PIZZAS to the total limit of pizzas you can handle.
 var ORDERING_ENABLED = true;
-var MAX_ORDERS = 20;
+var MAX_PIZZAS = 20;
 
 // ===================================================
 
@@ -118,14 +118,24 @@ function doGet(e) {
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       var data = raw.getDataRange().getValues();
       
-      var validCount = 0;
+      var totalPizzas = 0;
       for (var r = 1; r < data.length; r++) {
-        if (!rowIsBlank(data[r])) {
-          validCount++;
+        var row = data[r];
+        if (rowIsBlank(row)) continue;
+
+        var qtyRaw = safeTrim(row[3]);
+        var qtyDigit = extractDigit(qtyRaw) || '0';
+        var blocks = BRANCHES[qtyDigit] || [];
+
+        for (var b = 0; b < blocks.length; b++) {
+          var cols = blocks[b];
+          var sizeRaw = safeTrim(row[cols[0]]);
+          var childName = safeTrim(row[cols[1]]);
+          if (sizeRaw || childName) totalPizzas++;
         }
       }
       
-      var remaining = Math.max(0, MAX_ORDERS - validCount);
+      var remaining = Math.max(0, MAX_PIZZAS - totalPizzas);
       var isOpen = ORDERING_ENABLED && (remaining > 0);
       
       var message = "";
@@ -134,13 +144,13 @@ function doGet(e) {
       } else if (remaining <= 0) {
         message = "We're fully booked for this session. Please check back next time.";
       } else {
-        message = remaining + " orders remaining.";
+        message = remaining + " pizzas remaining.";
       }
 
       return createJsonResponse({
-        currentOrders: validCount,
-        maxOrders: MAX_ORDERS,
-        remainingOrders: remaining,
+        currentPizzas: totalPizzas,
+        maxPizzas: MAX_PIZZAS,
+        remainingPizzas: remaining,
         orderingOpen: isOpen,
         message: message
       });
@@ -303,9 +313,6 @@ function rebuildCleanSheets() {
   var paidOrders = 0;
   var unpaidOrders = 0;
 
-  // Oversell protection flag logic
-  var validCount = 0;
-
   var orderSummaryRows = [];
   var pizzaOrdersRows = [];
   var orderTotalsRows = [];
@@ -314,7 +321,8 @@ function rebuildCleanSheets() {
     var row = data[r];
 
     if (rowIsBlank(row)) continue;
-    validCount++;
+    
+    var pizzasBeforeThisOrder = totalPizzas;
 
     var allergyYN = safeTrim(row[1]);
     var allergyText = stripHtml(safeTrim(row[2]));
@@ -327,7 +335,7 @@ function rebuildCleanSheets() {
     var payerName = safeTrim(payerRaw) || 'Unknown';
     var payerEmail = extractPayerEmail(row);
 
-    var isWaitlist = (validCount > MAX_ORDERS);
+    var isWaitlist = (pizzasBeforeThisOrder >= MAX_PIZZAS);
     if (isWaitlist) {
       payerName = "[WAITLIST] " + payerName;
     }
@@ -554,11 +562,21 @@ function sendOrderConfirmationForRow(rowNum) {
 
   // Determine if this order was a waitlist order
   var data = raw.getDataRange().getValues();
-  var validCountBefore = 0;
+  var pizzasBefore = 0;
   for (var r = 1; r < rowNum - 1; r++) {
-    if (!rowIsBlank(data[r])) validCountBefore++;
+    var pRow = data[r];
+    if (rowIsBlank(pRow)) continue;
+
+    var qtyRaw = safeTrim(pRow[3]);
+    var qtyDigit = extractDigit(qtyRaw) || '0';
+    var blocks = BRANCHES[qtyDigit] || [];
+    for (var b = 0; b < blocks.length; b++) {
+      var sizeRaw = safeTrim(pRow[blocks[b][0]]);
+      var childName = safeTrim(pRow[blocks[b][1]]);
+      if (sizeRaw || childName) pizzasBefore++;
+    }
   }
-  var isWaitlist = (validCountBefore >= MAX_ORDERS);
+  var isWaitlist = (pizzasBefore >= MAX_PIZZAS);
 
   var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL);
   var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
