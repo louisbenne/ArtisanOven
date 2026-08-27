@@ -27,7 +27,7 @@
         <!-- Availability Tracker -->
         <div class="availability-tracker" id="availability-tracker" aria-live="polite" style="margin-bottom: 24px;">
           <div class="tracker-header">
-            <span class="tracker-title"> AVAILABILITY</span>
+            <span class="tracker-title" id="tracker-service-title">AVAILABILITY</span>
             <span class="tracker-status" id="tracker-status-text">Checking...</span>
           </div>
           <div class="progress-bar">
@@ -37,15 +37,15 @@
             <span id="tracker-orders-taken">-- of -- pizzas claimed</span>
             <span id="tracker-orders-remaining">-- pizzas remaining</span>
           </div>
-          <div class="tracker-disclaimer">
+          <div class="tracker-disclaimer" id="tracker-capacity-disclaimer">
             We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.
           </div>
-          <div class="tracker-deadline">
+          <div class="tracker-deadline" id="tracker-deadline-banner">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span>Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
+            <span id="tracker-deadline-text">Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
           </div>
         </div>
 
@@ -100,7 +100,7 @@
         </div>
       </dl>
       <div class="footer-bottom">
-        <span id="footer-year">© 2026</span> Artisan Oven
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
       </div>
     </div>
   </footer>

@@ -1,21 +1,16 @@
 // ============================================================================
-// ARTISAN OVEN — Order Management & Order Lookup API
+// ARTISAN OVEN — Operational Backend, Public API & Admin System
 // ============================================================================
 
-// ====== SETTINGS — edit these lines if needed ======
+// ====== CORE DEFAULTS & CONFIGURATION ======
 var YOUR_EMAIL = 'louis@benne.co.uk';
 var EMAIL_SUBJECT = 'Pizza Order Update';
 var CONFIRMATION_SUBJECT = 'Your Pizza Order Confirmation & Payment Details';
 var PAYPAL_ME_BASE = 'https://paypal.me/ArtisanOven';
 var PAYPAL_NCP_LINK = 'https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA';
 
-// NEW: Live order capacity limits
-// Change ORDERING_ENABLED to false to manually shut off ordering completely.
-// Change MAX_PIZZAS to the total limit of pizzas you can handle.
-var ORDERING_ENABLED = true;
-var MAX_PIZZAS = 20;
-
-// ===================================================
+// Default Admin Password (can be customized via Admin Dashboard or Script Properties)
+var DEFAULT_ADMIN_PASSWORD = 'ArtisanOvenAdmin2026!';
 
 // Canonical payment mappings
 var PAYMENT_MAP = {
@@ -73,7 +68,220 @@ var PAYMENT_INFO_BLOCK =
   'Please ensure that the exact amount is provided, as we are unable to give change.';
 
 // ============================================================================
-// WEB APP API ENTRYPOINT (doGet)
+// SETTINGS STORAGE & RETRIEVAL (ScriptProperties + Admin_Settings Sheet)
+// ============================================================================
+
+function getDefaultSettings() {
+  return {
+    serviceDate: 'Tuesday 15th September 2026',
+    serviceTitle: 'Tuesday 15th Sept Availability',
+    serviceNoticeDate: 'Tuesday Lunchtime — starting 15th of August',
+    maxPizzas: 20,
+    orderingEnabled: true,
+    autoCloseEnabled: true,
+    autoCloseDay: 'Sunday',
+    autoCloseTime: '21:00',
+    capacityMessage: 'We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.',
+    deadlineMessage: 'Orders will close at 9:00 PM on Sunday evenings, giving us time to prepare for Tuesday.',
+    fullyBookedMessage: "We're fully booked for this session. Please check back next time.",
+    sessionStartRow: 2,
+    sessionId: 'session_init',
+    sessionStartDate: new Date().toISOString()
+  };
+}
+
+function getSettings() {
+  var props = PropertiesService.getScriptProperties();
+  var rawJson = props.getProperty('ARTISAN_SETTINGS');
+  var defaults = getDefaultSettings();
+  
+  if (!rawJson) {
+    props.setProperty('ARTISAN_SETTINGS', JSON.stringify(defaults));
+    return defaults;
+  }
+  
+  try {
+    var parsed = JSON.parse(rawJson);
+    for (var key in defaults) {
+      if (parsed[key] === undefined) {
+        parsed[key] = defaults[key];
+      }
+    }
+    return parsed;
+  } catch (err) {
+    Logger.log('Error parsing settings JSON: ' + err);
+    return defaults;
+  }
+}
+
+function saveSettings(newSettings) {
+  var current = getSettings();
+  for (var k in newSettings) {
+    if (newSettings[k] !== undefined) {
+      current[k] = newSettings[k];
+    }
+  }
+  PropertiesService.getScriptProperties().setProperty('ARTISAN_SETTINGS', JSON.stringify(current));
+  syncSettingsToSheet(current);
+  return current;
+}
+
+function syncSettingsToSheet(settings) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Admin_Settings');
+    if (!sheet) {
+      sheet = ss.insertSheet('Admin_Settings');
+    }
+    sheet.clear();
+    
+    var rows = [
+      ['SETTING KEY', 'VALUE', 'LAST UPDATED'],
+      ['Service Date', settings.serviceDate, new Date()],
+      ['Service Title', settings.serviceTitle, new Date()],
+      ['Service Notice Date', settings.serviceNoticeDate, new Date()],
+      ['Max Pizzas Limit', settings.maxPizzas, new Date()],
+      ['Ordering Status (Manual)', settings.orderingEnabled ? 'OPEN' : 'CLOSED', new Date()],
+      ['Auto-Close Enabled', settings.autoCloseEnabled ? 'YES' : 'NO', new Date()],
+      ['Auto-Close Schedule', settings.autoCloseDay + ' at ' + settings.autoCloseTime, new Date()],
+      ['Capacity Disclaimer', settings.capacityMessage, new Date()],
+      ['Deadline Message', settings.deadlineMessage, new Date()],
+      ['Fully Booked Message', settings.fullyBookedMessage, new Date()],
+      ['Current Session ID', settings.sessionId, new Date()],
+      ['Session Start Row', settings.sessionStartRow, new Date()],
+      ['Session Start Timestamp', settings.sessionStartDate, new Date()]
+    ];
+    
+    sheet.getRange(1, 1, rows.length, 3).setValues(rows);
+    sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#E8E8E8');
+    sheet.autoResizeColumns(1, 3);
+  } catch (e) {
+    Logger.log('Error syncing settings to sheet: ' + e);
+  }
+}
+
+// ============================================================================
+// SECURITY & AUTHENTICATION
+// ============================================================================
+
+function getAdminPassword() {
+  var props = PropertiesService.getScriptProperties();
+  return props.getProperty('ADMIN_PASSWORD') || DEFAULT_ADMIN_PASSWORD;
+}
+
+function setAdminPassword(newPassword) {
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+  PropertiesService.getScriptProperties().setProperty('ADMIN_PASSWORD', newPassword);
+}
+
+function generateAdminToken() {
+  var token = 'ao_adm_' + Utilities.getUuid().replace(/-/g, '') + '_' + Date.now();
+  var expiry = Date.now() + (8 * 60 * 60 * 1000); // 8 hours validity
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('ADMIN_TOKEN', token);
+  props.setProperty('ADMIN_TOKEN_EXPIRY', String(expiry));
+  return token;
+}
+
+function verifyAdminToken(token) {
+  if (!token) return false;
+  var props = PropertiesService.getScriptProperties();
+  var storedToken = props.getProperty('ADMIN_TOKEN');
+  var expiry = parseInt(props.getProperty('ADMIN_TOKEN_EXPIRY') || '0', 10);
+  
+  if (storedToken && storedToken === token && Date.now() < expiry) {
+    return true;
+  }
+  return false;
+}
+
+function invalidateAdminToken() {
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty('ADMIN_TOKEN');
+  props.deleteProperty('ADMIN_TOKEN_EXPIRY');
+}
+
+// Audit logger
+function logAdminAction(action, details) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Admin Log');
+    if (!sheet) {
+      sheet = ss.insertSheet('Admin Log');
+      var header = ['Timestamp', 'Action', 'Details', 'Actor'];
+      sheet.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold').setBackground('#E8E8E8');
+    }
+    sheet.appendRow([new Date(), action, details || '', 'Admin']);
+  } catch (err) {
+    Logger.log('Error logging admin action: ' + err);
+  }
+}
+
+function getAdminLogs() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Admin Log');
+    if (!sheet || sheet.getLastRow() < 2) return [];
+    var data = sheet.getDataRange().getValues();
+    var logs = [];
+    for (var i = data.length - 1; i >= 1 && logs.length < 20; i--) {
+      var row = data[i];
+      logs.push({
+        timestamp: row[0] instanceof Date ? Utilities.formatDate(row[0], 'Europe/London', 'dd MMM yyyy HH:mm:ss') : String(row[0]),
+        action: String(row[1] || ''),
+        details: String(row[2] || ''),
+        actor: String(row[3] || 'Admin')
+      });
+    }
+    return logs;
+  } catch (err) {
+    Logger.log('Error reading logs: ' + err);
+    return [];
+  }
+}
+
+// ============================================================================
+// AUTOMATIC CLOSING SCHEDULE LOGIC
+// ============================================================================
+
+function isPastAutoClosingDeadline(settings) {
+  if (!settings.autoCloseEnabled) return false;
+  
+  try {
+    var now = new Date();
+    // Format current day of week and 24-hr time in London timezone
+    // 'u' gives 1 (Mon) to 7 (Sun)
+    var dayOfWeek = parseInt(Utilities.formatDate(now, 'Europe/London', 'u'), 10);
+    var hour = parseInt(Utilities.formatDate(now, 'Europe/London', 'HH'), 10);
+    var minute = parseInt(Utilities.formatDate(now, 'Europe/London', 'mm'), 10);
+    var currentTimeVal = hour * 60 + minute;
+
+    var closeTimeParts = (settings.autoCloseTime || '21:00').split(':');
+    var closeHour = parseInt(closeTimeParts[0] || '21', 10);
+    var closeMinute = parseInt(closeTimeParts[1] || '0', 10);
+    var closeTimeVal = closeHour * 60 + closeMinute;
+
+    // Default target: Sunday (7) after closing time, through Monday (1) all day, until Tuesday (2) 13:00
+    // After Tuesday 13:00, ordering naturally opens for next session unless manually locked
+    if (dayOfWeek === 7 && currentTimeVal >= closeTimeVal) {
+      return true;
+    }
+    if (dayOfWeek === 1) { // Monday
+      return true;
+    }
+    if (dayOfWeek === 2 && currentTimeVal < (13 * 60)) { // Tuesday morning before lunch
+      return true;
+    }
+  } catch (e) {
+    Logger.log('Auto-close calculation error: ' + e);
+  }
+  return false;
+}
+
+// ============================================================================
+// WEB APP API ENTRYPOINT (doGet & doPost)
 // ============================================================================
 
 function doGet(e) {
@@ -82,6 +290,7 @@ function doGet(e) {
     var action = params.action || 'getOrder';
     var query = safeTrim(params.query || params.email || params.orderId || '');
 
+    // 1. PUBLIC: ORDER LOOKUP
     if (action === 'getOrder') {
       if (!query) {
         return createJsonResponse({
@@ -113,46 +322,250 @@ function doGet(e) {
       }
     }
 
+    // 2. PUBLIC: LIVE SYSTEM STATUS & CAPACITY
     if (action === 'getStatus') {
+      var settings = getSettings();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       var data = raw.getDataRange().getValues();
       
+      var startRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
       var totalPizzas = 0;
-      for (var r = 1; r < data.length; r++) {
+      var totalOrders = 0;
+
+      for (var r = startRow; r < data.length; r++) {
         var row = data[r];
         if (rowIsBlank(row)) continue;
 
         var qtyRaw = safeTrim(row[3]);
         var qtyDigit = extractDigit(qtyRaw) || '0';
         var blocks = BRANCHES[qtyDigit] || [];
+        var rowPizzas = 0;
 
         for (var b = 0; b < blocks.length; b++) {
           var cols = blocks[b];
           var sizeRaw = safeTrim(row[cols[0]]);
           var childName = safeTrim(row[cols[1]]);
-          if (sizeRaw || childName) totalPizzas++;
+          if (sizeRaw || childName) {
+            totalPizzas++;
+            rowPizzas++;
+          }
         }
+        if (rowPizzas > 0) totalOrders++;
       }
       
-      var remaining = Math.max(0, MAX_PIZZAS - totalPizzas);
-      var isOpen = ORDERING_ENABLED && (remaining > 0);
+      var maxLimit = parseInt(settings.maxPizzas || 20, 10);
+      var remaining = Math.max(0, maxLimit - totalPizzas);
+      var isPastDeadline = isPastAutoClosingDeadline(settings);
+      var isOpen = settings.orderingEnabled && !isPastDeadline && (remaining > 0);
       
       var message = "";
-      if (!ORDERING_ENABLED) {
-        message = "Ordering is currently closed.";
+      if (!settings.orderingEnabled) {
+        message = "Ordering is currently closed by the administrator.";
+      } else if (isPastDeadline) {
+        message = "Ordering for this week has closed (" + (settings.autoCloseDay || 'Sunday') + " " + (settings.autoCloseTime || '9:00 PM') + ").";
       } else if (remaining <= 0) {
-        message = "We're fully booked for this session. Please check back next time.";
+        message = settings.fullyBookedMessage || "We're fully booked for this session. Please check back next time.";
       } else {
         message = remaining + " pizzas remaining.";
       }
 
       return createJsonResponse({
-        currentPizzas: totalPizzas,
-        maxPizzas: MAX_PIZZAS,
-        remainingPizzas: remaining,
+        success: true,
         orderingOpen: isOpen,
-        message: message
+        orderingEnabled: settings.orderingEnabled,
+        isPastDeadline: isPastDeadline,
+        currentPizzas: totalPizzas,
+        maxPizzas: maxLimit,
+        remainingPizzas: remaining,
+        currentOrders: totalOrders,
+        serviceDate: settings.serviceDate,
+        serviceTitle: settings.serviceTitle,
+        serviceNoticeDate: settings.serviceNoticeDate,
+        capacityMessage: settings.capacityMessage,
+        deadlineMessage: settings.deadlineMessage,
+        closedMessage: message,
+        sessionId: settings.sessionId,
+        closingSchedule: (settings.autoCloseDay || 'Sunday') + ' at ' + (settings.autoCloseTime || '9:00 PM')
+      });
+    }
+
+    // 3. ADMIN: LOGIN
+    if (action === 'adminLogin') {
+      var password = safeTrim(params.password || '');
+      if (password && password === getAdminPassword()) {
+        var token = generateAdminToken();
+        logAdminAction('Admin Login', 'Successful login from web interface');
+        return createJsonResponse({
+          success: true,
+          token: token,
+          message: 'Logged in successfully.'
+        });
+      } else {
+        return createJsonResponse({
+          success: false,
+          message: 'Incorrect password.'
+        });
+      }
+    }
+
+    // 4. ADMIN: GET ALL SETTINGS
+    if (action === 'adminGetSettings') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var currentSettings = getSettings();
+      var stats = calculateCurrentSessionStats(currentSettings);
+
+      return createJsonResponse({
+        success: true,
+        settings: currentSettings,
+        stats: stats,
+        logs: getAdminLogs()
+      });
+    }
+
+    // 5. ADMIN: UPDATE SETTINGS
+    if (action === 'adminUpdateSettings') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var payload = {};
+      if (params.settingsJson) {
+        try {
+          payload = JSON.parse(params.settingsJson);
+        } catch (e) {
+          payload = params;
+        }
+      } else {
+        payload = params;
+      }
+
+      var updated = {};
+      if (payload.serviceDate !== undefined) updated.serviceDate = safeTrim(payload.serviceDate);
+      if (payload.serviceTitle !== undefined) updated.serviceTitle = safeTrim(payload.serviceTitle);
+      if (payload.serviceNoticeDate !== undefined) updated.serviceNoticeDate = safeTrim(payload.serviceNoticeDate);
+      if (payload.maxPizzas !== undefined) updated.maxPizzas = parseInt(payload.maxPizzas, 10);
+      if (payload.orderingEnabled !== undefined) updated.orderingEnabled = (String(payload.orderingEnabled) === 'true' || payload.orderingEnabled === true);
+      if (payload.autoCloseEnabled !== undefined) updated.autoCloseEnabled = (String(payload.autoCloseEnabled) === 'true' || payload.autoCloseEnabled === true);
+      if (payload.autoCloseDay !== undefined) updated.autoCloseDay = safeTrim(payload.autoCloseDay);
+      if (payload.autoCloseTime !== undefined) updated.autoCloseTime = safeTrim(payload.autoCloseTime);
+      if (payload.capacityMessage !== undefined) updated.capacityMessage = safeTrim(payload.capacityMessage);
+      if (payload.deadlineMessage !== undefined) updated.deadlineMessage = safeTrim(payload.deadlineMessage);
+      if (payload.fullyBookedMessage !== undefined) updated.fullyBookedMessage = safeTrim(payload.fullyBookedMessage);
+
+      var newSettings = saveSettings(updated);
+      logAdminAction('Settings Updated', JSON.stringify(updated));
+
+      return createJsonResponse({
+        success: true,
+        message: 'Settings saved successfully.',
+        settings: newSettings,
+        stats: calculateCurrentSessionStats(newSettings)
+      });
+    }
+
+    // 6. ADMIN: START NEW WEEK / NEW SESSION
+    if (action === 'adminStartNewSession') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+      var lastRow = raw.getLastRow();
+      var newStartRow = Math.max(2, lastRow + 1);
+      
+      var newDate = safeTrim(params.newServiceDate || '');
+      var newMax = params.newMaxPizzas ? parseInt(params.newMaxPizzas, 10) : undefined;
+      var newSessionId = 'session_' + Utilities.formatDate(new Date(), 'Europe/London', 'yyyyMMdd_HHmmss');
+
+      var updatePayload = {
+        sessionStartRow: newStartRow,
+        sessionId: newSessionId,
+        sessionStartDate: new Date().toISOString(),
+        orderingEnabled: true
+      };
+
+      if (newDate) {
+        updatePayload.serviceDate = newDate;
+        updatePayload.serviceTitle = newDate + ' Availability';
+      }
+      if (newMax) {
+        updatePayload.maxPizzas = newMax;
+      }
+
+      var saved = saveSettings(updatePayload);
+      logAdminAction('New Week Started', 'Session: ' + newSessionId + ' (Row ' + newStartRow + '), Date: ' + (newDate || saved.serviceDate));
+
+      return createJsonResponse({
+        success: true,
+        message: 'New ordering session created successfully. Previous orders remain saved in Google Sheets.',
+        settings: saved,
+        stats: calculateCurrentSessionStats(saved)
+      });
+    }
+
+    // 7. ADMIN: CHANGE PASSWORD
+    if (action === 'adminChangePassword') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized.'
+        });
+      }
+
+      var currentPass = safeTrim(params.currentPassword || '');
+      var newPass = safeTrim(params.newPassword || '');
+
+      if (currentPass !== getAdminPassword()) {
+        return createJsonResponse({
+          success: false,
+          message: 'Current password is not correct.'
+        });
+      }
+
+      if (!newPass || newPass.length < 6) {
+        return createJsonResponse({
+          success: false,
+          message: 'New password must be at least 6 characters.'
+        });
+      }
+
+      setAdminPassword(newPass);
+      logAdminAction('Password Changed', 'Administrator password updated');
+
+      return createJsonResponse({
+        success: true,
+        message: 'Admin password updated successfully.'
+      });
+    }
+
+    // 8. ADMIN: LOGOUT
+    if (action === 'adminLogout') {
+      invalidateAdminToken();
+      return createJsonResponse({
+        success: true,
+        message: 'Logged out successfully.'
       });
     }
 
@@ -165,8 +578,98 @@ function doGet(e) {
     Logger.log('doGet error: ' + err);
     return createJsonResponse({
       success: false,
-      message: 'Unable to retrieve order at this time. Please try again shortly.'
+      message: 'Server error: ' + err.toString()
     });
+  }
+}
+
+function doPost(e) {
+  // Support POST bodies with JSON
+  try {
+    var body = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        body = JSON.parse(e.postData.contents);
+      } catch (ex) {
+        body = e.parameter || {};
+      }
+    } else {
+      body = e.parameter || {};
+    }
+
+    var fakeEvent = { parameter: body };
+    return doGet(fakeEvent);
+  } catch (err) {
+    return createJsonResponse({
+      success: false,
+      message: 'doPost error: ' + err.toString()
+    });
+  }
+}
+
+function calculateCurrentSessionStats(settings) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+    var data = raw.getDataRange().getValues();
+    var startRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
+    
+    var totalPizzas = 0;
+    var totalOrders = 0;
+    var totalHistoricalOrders = 0;
+    var totalHistoricalPizzas = 0;
+
+    for (var r = 1; r < data.length; r++) {
+      var row = data[r];
+      if (rowIsBlank(row)) continue;
+
+      var qtyRaw = safeTrim(row[3]);
+      var qtyDigit = extractDigit(qtyRaw) || '0';
+      var blocks = BRANCHES[qtyDigit] || [];
+      var rowPizzas = 0;
+
+      for (var b = 0; b < blocks.length; b++) {
+        var cols = blocks[b];
+        var sizeRaw = safeTrim(row[cols[0]]);
+        var childName = safeTrim(row[cols[1]]);
+        if (sizeRaw || childName) {
+          rowPizzas++;
+          totalHistoricalPizzas++;
+        }
+      }
+      if (rowPizzas > 0) totalHistoricalOrders++;
+
+      if (r >= startRow) {
+        totalPizzas += rowPizzas;
+        if (rowPizzas > 0) totalOrders++;
+      }
+    }
+
+    var maxLimit = parseInt(settings.maxPizzas || 20, 10);
+    var remaining = Math.max(0, maxLimit - totalPizzas);
+    var isPastDeadline = isPastAutoClosingDeadline(settings);
+    var isOpen = settings.orderingEnabled && !isPastDeadline && (remaining > 0);
+
+    return {
+      currentPizzas: totalPizzas,
+      maxPizzas: maxLimit,
+      remainingPizzas: remaining,
+      currentOrders: totalOrders,
+      totalHistoricalOrders: totalHistoricalOrders,
+      totalHistoricalPizzas: totalHistoricalPizzas,
+      orderingOpen: isOpen,
+      isPastDeadline: isPastDeadline,
+      sessionStartRow: settings.sessionStartRow
+    };
+  } catch (err) {
+    Logger.log('calculateCurrentSessionStats error: ' + err);
+    return {
+      currentPizzas: 0,
+      maxPizzas: 20,
+      remainingPizzas: 20,
+      currentOrders: 0,
+      orderingOpen: true
+    };
   }
 }
 
@@ -188,7 +691,6 @@ function lookupOrder(searchEmail, searchOrderId) {
 
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
-
     if (rowIsBlank(row)) continue;
 
     var orderNum = r;
@@ -258,33 +760,17 @@ function lookupOrder(searchEmail, searchOrderId) {
 // ============================================================================
 
 function onFormSubmitTrigger(e) {
-  // Waitlist/Overcapacity check could be added here
   rebuildCleanSheets();
   emailXlsxSnapshot();
   trySendOrderConfirmation(e);
 }
 
-// NEW: true if every cell in a row is empty/whitespace.
 function rowIsBlank(row) {
   return !row.some(function(cell) { return safeTrim(cell) !== ''; });
 }
 
-function resetAllOrderData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-  var lastRow = raw.getLastRow();
-
-  if (lastRow > 1) {
-    raw.deleteRows(2, lastRow - 1); 
-  }
-
-  var sheet = ss.getSheetByName('Pizza Order Update');
-  if (sheet) sheet.clear();
-
-  Logger.log('All order data cleared. Numbering will restart from 1 on the next submission.');
-}
-
 function rebuildCleanSheets() {
+  var settings = getSettings();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
 
@@ -307,8 +793,8 @@ function rebuildCleanSheets() {
   if (data.length < 2) return;
 
   var sizeCounts = {};
-  var totalPizzas = 0;
-  var totalOrders = 0;
+  var sessionPizzas = 0;
+  var sessionOrders = 0;
   var allergyOrders = 0;
   var paidOrders = 0;
   var unpaidOrders = 0;
@@ -316,13 +802,16 @@ function rebuildCleanSheets() {
   var orderSummaryRows = [];
   var pizzaOrdersRows = [];
   var orderTotalsRows = [];
+  
+  var sessionStartRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
+  var maxLimit = parseInt(settings.maxPizzas || 20, 10);
 
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
-
     if (rowIsBlank(row)) continue;
-    
-    var pizzasBeforeThisOrder = totalPizzas;
+
+    var isCurrentSession = (r >= sessionStartRow);
+    var pizzasBeforeThisOrder = sessionPizzas;
 
     var allergyYN = safeTrim(row[1]);
     var allergyText = stripHtml(safeTrim(row[2]));
@@ -335,18 +824,22 @@ function rebuildCleanSheets() {
     var payerName = safeTrim(payerRaw) || 'Unknown';
     var payerEmail = extractPayerEmail(row);
 
-    var isWaitlist = (pizzasBeforeThisOrder >= MAX_PIZZAS);
+    var isWaitlist = isCurrentSession && (pizzasBeforeThisOrder >= maxLimit);
     if (isWaitlist) {
       payerName = "[WAITLIST] " + payerName;
     }
+    if (!isCurrentSession) {
+      payerName = "[PAST SESSION] " + payerName;
+    }
 
-    totalOrders++;
-    if (String(allergyYN).toLowerCase() === 'yes') allergyOrders++;
+    if (isCurrentSession) {
+      sessionOrders++;
+      if (String(allergyYN).toLowerCase() === 'yes') allergyOrders++;
+      var paid = paymentMethod ? 'Yes' : 'No';
+      if (paid === 'Yes') paidOrders++; else unpaidOrders++;
+    }
 
-    var paid = paymentMethod ? 'Yes' : 'No';
-    if (paid === 'Yes') paidOrders++; else unpaidOrders++;
-
-    var orderId = totalOrders;
+    var orderId = r;
     var formattedOrderId = String(orderId);
     var blocks = BRANCHES[qtyDigit] || [];
     var pizzas = [];
@@ -361,8 +854,10 @@ function rebuildCleanSheets() {
       if (!sizeRaw && !childName) continue;
 
       var size = mapSize(sizeRaw);
-      if (size) sizeCounts[size] = (sizeCounts[size] || 0) + 1;
-      totalPizzas++;
+      if (isCurrentSession && size) {
+        sizeCounts[size] = (sizeCounts[size] || 0) + 1;
+        sessionPizzas++;
+      }
       orderTotal += PRICE_MAP[size] || 0;
 
       pizzas.push({
@@ -385,7 +880,7 @@ function rebuildCleanSheets() {
       formattedOrderId,
       payerName,
       paymentMethod,
-      paid,
+      paymentMethod ? 'Yes' : 'No',
       allergyYN,
       allergyText,
       numPizzas,
@@ -396,7 +891,7 @@ function rebuildCleanSheets() {
       var pizza = pizzas[p];
       var pickupId = orderId + '-' + pizza.pizzaNum;
       pizzaOrdersRows.push([
-        formattedOrderId, payerName, paymentMethod, paid, allergyYN, allergyText,
+        formattedOrderId, payerName, paymentMethod, paymentMethod ? 'Yes' : 'No', allergyYN, allergyText,
         pizza.pizzaNum, pickupId, pizza.childName, pizza.class, pizza.size
       ]);
     }
@@ -406,6 +901,9 @@ function rebuildCleanSheets() {
   }
 
   var currentRow = 1;
+  writeSectionTitle(sheet, currentRow, 'CURRENT ACTIVE SESSION: ' + settings.serviceDate, 8);
+  currentRow += 2;
+
   writeSectionTitle(sheet, currentRow, 'ORDER SUMMARY', 8);
   currentRow++;
 
@@ -459,7 +957,7 @@ function rebuildCleanSheets() {
 
   currentRow += 2;
 
-  writeSectionTitle(sheet, currentRow, 'SUMMARY', 2);
+  writeSectionTitle(sheet, currentRow, 'SESSION SUMMARY (' + settings.serviceDate + ')', 2);
   currentRow++;
 
   var summaryRows = [
@@ -470,9 +968,10 @@ function rebuildCleanSheets() {
   for (var s in sizeCounts) {
     summaryRows.push([s, sizeCounts[s]]);
   }
-  summaryRows.push(['Total Pizzas', totalPizzas]);
+  summaryRows.push(['Total Active Pizzas', sessionPizzas]);
+  summaryRows.push(['Max Capacity Limit', maxLimit]);
   summaryRows.push(['', '']);
-  summaryRows.push(['Total Orders (payers)', totalOrders]);
+  summaryRows.push(['Active Orders (Current Session)', sessionOrders]);
   summaryRows.push(['Orders with allergies', allergyOrders]);
   summaryRows.push(['Orders paid', paidOrders]);
   summaryRows.push(['Orders NOT yet paid', unpaidOrders]);
@@ -554,16 +1053,19 @@ function trySendOrderConfirmation(e) {
 }
 
 function sendOrderConfirmationForRow(rowNum) {
+  var settings = getSettings();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
 
   var alreadySent = raw.getRange(rowNum, CONFIRMATION_SENT_COL).getValue();
   if (alreadySent === 'SENT') return;
 
-  // Determine if this order was a waitlist order
   var data = raw.getDataRange().getValues();
-  var pizzasBefore = 0;
-  for (var r = 1; r < rowNum - 1; r++) {
+  var sessionStartRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
+  var maxLimit = parseInt(settings.maxPizzas || 20, 10);
+
+  var sessionPizzasBefore = 0;
+  for (var r = sessionStartRow; r < rowNum - 1; r++) {
     var pRow = data[r];
     if (rowIsBlank(pRow)) continue;
 
@@ -573,10 +1075,10 @@ function sendOrderConfirmationForRow(rowNum) {
     for (var b = 0; b < blocks.length; b++) {
       var sizeRaw = safeTrim(pRow[blocks[b][0]]);
       var childName = safeTrim(pRow[blocks[b][1]]);
-      if (sizeRaw || childName) pizzasBefore++;
+      if (sizeRaw || childName) sessionPizzasBefore++;
     }
   }
-  var isWaitlist = (pizzasBefore >= MAX_PIZZAS);
+  var isWaitlist = (sessionPizzasBefore >= maxLimit);
 
   var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL);
   var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
@@ -634,14 +1136,14 @@ function sendOrderConfirmationForRow(rowNum) {
   if (isWaitlist) {
     body = 
       'Hi ' + payerName + ',\n\n' +
-      'Thank you for your pizza order request. Unfortunately, we have already reached our maximum capacity for this session.\n\n' +
+      'Thank you for your pizza order request. Unfortunately, we have already reached our maximum capacity for this session (' + settings.serviceDate + ').\n\n' +
       'Your order has been placed on the WAITLIST. We will contact you if a spot opens up.\n\n' +
       'Please DO NOT send payment at this time.\n\n' +
       'Kind regards,\n\nMarlow, Louis, and Quinton';
   } else {
     body =
       'Hi ' + payerName + ',\n\n' +
-      'Thank you for placing your pizza order. Please find your order details below:\n\n' +
+      'Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:\n\n' +
       'ORDER NUMBER: ' + formattedOrderId + '\n\n' +
       'ORDER SUMMARY\n\n' +
       lines.join('\n\n') + '\n\n' +
@@ -660,30 +1162,6 @@ function sendOrderConfirmationForRow(rowNum) {
   });
 
   raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
-}
-
-function testSendConfirmationForRow(rowNumber) {
-  sendOrderConfirmationForRow(rowNumber);
-}
-
-function runTestSend() {
-  testSendConfirmationForRow(2);
-}
-
-function clearSentMarker(rowNum) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-  raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('');
-  Logger.log('Cleared SENT marker for row ' + rowNum);
-}
-
-function debugRow(rowNum) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-  var row = raw.getRange(rowNum, 1, 1, raw.getLastColumn()).getValues()[0];
-  for (var i = 0; i < row.length; i++) {
-    if (row[i]) Logger.log('col ' + i + ': ' + row[i]);
-  }
 }
 
 function formatSizeLabel(size) {

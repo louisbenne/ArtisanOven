@@ -55,6 +55,24 @@ function initAvailabilityTracker() {
   }
 
   function updateTrackerUI(data) {
+    // Dynamic text replacements across the page
+    if (data.serviceNoticeDate) {
+      const noticeDateEl = document.getElementById("service-notice-date-text");
+      if (noticeDateEl) noticeDateEl.textContent = data.serviceNoticeDate;
+    }
+    if (data.serviceTitle) {
+      const titleEls = document.querySelectorAll(".tracker-title, #tracker-service-title");
+      titleEls.forEach(el => { el.textContent = data.serviceTitle; });
+    }
+    if (data.capacityMessage) {
+      const capEls = document.querySelectorAll(".tracker-disclaimer, #tracker-capacity-disclaimer");
+      capEls.forEach(el => { el.textContent = data.capacityMessage; });
+    }
+    if (data.deadlineMessage) {
+      const deadEls = document.querySelectorAll("#tracker-deadline-text");
+      deadEls.forEach(el => { el.innerHTML = data.deadlineMessage; });
+    }
+
     if (trackerEl) {
       trackerEl.style.display = "block";
       
@@ -107,16 +125,15 @@ function initAvailabilityTracker() {
       if (googleFormContainer) googleFormContainer.style.display = "none";
       if (closedMessage) {
         closedMessage.style.display = "block";
-        if (data.message && closedMessageText) {
-           closedMessageText.textContent = data.message;
+        const msg = data.closedMessage || data.message;
+        if (msg && closedMessageText) {
+          closedMessageText.textContent = msg;
         }
       }
     } else {
       // Ordering is open
       orderButtons.forEach(btn => {
         btn.classList.remove("btn-disabled");
-        // Keep original text from HTML ideally, but we don't store it. We assume it's PLACE AN ORDER
-        // Actually, let's just leave the href and not override text unless it was changed
       });
       if (googleFormContainer) googleFormContainer.style.display = "block";
       if (closedMessage) closedMessage.style.display = "none";

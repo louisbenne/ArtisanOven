@@ -42,14 +42,14 @@
             </svg>
             <span class="service-notice-title">Next Date of Service</span>
           </div>
-          <p class="service-notice-date">Tuesday Lunchtime — starting 15th of August</p>
+          <p class="service-notice-date" id="service-notice-date-text">Tuesday Lunchtime — starting 15th of August</p>
           <p class="service-notice-footnote">Updated every week for upcoming lunch dates</p>
         </div>
 
         <!-- Availability Tracker -->
         <div class="availability-tracker" id="availability-tracker" aria-live="polite">
           <div class="tracker-header">
-            <span class="tracker-title">Tuesday 15th Sept Avaliblity</span>
+            <span class="tracker-title" id="tracker-service-title">Tuesday 15th Sept Availability</span>
             <span class="tracker-status" id="tracker-status-text">Checking...</span>
           </div>
           <div class="progress-bar">
@@ -59,15 +59,15 @@
             <span id="tracker-orders-taken">-- of -- pizzas claimed</span>
             <span id="tracker-orders-remaining">-- pizzas remaining</span>
           </div>
-          <div class="tracker-disclaimer">
+          <div class="tracker-disclaimer" id="tracker-capacity-disclaimer">
             We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.
           </div>
-          <div class="tracker-deadline">
+          <div class="tracker-deadline" id="tracker-deadline-banner">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span>Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
+            <span id="tracker-deadline-text">Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
           </div>
         </div>
 
@@ -128,7 +128,7 @@
       <p class="footer-optional">Follow us: [Instagram link] · [Facebook link]</p>
       -->
       <div class="footer-bottom">
-        <span id="footer-year">© 2026</span> Artisan Oven
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
       </div>
     </div>
   </footer>
