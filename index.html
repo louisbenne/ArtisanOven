@@ -45,6 +45,22 @@
           <p class="service-notice-date">Tuesday Lunchtime — starting 15th of August</p>
           <p class="service-notice-footnote">Updated every week for upcoming lunch dates</p>
         </div>
+
+        <!-- Availability Tracker -->
+        <div class="availability-tracker" id="availability-tracker" aria-live="polite" style="display: none;">
+          <div class="tracker-header">
+            <span class="tracker-title">TONIGHT'S AVAILABILITY</span>
+            <span class="tracker-status" id="tracker-status-text">Checking...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="tracker-progress-fill" style="width: 0%"></div>
+          </div>
+          <div class="tracker-footer">
+            <span id="tracker-orders-taken">-- of -- orders taken</span>
+            <span id="tracker-orders-remaining">-- orders remaining</span>
+          </div>
+        </div>
+
       </div>
     </section>
 

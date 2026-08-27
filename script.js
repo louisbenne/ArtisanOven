@@ -17,7 +17,109 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Setup Order Lookup Form
   initOrderLookup();
+  // Setup Availability Tracker
+  initAvailabilityTracker();
 });
+
+function initAvailabilityTracker() {
+  const trackerEl = document.getElementById("availability-tracker");
+  const orderButtons = document.querySelectorAll('a[href="order.html"]');
+  const googleFormContainer = document.getElementById("order-form-container");
+  const closedMessage = document.getElementById("closed-message");
+  const closedMessageText = document.getElementById("closed-message-text");
+
+  // If there's no API URL, just show the form directly (assuming open)
+  if (!ORDER_API_URL || ORDER_API_URL === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+    if (googleFormContainer) googleFormContainer.style.display = "block";
+    return;
+  }
+
+  async function fetchStatus() {
+    try {
+      const url = new URL(ORDER_API_URL);
+      url.searchParams.set("action", "getStatus");
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        mode: "cors"
+      });
+      if (!response.ok) throw new Error("Network response was not ok");
+      const data = await response.json();
+      
+      updateTrackerUI(data);
+    } catch (err) {
+      console.error("Availability lookup error:", err);
+      // On error, let them try ordering or hide the tracker
+      if (trackerEl) trackerEl.style.display = "none";
+      if (googleFormContainer) googleFormContainer.style.display = "block";
+    }
+  }
+
+  function updateTrackerUI(data) {
+    if (trackerEl) {
+      trackerEl.style.display = "block";
+      
+      const statusText = document.getElementById("tracker-status-text");
+      const progressFill = document.getElementById("tracker-progress-fill");
+      const ordersTaken = document.getElementById("tracker-orders-taken");
+      const ordersRemaining = document.getElementById("tracker-orders-remaining");
+
+      if (data.orderingOpen) {
+        statusText.textContent = "Taking Orders";
+        statusText.style.color = "var(--sage)";
+      } else {
+        statusText.textContent = "Fully Booked";
+        statusText.style.color = "var(--terracotta)";
+      }
+
+      if (typeof data.currentOrders === 'number' && typeof data.maxOrders === 'number') {
+        const pct = Math.min(100, Math.max(0, (data.currentOrders / data.maxOrders) * 100));
+        progressFill.style.width = pct + "%";
+        ordersTaken.textContent = data.currentOrders + " of " + data.maxOrders + " orders taken";
+        
+        if (data.remainingOrders > 0 && data.orderingOpen) {
+          ordersRemaining.textContent = data.remainingOrders + " orders remaining";
+        } else {
+          ordersRemaining.textContent = "No orders remaining";
+        }
+      }
+    }
+
+    if (data.orderingOpen === false) {
+      // Disable buttons
+      orderButtons.forEach(btn => {
+        btn.classList.add("btn-disabled");
+        const btnText = btn.querySelector('.choice-btn');
+        if (btnText) {
+          btnText.textContent = "FULLY BOOKED";
+        }
+        btn.href = "javascript:void(0)";
+      });
+
+      // Show fully booked message on order page
+      if (googleFormContainer) googleFormContainer.style.display = "none";
+      if (closedMessage) {
+        closedMessage.style.display = "block";
+        if (data.message && closedMessageText) {
+           closedMessageText.textContent = data.message;
+        }
+      }
+    } else {
+      // Ordering is open
+      orderButtons.forEach(btn => {
+        btn.classList.remove("btn-disabled");
+        // Keep original text from HTML ideally, but we don't store it. We assume it's PLACE AN ORDER
+        // Actually, let's just leave the href and not override text unless it was changed
+      });
+      if (googleFormContainer) googleFormContainer.style.display = "block";
+      if (closedMessage) closedMessage.style.display = "none";
+    }
+  }
+
+  // Initial fetch
+  fetchStatus();
+  // Poll every 45 seconds
+  setInterval(fetchStatus, 45000);
+}
 
 function initOrderLookup() {
   const form = document.getElementById("order-lookup-form");

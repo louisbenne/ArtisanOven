@@ -972,3 +972,74 @@ button:focus-visible,
   .container { padding: 0 18px; }
   body { font-size: 16px; }
 }
+
+/* ---------- Live Availability Tracker ---------- */
+.availability-tracker {
+  background: var(--white);
+  border: 1.5px solid rgba(31, 58, 46, 0.15);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-top: 24px;
+  box-shadow: 0 4px 12px rgba(31, 58, 46, 0.05);
+  text-align: left;
+}
+
+.tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tracker-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  color: var(--terracotta);
+}
+
+.tracker-status {
+  font-size: 0.85rem;
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.progress-bar {
+  background: var(--cream-warm);
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-fill {
+  background: var(--terracotta);
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.tracker-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+/* ---------- Fully Booked Message ---------- */
+.closed-message {
+  text-align: center;
+  padding: 40px 20px;
+  background: var(--cream-warm);
+  border-radius: 12px;
+  border: 1px dashed rgba(31, 58, 46, 0.2);
+}
+
+.closed-message h2 {
+  color: var(--terracotta);
+  margin-bottom: 12px;
+}
+
+.btn-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
