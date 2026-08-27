@@ -157,9 +157,11 @@ function initOrderLookup() {
 
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
-
     const query = (queryInput.value || "").trim();
+    performLookup(query, null);
+  });
 
+  async function performLookup(query, token) {
     // Reset states
     hideFeedback();
     if (resultSection) resultSection.hidden = true;
@@ -187,6 +189,10 @@ function initOrderLookup() {
       const url = new URL(ORDER_API_URL);
       url.searchParams.set("action", "getOrder");
       url.searchParams.set("query", query);
+      
+      if (token) {
+        url.searchParams.set("token", token);
+      }
 
       const response = await fetch(url.toString(), {
         method: "GET",
@@ -203,20 +209,30 @@ function initOrderLookup() {
         renderOrderResult(data);
       } else {
         showFeedback(
-          data.message || "We couldn't find an order associated with that email address. Please check the email and try again.",
+          data.message || "We couldn't find your order. Please check your details and try again.",
           "error"
         );
       }
     } catch (err) {
       console.error("Order lookup error:", err);
       showFeedback(
-        "We couldn't find an order associated with that email address. Please check the email and try again.",
+        "We couldn't find your order. Please check your details and try again.",
         "error"
       );
     } finally {
       setLoading(false);
     }
-  });
+  }
+
+  // Auto-lookup logic
+  const params = new URLSearchParams(window.location.search);
+  const urlOrder = params.get("order");
+  const urlToken = params.get("token");
+
+  if (urlOrder && urlToken) {
+    queryInput.value = urlOrder;
+    performLookup(urlOrder, urlToken);
+  }
 
   function setLoading(isLoading) {
     if (isLoading) {

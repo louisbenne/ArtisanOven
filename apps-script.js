@@ -47,6 +47,7 @@ var BRANCHES = {
 
 // Hidden column in RAW sheet to record confirmation email status
 var CONFIRMATION_SENT_COL = 60;
+var ORDER_TOKEN_COL = 61;
 
 // Standard payment info block
 var PAYMENT_INFO_BLOCK =
@@ -299,7 +300,8 @@ function doGet(e) {
         });
       }
 
-      var result = lookupOrder(query, query);
+      var searchToken = safeTrim(params.token || '');
+      var result = lookupOrder(query, query, searchToken);
       if (result) {
         return createJsonResponse({
           success: true,
@@ -317,7 +319,7 @@ function doGet(e) {
       } else {
         return createJsonResponse({
           success: false,
-          message: "We couldn't find an order associated with that email address. Please check the email and try again."
+          message: "We couldn't find your order. Please use the link in your order confirmation email."
         });
       }
     }
@@ -692,7 +694,7 @@ function createJsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function lookupOrder(searchEmail, searchOrderId) {
+function lookupOrder(searchEmail, searchOrderId, searchToken) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
   var data = raw.getDataRange().getValues();
@@ -701,6 +703,7 @@ function lookupOrder(searchEmail, searchOrderId) {
   var matchingOrders = [];
   var normalizedSearchEmail = searchEmail ? searchEmail.toLowerCase() : '';
   var normalizedOrderId = searchOrderId ? searchOrderId.toUpperCase().replace(/\s+/g, '') : '';
+  var sToken = searchToken ? safeTrim(searchToken) : '';
 
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
@@ -708,6 +711,8 @@ function lookupOrder(searchEmail, searchOrderId) {
 
     var orderNum = r;
     var formattedId = String(orderNum);
+    
+    var token = safeTrim(String(row[ORDER_TOKEN_COL - 1] || ''));
 
     var qtyRaw = safeTrim(row[3]);
     var qtyDigit = extractDigit(qtyRaw) || '0';
@@ -719,8 +724,15 @@ function lookupOrder(searchEmail, searchOrderId) {
 
     var emailMatches = normalizedSearchEmail && payerEmail && (payerEmail.toLowerCase() === normalizedSearchEmail);
     var idMatches = normalizedOrderId && (normalizedOrderId === formattedId);
+    
+    var tokenMatches = false;
+    if (sToken && normalizedOrderId) {
+      if (idMatches && token === sToken) {
+        tokenMatches = true;
+      }
+    }
 
-    if (emailMatches || idMatches) {
+    if (tokenMatches || emailMatches || (idMatches && !sToken)) {
       var blocks = BRANCHES[qtyDigit] || [];
       var pizzas = [];
       var orderTotal = 0;
@@ -1111,6 +1123,13 @@ function sendOrderConfirmationForRow(rowNum) {
     return;
   }
 
+  // Generate or retrieve the secure token for this order
+  var token = raw.getRange(rowNum, ORDER_TOKEN_COL).getValue();
+  if (!token) {
+    token = Utilities.getUuid();
+    raw.getRange(rowNum, ORDER_TOKEN_COL).setValue(token);
+  }
+
   var blocks = BRANCHES[qtyDigit] || [];
   var pizzas = [];
   var orderTotal = 0;
@@ -1144,6 +1163,7 @@ function sendOrderConfirmationForRow(rowNum) {
   });
 
   var body = '';
+  var htmlBody = '';
   
   if (isWaitlist) {
     body = 
@@ -1152,11 +1172,20 @@ function sendOrderConfirmationForRow(rowNum) {
       'Your order has been placed on the WAITLIST. We will contact you if a spot opens up.\n\n' +
       'Please DO NOT send payment at this time.\n\n' +
       'Kind regards,\n\nMarlow, Louis, and Quinton';
+    
+    htmlBody = '<p>Hi ' + payerName + ',</p>' +
+      '<p>Thank you for your pizza order request. Unfortunately, we have already reached our maximum capacity for this session (' + settings.serviceDate + ').</p>' +
+      '<p>Your order has been placed on the WAITLIST. We will contact you if a spot opens up.</p>' +
+      '<p>Please DO NOT send payment at this time.</p>' +
+      '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
   } else {
+    var orderLink = 'https://artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token;
+
     body =
       'Hi ' + payerName + ',\n\n' +
       'Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:\n\n' +
-      'ORDER NUMBER: ' + formattedOrderId + '\n\n' +
+      'ORDER NUMBER: #' + formattedOrderId + '\n\n' +
+      'Click your order number or the link below to view your order:\n' + orderLink + '\n\n' +
       'ORDER SUMMARY\n\n' +
       lines.join('\n\n') + '\n\n' +
       'TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '\n\n' +
@@ -1165,12 +1194,28 @@ function sendOrderConfirmationForRow(rowNum) {
       'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
       'Thank you.\n\n' +
       'Kind regards,\n\nMarlow, Louis, and Quinton';
+
+    htmlBody =
+      '<p>Hi ' + payerName + ',</p>' +
+      '<p>Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:</p>' +
+      '<p><strong>ORDER NUMBER: <a href="' + orderLink + '">#' + formattedOrderId + '</a></strong></p>' +
+      '<p><a href="' + orderLink + '" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
+      '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
+      '<p><strong>ORDER SUMMARY</strong></p>' +
+      '<p>' + lines.join('<br><br>') + '</p>' +
+      '<p><strong>TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '</strong></p>' +
+      '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
+      '<p><strong>COLLECTION</strong></p>' +
+      '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
+      '<p>Thank you.</p>' +
+      '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
   }
 
   MailApp.sendEmail({
     to: payerEmail,
     subject: CONFIRMATION_SUBJECT + ' (' + formattedOrderId + ')',
-    body: body
+    body: body,
+    htmlBody: htmlBody
   });
 
   raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
