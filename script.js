@@ -134,6 +134,11 @@ function initOrderLookup() {
       if (typeof displayId === "string") {
         displayId = displayId.replace(/^A[O0]-/i, "");
       }
+      // If the ID is e.g. 1001, subtract 1000 to start at 1
+      let idNum = parseInt(displayId, 10);
+      if (!isNaN(idNum) && idNum > 1000 && idNum < 100000) {
+        displayId = (idNum - 1000).toString();
+      }
       orderIdEl.textContent = "Order #" + displayId;
     }
 
