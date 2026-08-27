@@ -4,7 +4,7 @@
 
 // ----------------------------------------------------------------------------
 // CONFIGURATION: Replace with your deployed Google Apps Script Web App URL
-// Example: "https://script.google.com/macros/s/AKfycbx.../exec"
+// Example: "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec"
 // ----------------------------------------------------------------------------
 const ORDER_API_URL = "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
 
