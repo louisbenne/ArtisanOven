@@ -193,6 +193,7 @@ function initOrderLookup() {
       if (token) {
         url.searchParams.set("token", token);
       }
+      url.searchParams.set("t", new Date().getTime());
 
       const response = await fetch(url.toString(), {
         method: "GET",

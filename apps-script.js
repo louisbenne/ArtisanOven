@@ -1179,7 +1179,7 @@ function sendOrderConfirmationForRow(rowNum) {
       '<p>Please DO NOT send payment at this time.</p>' +
       '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
   } else {
-    var orderLink = 'https://artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token;
+    var orderLink = 'https://artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
 
     body =
       'Hi ' + payerName + ',\n\n' +
@@ -1198,8 +1198,8 @@ function sendOrderConfirmationForRow(rowNum) {
     htmlBody =
       '<p>Hi ' + payerName + ',</p>' +
       '<p>Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:</p>' +
-      '<p><strong>ORDER NUMBER: <a href="' + orderLink + '">#' + formattedOrderId + '</a></strong></p>' +
-      '<p><a href="' + orderLink + '" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
+      '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + formattedOrderId + '</a></strong></p>' +
+      '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
       '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
       '<p><strong>ORDER SUMMARY</strong></p>' +
       '<p>' + lines.join('<br><br>') + '</p>' +
