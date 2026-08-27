@@ -177,6 +177,29 @@ function initOrderLookup() {
       paypalNcpBtn.href = orderData.paypalNcpUrl;
     }
 
+    // Move methods container into result card
+    const methodsContainer = document.getElementById("payment-methods-container");
+    const defaultTear = document.getElementById("default-tear");
+    const resultCard = document.querySelector(".order-result-card");
+    
+    if (methodsContainer && resultCard) {
+      if (defaultTear) defaultTear.style.display = "none";
+      
+      const methodsPaypalMe = document.getElementById("methods-paypal-me");
+      const methodsPaypalNcp = document.getElementById("methods-paypal-ncp");
+      
+      if (methodsPaypalMe) {
+        methodsPaypalMe.href = orderData.paypalMeUrl || "https://paypal.me/ArtisanOven";
+        methodsPaypalMe.textContent = "paypal.me/ArtisanOven (" + formattedTotal + ")";
+      }
+      if (methodsPaypalNcp && orderData.paypalNcpUrl) {
+        methodsPaypalNcp.href = orderData.paypalNcpUrl;
+      }
+      
+      methodsContainer.style.marginTop = "20px";
+      resultCard.appendChild(methodsContainer);
+    }
+
     resultSection.hidden = false;
     resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }

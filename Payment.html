@@ -294,14 +294,14 @@
     box-shadow: var(--shadow);
     overflow:hidden;
     position:relative;
+    padding-top: 18px;
   }
   .method.is-preferred{ border-color: rgba(85,104,74,0.35); }
 
   .pref-tag{
-    position:absolute;
-    top: 16px;
-    right: 16px;
-    display:inline-flex;
+    display:flex;
+    width: fit-content;
+    margin: 0 auto 12px;
     align-items:center;
     gap: 5px;
     font-size: 0.66rem;
@@ -321,7 +321,7 @@
     align-items:center;
     justify-content:center;
     gap: 10px;
-    padding: 20px 24px 0;
+    padding: 0 24px 0;
   }
   .badge{
     width: 34px;
@@ -680,7 +680,7 @@
           <span class="total-amount" id="result-total-price">£0.00</span>
         </div>
 
-        <div class="order-actions">
+        <div class="order-actions" style="display: none;">
           <a id="result-paypal-btn" class="btn btn-primary paypal-btn" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">
             <svg class="paypal-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
               <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.79.79 0 0 1 .778-.656h6.613c3.08 0 5.485.669 6.275 3.324.47 1.58.118 3.52-.962 4.793-1.077 1.27-2.829 1.838-5.068 1.838H9.688a.637.637 0 0 0-.63.535l-.982 7.783zm9.055-14.77c-.47-1.58-2.227-2.152-4.636-2.152H7.218L5.27 18.064h2.793l.85-6.73a1.597 1.597 0 0 1 1.579-1.341h2.152c3.056 0 5.17-1.127 5.867-3.426z"/>
@@ -694,9 +694,9 @@
       </div>
     </section>
 
-    <div class="tear"><span>All payment options</span></div>
+    <div class="tear" id="default-tear"><span>All payment options</span></div>
 
-    <section class="methods" aria-label="Payment options">
+    <section class="methods" id="payment-methods-container" aria-label="Payment options">
 
       <article class="method is-preferred">
         <span class="pref-tag">
@@ -729,8 +729,8 @@
         <div class="method-body">
           <p>Pay via our PayPal.Me link, or use the secure checkout link below.</p>
           <div class="method-actions">
-            <a class="btn btn-preferred" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">paypal.me/ArtisanOven</a>
-            <a class="btn btn-secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">Pay via secure PayPal checkout</a>
+            <a id="methods-paypal-me" class="btn btn-preferred" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">paypal.me/ArtisanOven</a>
+            <a id="methods-paypal-ncp" class="btn btn-secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">Pay via secure PayPal checkout</a>
           </div>
         </div>
       </article>
