@@ -129,11 +129,12 @@ function initOrderLookup() {
 
     if (!resultSection) return;
 
-    if (orderIdEl) orderIdEl.textContent = orderData.orderId || "Order Details";
-    if (statusEl) {
-      const isPaid = (orderData.paid || "").toLowerCase() === "yes";
-      statusEl.textContent = isPaid ? "Paid" : "Payment Pending";
-      statusEl.className = "badge-status " + (isPaid ? "status-paid" : "status-pending");
+    if (orderIdEl) {
+      let displayId = orderData.orderId || "Order Details";
+      if (typeof displayId === "string") {
+        displayId = displayId.replace(/^A[O0]-/i, "");
+      }
+      orderIdEl.textContent = "Order #" + displayId;
     }
 
     if (customerNameEl) {
