@@ -1070,3 +1070,55 @@ button:focus-visible,
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* ---------- Return Home Section ---------- */
+.return-home {
+  text-align: center;
+  margin-top: 40px;
+  padding: 30px 20px;
+  background: var(--cream-warm);
+  border-radius: 12px;
+  border: 1px solid rgba(31, 58, 46, 0.1);
+}
+
+.return-home h2 {
+  font-size: 1.5rem;
+  color: var(--forest);
+  margin-bottom: 12px;
+}
+
+.return-home p {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.back-home-button {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 18px 24px;
+  background: var(--terracotta);
+  color: var(--white);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  border-radius: 8px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 4px 6px rgba(198, 93, 59, 0.2);
+}
+
+.back-home-button:hover {
+  background: var(--terracotta-deep);
+  transform: translateY(-2px);
+}
+
+.back-home-button:active {
+  transform: translateY(0);
+}
