@@ -196,6 +196,7 @@ function initOrderLookup() {
         methodsPaypalNcp.href = orderData.paypalNcpUrl;
       }
       
+      methodsContainer.classList.remove("is-merged");
       methodsContainer.style.marginTop = "20px";
       resultCard.appendChild(methodsContainer);
     }
