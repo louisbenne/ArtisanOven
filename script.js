@@ -74,6 +74,7 @@ function initAvailabilityTracker() {
       if (typeof data.currentOrders === 'number' && typeof data.maxOrders === 'number') {
         const pct = Math.min(100, Math.max(0, (data.currentOrders / data.maxOrders) * 100));
         progressFill.style.width = pct + "%";
+        progressFill.style.opacity = "1";
         ordersTaken.textContent = data.currentOrders + " of " + data.maxOrders + " orders taken";
         
         if (data.remainingOrders > 0 && data.orderingOpen) {

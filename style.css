@@ -877,10 +877,8 @@ button:focus-visible,
 .form-wrapper {
   max-width: 720px;
   margin: 0 auto;
-  background: var(--white);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-soft);
-  padding: 18px;
+  background: transparent;
+  padding: 0;
 }
 
 .form-wrapper iframe {
@@ -963,7 +961,7 @@ button:focus-visible,
 
   .payment-row .value { text-align: left; }
 
-  .form-wrapper { padding: 10px; }
+  .form-wrapper { padding: 0; border-radius: 0; box-shadow: none; background: transparent; }
 
   .footer-grid { gap: 22px; }
 }

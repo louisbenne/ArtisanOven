@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Place Your Order — Artisan Oven</title>
   <meta name="description" content="Place your pizza order using our order form." />
 
@@ -24,6 +24,21 @@
       </section>
 
       <section class="page-content">
+        <!-- Availability Tracker -->
+        <div class="availability-tracker" id="availability-tracker" aria-live="polite" style="margin-bottom: 24px;">
+          <div class="tracker-header">
+            <span class="tracker-title">TONIGHT'S AVAILABILITY</span>
+            <span class="tracker-status" id="tracker-status-text">Checking...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="tracker-progress-fill" style="width: 0%; opacity: 0.5;"></div>
+          </div>
+          <div class="tracker-footer">
+            <span id="tracker-orders-taken">-- of -- orders taken</span>
+            <span id="tracker-orders-remaining">-- orders remaining</span>
+          </div>
+        </div>
+
         <div class="form-wrapper" id="order-form-container">
 
           <!-- =========================================
@@ -37,7 +52,7 @@
 
           <!-- GOOGLE FORM EMBED START -->
 
-          <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdvi-I8Whsc0LR3qwic_w69_MDI1Hy6k9Q3YBvX9Rqt2IrQAA/viewform?embedded=true" width="640" height="800" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+          <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdvi-I8Whsc0LR3qwic_w69_MDI1Hy6k9Q3YBvX9Rqt2IrQAA/viewform?embedded=true" style="width: 100%; min-height: 1400px; border: none;" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
 
           <!-- GOOGLE FORM EMBED END -->
 
