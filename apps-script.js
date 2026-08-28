@@ -1192,6 +1192,8 @@ function sendOrderConfirmationForRow(rowNum) {
       PAYMENT_INFO_BLOCK + '\n\n' +
       'COLLECTION\n\n' +
       'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
+      'STAY UPDATED\n' +
+      'Join our WhatsApp group: https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO\n\n' +
       'Thank you.\n\n' +
       'Kind regards,\n\nMarlow, Louis, and Quinton';
 
@@ -1207,6 +1209,8 @@ function sendOrderConfirmationForRow(rowNum) {
       '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
       '<p><strong>COLLECTION</strong></p>' +
       '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
+      '<p><strong>STAY UPDATED</strong></p>' +
+      '<p>Join our WhatsApp group for updates: <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO">Click here to join</a></p>' +
       '<p>Thank you.</p>' +
       '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
   }
