@@ -101,11 +101,11 @@ function initAvailabilityTracker() {
         const isMaxReached = current >= max || remaining <= 0 || !data.orderingOpen;
 
         if (isMaxReached) {
-          ordersTaken.textContent = "Maximum pizzas have been ordered";
+          ordersTaken.textContent = formatPizzaAmount(current) + " of " + formatPizzaAmount(max) + " pizzas claimed";
           ordersRemaining.textContent = "Fully booked";
         } else {
-          ordersTaken.textContent = current + " of " + max + " pizzas claimed";
-          ordersRemaining.textContent = (remaining > 0 ? remaining : 0) + " pizzas remaining";
+          ordersTaken.textContent = formatPizzaAmount(current) + " of " + formatPizzaAmount(max) + " pizzas claimed";
+          ordersRemaining.textContent = formatPizzaAmount(Math.max(0, remaining)) + " pizzas remaining";
         }
       }
     }
@@ -360,3 +360,25 @@ function initOrderLookup() {
   }
 }
 
+
+function formatPizzaAmount(value) {
+  var rounded = Math.round(value * 100) / 100;
+
+  if (Number.isInteger(rounded)) {
+    return String(rounded);
+  }
+
+  if (rounded % 1 === 0.5) {
+    return Math.floor(rounded) + '½';
+  }
+
+  if (rounded % 1 === 0.25) {
+    return Math.floor(rounded) + '¼';
+  }
+
+  if (rounded % 1 === 0.75) {
+    return Math.floor(rounded) + '¾';
+  }
+
+  return String(rounded);
+}

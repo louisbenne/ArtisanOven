@@ -339,24 +339,15 @@ function doGet(e) {
         var row = data[r];
         if (rowIsBlank(row)) continue;
 
-        var qtyRaw = safeTrim(row[3]);
-        var qtyDigit = extractDigit(qtyRaw) || '0';
-        var blocks = BRANCHES[qtyDigit] || [];
-        var rowPizzas = 0;
-
-        for (var b = 0; b < blocks.length; b++) {
-          var cols = blocks[b];
-          var sizeRaw = safeTrim(row[cols[0]]);
-          var childName = safeTrim(row[cols[1]]);
-          if (sizeRaw || childName) {
-            totalPizzas++;
-            rowPizzas++;
-          }
-        }
-        if (rowPizzas > 0) totalOrders++;
+        var stats = calculateRowPizzaStats(row);
+        
+        totalPizzas += stats.pizzaCapacity;
+        if (stats.pizzaSelections > 0) totalOrders++;
       }
       
-      var maxLimit = parseInt(settings.maxPizzas || 20, 10);
+      totalPizzas = normalizePizzaCapacity(totalPizzas);
+
+      var maxLimit = parseFloat(settings.maxPizzas || 20);
       var remaining = Math.max(0, maxLimit - totalPizzas);
       var isPastDeadline = isPastAutoClosingDeadline(settings);
       var isOpen = settings.orderingEnabled && !isPastDeadline && (remaining > 0);
@@ -633,34 +624,29 @@ function calculateCurrentSessionStats(settings) {
     var totalOrders = 0;
     var totalHistoricalOrders = 0;
     var totalHistoricalPizzas = 0;
+    var totalHistoricalPizzaSelections = 0;
 
     for (var r = 1; r < data.length; r++) {
       var row = data[r];
       if (rowIsBlank(row)) continue;
 
-      var qtyRaw = safeTrim(row[3]);
-      var qtyDigit = extractDigit(qtyRaw) || '0';
-      var blocks = BRANCHES[qtyDigit] || [];
-      var rowPizzas = 0;
+      var stats = calculateRowPizzaStats(row);
 
-      for (var b = 0; b < blocks.length; b++) {
-        var cols = blocks[b];
-        var sizeRaw = safeTrim(row[cols[0]]);
-        var childName = safeTrim(row[cols[1]]);
-        if (sizeRaw || childName) {
-          rowPizzas++;
-          totalHistoricalPizzas++;
-        }
-      }
-      if (rowPizzas > 0) totalHistoricalOrders++;
+      totalHistoricalPizzas += stats.pizzaCapacity;
+      totalHistoricalPizzaSelections += stats.pizzaSelections;
+
+      if (stats.pizzaSelections > 0) totalHistoricalOrders++;
 
       if (r >= startRow) {
-        totalPizzas += rowPizzas;
-        if (rowPizzas > 0) totalOrders++;
+        totalPizzas += stats.pizzaCapacity;
+        if (stats.pizzaSelections > 0) totalOrders++;
       }
     }
 
-    var maxLimit = parseInt(settings.maxPizzas || 20, 10);
+    totalPizzas = normalizePizzaCapacity(totalPizzas);
+    totalHistoricalPizzas = normalizePizzaCapacity(totalHistoricalPizzas);
+
+    var maxLimit = parseFloat(settings.maxPizzas || 20);
     var remaining = Math.max(0, maxLimit - totalPizzas);
     var isPastDeadline = isPastAutoClosingDeadline(settings);
     var isOpen = settings.orderingEnabled && !isPastDeadline && (remaining > 0);
@@ -672,6 +658,7 @@ function calculateCurrentSessionStats(settings) {
       currentOrders: totalOrders,
       totalHistoricalOrders: totalHistoricalOrders,
       totalHistoricalPizzas: totalHistoricalPizzas,
+      totalHistoricalPizzaSelections: totalHistoricalPizzaSelections,
       orderingOpen: isOpen,
       isPastDeadline: isPastDeadline,
       sessionStartRow: settings.sessionStartRow
@@ -827,8 +814,9 @@ function rebuildCleanSheets() {
   var pizzaOrdersRows = [];
   var orderTotalsRows = [];
   
-  var sessionStartRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
-  var maxLimit = parseInt(settings.maxPizzas || 20, 10);
+  var maxLimit = parseFloat(settings.maxPizzas || 20);
+
+  var sessionPizzaCapacity = 0;
 
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
@@ -836,9 +824,14 @@ function rebuildCleanSheets() {
 
     var isCurrentSession = (r >= sessionStartRow);
     var pizzasBeforeThisOrder = sessionPizzas;
+    var capacityBeforeThisOrder = sessionPizzaCapacity;
+
+    var stats = calculateRowPizzaStats(row);
+    if (isCurrentSession) {
+      sessionPizzaCapacity += stats.pizzaCapacity;
+    }
 
     var allergyYN = safeTrim(row[1]);
-    var allergyText = stripHtml(safeTrim(row[2]));
     var qtyRaw = safeTrim(row[3]);
     var qtyDigit = extractDigit(qtyRaw) || '0';
     var paymentRaw = firstNonEmpty(row[49], row[51]);
@@ -848,7 +841,7 @@ function rebuildCleanSheets() {
     var payerName = safeTrim(payerRaw) || 'Unknown';
     var payerEmail = extractPayerEmail(row);
 
-    var isWaitlist = isCurrentSession && (pizzasBeforeThisOrder >= maxLimit);
+    var isWaitlist = isCurrentSession && (normalizePizzaCapacity(capacityBeforeThisOrder) >= maxLimit);
     if (isWaitlist) {
       payerName = "[WAITLIST] " + payerName;
     }
@@ -1086,24 +1079,16 @@ function sendOrderConfirmationForRow(rowNum) {
 
   var data = raw.getDataRange().getValues();
   var sessionStartRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
-  var maxLimit = parseInt(settings.maxPizzas || 20, 10);
-
+  var maxLimit = parseFloat(settings.maxPizzas || 20);
   var sessionPizzasBefore = 0;
   for (var r = sessionStartRow; r < rowNum - 1; r++) {
     var pRow = data[r];
     if (rowIsBlank(pRow)) continue;
-
-    var qtyRaw = safeTrim(pRow[3]);
-    var qtyDigit = extractDigit(qtyRaw) || '0';
-    var blocks = BRANCHES[qtyDigit] || [];
-    for (var b = 0; b < blocks.length; b++) {
-      var sizeRaw = safeTrim(pRow[blocks[b][0]]);
-      var childName = safeTrim(pRow[blocks[b][1]]);
-      if (sizeRaw || childName) sessionPizzasBefore++;
-    }
+    var stats = calculateRowPizzaStats(pRow);
+    sessionPizzasBefore += stats.pizzaCapacity;
   }
+  sessionPizzasBefore = normalizePizzaCapacity(sessionPizzasBefore);
   var isWaitlist = (sessionPizzasBefore >= maxLimit);
-
   var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL);
   var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
 
@@ -1283,4 +1268,42 @@ function extractPayerEmail(row) {
 function isValidEmail(text) {
   if (!text) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
+
+function normalizePizzaCapacity(value) {
+  return Math.round(value * 4) / 4;
+}
+
+function getPizzaCapacityValue(sizeRaw) {
+  var size = mapSize(sizeRaw);
+  if (size === '12inch') return 1;
+  if (size === 'Half12inch') return 0.5;
+  if (size === 'Quarter12inch') return 0.25;
+  return 1;
+}
+
+function calculateRowPizzaStats(row) {
+  var qtyRaw = safeTrim(row[3]);
+  var qtyDigit = extractDigit(qtyRaw) || '0';
+  var blocks = BRANCHES[qtyDigit] || [];
+
+  var pizzaSelections = 0;
+  var pizzaCapacity = 0;
+
+  for (var b = 0; b < blocks.length; b++) {
+    var cols = blocks[b];
+    var sizeRaw = safeTrim(row[cols[0]]);
+    var childName = safeTrim(row[cols[1]]);
+
+    if (sizeRaw || childName) {
+      pizzaSelections++;
+      var capacityValue = getPizzaCapacityValue(sizeRaw);
+      pizzaCapacity += capacityValue;
+    }
+  }
+
+  return {
+    pizzaSelections: pizzaSelections,
+    pizzaCapacity: pizzaCapacity
+  };
 }

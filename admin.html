@@ -479,6 +479,14 @@
     // ========================================================================
     // ADMIN DASHBOARD CLIENT-SIDE CONTROLLER
     // ========================================================================
+    function formatPizzaAmount(value) {
+      var rounded = Math.round(value * 100) / 100;
+      if (Number.isInteger(rounded)) return String(rounded);
+      if (rounded % 1 === 0.5) return Math.floor(rounded) + '½';
+      if (rounded % 1 === 0.25) return Math.floor(rounded) + '¼';
+      if (rounded % 1 === 0.75) return Math.floor(rounded) + '¾';
+      return String(rounded);
+    }
     (function () {
       const STORAGE_KEY_TOKEN = "ao_admin_session_token";
       let currentAdminToken = sessionStorage.getItem(STORAGE_KEY_TOKEN) || "";
@@ -858,10 +866,10 @@
         }
 
         if (metricPizzasClaimed) {
-          metricPizzasClaimed.textContent = curPizzas + " / " + maxPizzas;
+          metricPizzasClaimed.textContent = formatPizzaAmount(curPizzas) + " / " + formatPizzaAmount(maxPizzas);
           const pct = Math.min(100, Math.max(0, (curPizzas / maxPizzas) * 100));
           if (metricProgressFill) metricProgressFill.style.width = pct + "%";
-          if (metricRemainingHint) metricRemainingHint.textContent = remaining + " pizzas remaining";
+          if (metricRemainingHint) metricRemainingHint.textContent = formatPizzaAmount(remaining) + " pizzas remaining";
         }
 
         if (metricServiceDate) metricServiceDate.textContent = settings.serviceDate || "--";
