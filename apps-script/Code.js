@@ -1545,3 +1545,5 @@ function getAllOrdersForAdmin() {
   Logger.log('getAllOrdersForAdmin: Successfully parsed ' + allOrders.length + ' orders.');
   return allOrders;
 }
+
+// GitHub Actions deployment test - 28/08/2026
