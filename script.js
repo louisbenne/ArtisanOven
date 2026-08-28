@@ -38,17 +38,22 @@ function initAvailabilityTracker() {
     try {
       const url = new URL(ORDER_API_URL);
       url.searchParams.set("action", "getStatus");
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        mode: "cors"
-      });
-      if (!response.ok) throw new Error("Network response was not ok");
-      const data = await response.json();
+      url.searchParams.set("_t", new Date().getTime()); // Cache busting
       
+      const response = await fetch(url.toString(), {
+        method: "GET"
+      });
+      
+      if (!response.ok) {
+        console.warn("Availability lookup returned non-OK status:", response.status);
+        throw new Error("HTTP Status " + response.status);
+      }
+      
+      const data = await response.json();
       updateTrackerUI(data);
     } catch (err) {
-      console.error("Availability lookup error:", err);
-      // On error, let them try ordering or hide the tracker
+      console.error("Availability lookup error:", err.message);
+      // Fallback: hide tracker and show form directly if backend is down
       if (trackerEl) trackerEl.style.display = "none";
       if (googleFormContainer) googleFormContainer.style.display = "block";
     }
@@ -196,12 +201,12 @@ function initOrderLookup() {
       url.searchParams.set("t", new Date().getTime());
 
       const response = await fetch(url.toString(), {
-        method: "GET",
-        mode: "cors"
+        method: "GET"
       });
 
       if (!response.ok) {
-        throw new Error("Network response was not ok");
+        console.warn("Order lookup returned non-OK status:", response.status);
+        throw new Error("HTTP Status " + response.status);
       }
 
       const data = await response.json();

@@ -328,16 +328,23 @@ function doGet(e) {
     if (action === 'getStatus') {
       var settings = getSettings();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
+      if (!ss) {
+        return createJsonResponse({
+          success: false,
+          message: 'Backend Configuration Error: Spreadsheet not found.'
+        });
+      }
+      
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       var data = raw.getDataRange().getValues();
       
-      var startRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
+      var startRow = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
       var totalPizzas = 0;
       var totalOrders = 0;
 
       for (var r = startRow; r < data.length; r++) {
         var row = data[r];
-        if (rowIsBlank(row)) continue;
+        if (!row || rowIsBlank(row)) continue;
 
         var stats = calculateRowPizzaStats(row);
         
@@ -350,10 +357,10 @@ function doGet(e) {
       var maxLimit = parseFloat(settings.maxPizzas || 20);
       var remaining = Math.max(0, maxLimit - totalPizzas);
       var isPastDeadline = isPastAutoClosingDeadline(settings);
-      var isOpen = settings.orderingEnabled && !isPastDeadline && (remaining > 0);
+      var isOpen = (settings.orderingEnabled === true) && !isPastDeadline && (remaining > 0);
       
       var message = "";
-      if (!settings.orderingEnabled) {
+      if (settings.orderingEnabled === false) {
         message = "Ordering is currently closed by the administrator.";
       } else if (isPastDeadline) {
         message = "Ordering for this week has closed (" + (settings.autoCloseDay || 'Sunday') + " " + (settings.autoCloseTime || '9:00 PM') + ").";
@@ -378,7 +385,7 @@ function doGet(e) {
         capacityMessage: settings.capacityMessage,
         deadlineMessage: settings.deadlineMessage,
         closedMessage: message,
-        sessionId: settings.sessionId,
+        sessionId: settings.sessionTimestamp || settings.sessionId,
         closingSchedule: (settings.autoCloseDay || 'Sunday') + ' at ' + (settings.autoCloseTime || '9:00 PM')
       });
     }
@@ -425,6 +432,20 @@ function doGet(e) {
     }
 
     // 5. ADMIN: UPDATE SETTINGS
+    if (action === 'adminGetOrders') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+      return createJsonResponse({
+        success: true,
+        orders: getAllOrdersForAdmin()
+      });
+    }
     if (action === 'adminUpdateSettings') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
@@ -649,18 +670,20 @@ function calculateCurrentSessionStats(settings) {
     var maxLimit = parseFloat(settings.maxPizzas || 20);
     var remaining = Math.max(0, maxLimit - totalPizzas);
     var isPastDeadline = isPastAutoClosingDeadline(settings);
-    var isOpen = settings.orderingEnabled && !isPastDeadline && (remaining > 0);
+    var isOpen = (settings.orderingEnabled === true) && !isPastDeadline && (remaining > 0);
 
     return {
+      success: true,
       currentPizzas: totalPizzas,
       maxPizzas: maxLimit,
       remainingPizzas: remaining,
       currentOrders: totalOrders,
+      orderingOpen: isOpen,
+      orderingEnabled: (settings.orderingEnabled === true),
+      isPastDeadline: isPastDeadline,
       totalHistoricalOrders: totalHistoricalOrders,
       totalHistoricalPizzas: totalHistoricalPizzas,
       totalHistoricalPizzaSelections: totalHistoricalPizzaSelections,
-      orderingOpen: isOpen,
-      isPastDeadline: isPastDeadline,
       sessionStartRow: settings.sessionStartRow
     };
   } catch (err) {
@@ -822,7 +845,7 @@ function rebuildCleanSheets() {
     var row = data[r];
     if (rowIsBlank(row)) continue;
 
-    var isCurrentSession = (r >= sessionStartRow);
+    var isCurrentSession = (r >= settings.sessionStartRow);
     var pizzasBeforeThisOrder = sessionPizzas;
     var capacityBeforeThisOrder = sessionPizzaCapacity;
 
@@ -832,6 +855,7 @@ function rebuildCleanSheets() {
     }
 
     var allergyYN = safeTrim(row[1]);
+    var allergyText = stripHtml(safeTrim(row[2]));
     var qtyRaw = safeTrim(row[3]);
     var qtyDigit = extractDigit(qtyRaw) || '0';
     var paymentRaw = firstNonEmpty(row[49], row[51]);
@@ -1306,4 +1330,90 @@ function calculateRowPizzaStats(row) {
     pizzaSelections: pizzaSelections,
     pizzaCapacity: pizzaCapacity
   };
+}
+
+// ============================================================================
+// ADMIN ORDERS
+// ============================================================================
+function getAllOrdersForAdmin() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+  var data = raw.getDataRange().getValues();
+  
+  Logger.log('getAllOrdersForAdmin: Found ' + data.length + ' rows in sheet: ' + raw.getName());
+  
+  if (data.length < 2) {
+    Logger.log('getAllOrdersForAdmin: No data rows found.');
+    return [];
+  }
+
+  var allOrders = [];
+
+  // Read from the bottom to get newest orders first. Limit to 250 orders for performance.
+  var start = data.length - 1;
+  var end = Math.max(1, data.length - 250);
+
+  for (var r = start; r >= end; r--) {
+    var row = data[r];
+    if (rowIsBlank(row)) continue;
+
+    var orderNum = r;
+    var formattedId = String(orderNum);
+    
+    var timestampStr = row[0] instanceof Date ? Utilities.formatDate(row[0], 'Europe/London', 'dd MMM yyyy HH:mm') : String(row[0]);
+    
+    var qtyRaw = safeTrim(row[3]);
+    var qtyDigit = extractDigit(qtyRaw) || '0';
+    var paymentRaw = firstNonEmpty(row[49], row[51]);
+    var payerRaw = firstNonEmpty(row[50], row[52]);
+    var paymentMethod = mapPaymentMethod(paymentRaw);
+    var payerName = safeTrim(payerRaw) || 'Valued Customer';
+    var payerEmail = extractPayerEmail(row);
+    var allergyYN = safeTrim(row[1]);
+    var allergyText = stripHtml(safeTrim(row[2]));
+
+    var blocks = BRANCHES[qtyDigit] || [];
+    var pizzas = [];
+    var orderTotal = 0;
+
+    for (var b = 0; b < blocks.length; b++) {
+      var cols = blocks[b];
+      if (!cols) continue;
+      
+      var sizeRaw = safeTrim(row[cols[0]]);
+      var childName = safeTrim(row[cols[1]]);
+      var cls = safeTrim(row[cols[2]]);
+      
+      if (!sizeRaw && !childName) continue;
+      
+      var size = mapSize(sizeRaw);
+      var price = PRICE_MAP[size] || 0;
+      orderTotal += price;
+      
+      pizzas.push({
+        recipient: childName || 'Student',
+        size: formatSizeLabel(size) || sizeRaw,
+        price: price,
+        class: cls || ''
+      });
+    }
+
+    if (pizzas.length > 0) {
+      allOrders.push({
+        orderId: formattedId,
+        timestamp: timestampStr,
+        customer: {
+          name: payerName,
+          email: payerEmail
+        },
+        allergy: (String(allergyYN).toLowerCase() === 'yes' ? allergyText : ''),
+        pizzas: pizzas,
+        total: orderTotal,
+        paymentStatus: paymentMethod ? 'Paid' : 'Pending Payment'
+      });
+    }
+  }
+
+  Logger.log('getAllOrdersForAdmin: Successfully parsed ' + allOrders.length + ' orders.');
+  return allOrders;
 }

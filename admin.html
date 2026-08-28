@@ -6,6 +6,56 @@
   <title>Admin Dashboard — Artisan Oven</title>
   <meta name="description" content="Artisan Oven Operations and Administration Dashboard" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Order Card Detail Styling */
+    .order-card {
+      background: var(--white);
+      border: 1px solid rgba(31, 58, 46, 0.1);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .order-card:hover {
+      box-shadow: 0 4px 12px rgba(31, 58, 46, 0.08);
+      border-color: var(--sage);
+    }
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .order-card-title {
+      font-weight: 700;
+      color: var(--forest);
+      font-size: 1.1rem;
+    }
+    .order-card-status {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+    .status-paid { background: rgba(111, 143, 114, 0.15); color: #2D5832; }
+    .status-pending { background: rgba(198, 93, 59, 0.1); color: var(--terracotta); }
+    
+    .order-card-details {
+      display: none;
+      border-top: 1px solid rgba(31, 58, 46, 0.06);
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+    .order-card.expanded .order-card-details { display: block; }
+    
+    .order-pizza-item {
+      padding: 8px 0;
+      border-bottom: 1px dashed rgba(31, 58, 46, 0.05);
+    }
+    .order-pizza-item:last-child { border-bottom: none; }
+  </style>
 </head>
 <body class="admin-body">
 
@@ -101,6 +151,13 @@
             </button>
           </div>
         </div>
+
+        <div class="admin-tabs">
+          <button type="button" class="admin-tab active" data-tab="tab-dashboard">Dashboard & Settings</button>
+          <button type="button" class="admin-tab" data-tab="tab-orders" id="btn-tab-orders">Orders</button>
+        </div>
+
+        <div id="tab-dashboard" class="tab-content active">
 
         <!-- 1. LIVE SESSION METRICS GRID -->
         <div class="admin-metrics-grid">
@@ -414,6 +471,37 @@
               </button>
             </div>
           </form>
+        </div>
+
+        </div> <!-- End tab-dashboard -->
+
+        <div id="tab-orders" class="tab-content">
+          <div class="orders-summary-bar" id="orders-summary-bar">
+            <div class="order-summary-stat">
+              <span class="stat-label">Total Orders</span>
+              <span class="stat-value" id="stat-total-orders">-</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Total Pizzas</span>
+              <span class="stat-value" id="stat-total-pizzas">-</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Pending Payment</span>
+              <span class="stat-value" id="stat-pending-payment">-</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Paid</span>
+              <span class="stat-value" id="stat-paid-payment">-</span>
+            </div>
+          </div>
+          
+          <div class="orders-search-bar">
+            <input type="text" id="orders-search-input" placeholder="Search orders by customer name, email, or recipient..." />
+          </div>
+
+          <div id="orders-list-container">
+            <p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>
+          </div>
         </div>
 
         <!-- Logout Footer Box -->
@@ -764,10 +852,10 @@
         });
       }
 
-      // Refresh Button
       if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
           loadDashboardData();
+          loadOrdersData();
         });
       }
 
@@ -791,7 +879,177 @@
       });
 
       // Data loader
+      let cachedOrders = [];
+      
+      const tabButtons = document.querySelectorAll('.admin-tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+      const btnTabOrders = document.getElementById('btn-tab-orders');
+      
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabButtons.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+          
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+      });
+
+      btnTabOrders.addEventListener('click', () => {
+        loadOrdersData();
+      });
+
+      const searchInput = document.getElementById('orders-search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          renderOrders(cachedOrders);
+        });
+      }
+
+      async function loadOrdersData(silent = false) {
+        if (!currentAdminToken) return;
+        
+        try {
+          if (!silent) {
+            document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
+          }
+
+          const url = new URL(ORDER_API_URL);
+          url.searchParams.set("action", "adminGetOrders");
+          url.searchParams.set("token", currentAdminToken);
+          
+          const response = await fetch(url.toString(), { method: "GET", mode: "cors" });
+          if (!response.ok) throw new Error("Network request failed (" + response.status + ")");
+          const data = await response.json();
+          
+          if (data.unauthorized) {
+            sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+            currentAdminToken = "";
+            showLoginView();
+            showLoginError(data.message || "Session expired.");
+            return;
+          }
+
+          if (data.success && data.orders) {
+            cachedOrders = data.orders;
+            renderOrders(cachedOrders);
+          } else {
+            document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;
+          }
+        } catch (err) {
+          console.error("Orders load error:", err);
+          document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching orders.</p>';
+        }
+      }
+
+      function renderOrders(orders) {
+        console.log("Admin: Rendering " + (orders ? orders.length : 0) + " orders");
+        const container = document.getElementById('orders-list-container');
+        if (!container) return;
+
+        const searchInputEl = document.getElementById('orders-search-input');
+        const searchTerm = (searchInputEl && searchInputEl.value || "").toLowerCase();
+        
+        let totalOrders = 0;
+        let totalPizzas = 0;
+        let pendingCount = 0;
+        let paidCount = 0;
+
+        if (!orders || orders.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No orders found in this session.</p>';
+          updateOrderStats(0, 0, 0, 0);
+          return;
+        }
+
+        let filtered = orders.filter(o => {
+          const customerName = (o.customer && o.customer.name) || '';
+          const customerEmail = (o.customer && o.customer.email) || '';
+          const pizzaRecipients = (o.pizzas && o.pizzas.map(p => p.recipient).join(' ')) || '';
+          const matchString = `${o.orderId} ${customerName} ${customerEmail} ${pizzaRecipients}`.toLowerCase();
+          return matchString.includes(searchTerm);
+        });
+
+        orders.forEach(o => {
+          totalOrders++;
+          totalPizzas += (o.pizzas ? o.pizzas.length : 0);
+          if (o.paymentStatus === 'Paid') paidCount++;
+          else pendingCount++;
+        });
+
+        updateOrderStats(totalOrders, totalPizzas, pendingCount, paidCount);
+
+        if (filtered.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No matches found for your search.</p>';
+          return;
+        }
+
+        let html = '';
+        filtered.forEach(order => {
+          const isPaid = order.paymentStatus === 'Paid';
+          const statusClass = isPaid ? 'status-paid' : 'status-pending';
+          
+          let pizzasHtml = '';
+          if (order.pizzas) {
+            order.pizzas.forEach(p => {
+              pizzasHtml += `
+                <div class="order-pizza-item">
+                  <div class="order-pizza-recipient" style="font-weight: 600;">${escapeHtml(p.recipient)} ${p.class ? `(${escapeHtml(p.class)})` : ''}</div>
+                  <div class="order-pizza-meta" style="font-size: 0.85rem; color: var(--text-soft); display: flex; justify-content: space-between;">
+                    <span>${escapeHtml(p.size)}</span>
+                    <span>£${(p.price || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              `;
+            });
+          }
+
+          const customerName = (order.customer && order.customer.name) || 'Unknown';
+          const customerEmail = (order.customer && order.customer.email) || '';
+
+          html += `
+            <div class="order-card" onclick="this.classList.toggle('expanded')">
+              <div class="order-card-header">
+                <div>
+                  <div class="order-card-title">Order #${order.orderId}</div>
+                  <div class="order-card-customer" style="font-weight: 600;">${escapeHtml(customerName)}</div>
+                  <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(customerEmail)}</div>
+                </div>
+                <div class="order-card-status ${statusClass}">${order.paymentStatus}</div>
+              </div>
+              <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                <span>${order.pizzas ? order.pizzas.length : 0} pizza${(order.pizzas && order.pizzas.length === 1) ? '' : 's'}</span>
+                <span style="font-weight: 700; color: var(--forest);">Total: £${(order.total || 0).toFixed(2)}</span>
+              </div>
+              
+              <div class="order-card-details">
+                <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp)}</div>
+                ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600; border: 1px solid rgba(133, 100, 4, 0.2);">⚠️ Allergy Info: ${escapeHtml(order.allergy)}</div>` : ''}
+                <div class="pizzas-list">${pizzasHtml}</div>
+                <div class="order-card-total" style="display: flex; justify-content: space-between; padding-top: 12px; margin-top: 12px; border-top: 2px solid #eee; font-weight: 800; color: var(--forest);">
+                  <span>Order Total</span>
+                  <span>£${(order.total || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function updateOrderStats(total, pizzas, pending, paid) {
+        const elTotal = document.getElementById('stat-total-orders');
+        const elPizzas = document.getElementById('stat-total-pizzas');
+        const elPending = document.getElementById('stat-pending-payment');
+        const elPaid = document.getElementById('stat-paid-payment');
+        
+        if (elTotal) elTotal.textContent = total;
+        if (elPizzas) elPizzas.textContent = pizzas;
+        if (elPending) elPending.textContent = pending;
+        if (elPaid) elPaid.textContent = paid;
+      }
       async function loadDashboardData(silent = false) {
+        loadOrdersData(true);
         if (!currentAdminToken) {
           showLoginView();
           return;
@@ -931,14 +1189,16 @@
       }
 
       function showLoginView() {
-        loginSection.style.display = "block";
-        dashboardSection.style.display = "none";
+        console.log("Admin: Showing Login View");
+        if (loginSection) loginSection.style.display = "block";
+        if (dashboardSection) dashboardSection.style.display = "none";
         if (headerLogoutBtn) headerLogoutBtn.style.display = "none";
       }
 
       function showDashboardView() {
-        loginSection.style.display = "none";
-        dashboardSection.style.display = "block";
+        console.log("Admin: Showing Dashboard View");
+        if (loginSection) loginSection.style.display = "none";
+        if (dashboardSection) dashboardSection.style.display = "block";
         if (headerLogoutBtn) headerLogoutBtn.style.display = "inline-block";
       }
 
