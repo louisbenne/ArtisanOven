@@ -598,7 +598,7 @@ function doGet(e) {
 
     return createJsonResponse({
       success: false,
-      message: 'Invalid action requested.'
+      message: 'Invalid action requested: ' + action
     });
 
   } catch (err) {
