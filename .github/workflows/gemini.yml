@@ -1,0 +1,59 @@
+name: Gemini AI Developer
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  gemini:
+    # Only run when someone comments @gemini-cli
+    if: |
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '@gemini-cli')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Gemini
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are working on GitHub Issue #${{ github.event.issue.number }}.
+
+            Issue title:
+            ${{ github.event.issue.title }}
+
+            Issue description:
+            ${{ github.event.issue.body }}
+
+            User instruction:
+            ${{ github.event.comment.body }}
+
+            Read GEMINI.md and follow all repository instructions.
+
+            Analyse the issue and inspect the repository.
+
+            Implement the requested change safely.
+
+            Run the appropriate build or tests after making changes.
+
+            Create a new branch for the changes.
+
+            Commit the changes with a clear commit message.
+
+            Push the branch to GitHub.
+
+            Create a Pull Request linked to Issue #${{ github.event.issue.number }}.
+
+            Do not push directly to main.
