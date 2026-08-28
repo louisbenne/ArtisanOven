@@ -1939,7 +1939,11 @@ button:focus-visible,
 .whatsapp-float svg {
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
   fill: currentColor;
+  display: block;
 }
 
 @media (max-width: 480px) {
