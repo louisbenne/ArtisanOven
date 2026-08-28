@@ -36,6 +36,14 @@ function initAvailabilityTracker() {
 
   async function fetchStatus() {
     try {
+      // Client-side cache: if we fetched successfully in the last 30 seconds, reuse it
+      const cachedStatus = sessionStorage.getItem('STATUS_CACHE_DATA');
+      const cachedTime = sessionStorage.getItem('STATUS_CACHE_TIME');
+      if (cachedStatus && cachedTime && (Date.now() - parseInt(cachedTime, 10) < 30000)) {
+        updateTrackerUI(JSON.parse(cachedStatus));
+        return;
+      }
+
       const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
       if (!apiUrl || apiUrl.indexOf('http') !== 0) {
         throw new Error("API URL not configured");
@@ -57,7 +65,12 @@ function initAvailabilityTracker() {
       }
       
       const data = await response.json();
-      updateTrackerUI(data);
+      
+      if (data.success) {
+        sessionStorage.setItem('STATUS_CACHE_DATA', JSON.stringify(data));
+        sessionStorage.setItem('STATUS_CACHE_TIME', Date.now().toString());
+        updateTrackerUI(data);
+      }
     } catch (err) {
       console.error("Availability lookup error:", err.message || err);
       // Fallback: hide tracker and show form directly if backend is down

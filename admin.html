@@ -744,6 +744,7 @@
               passwordInput.value = "";
               showToast("Logged in successfully!", "success");
               loadDashboardData();
+              loadOrdersData(true); // Background load orders for instant tab switch later
             } else {
               showLoginError(data.message || "Incorrect password.");
             }
@@ -1019,8 +1020,19 @@
         if (!currentAdminToken) return;
         
         try {
+          const STORAGE_KEY_ORDERS = "AO_CACHED_ORDERS";
+          
           if (!silent) {
-            document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
+            // Check session storage first for instant feedback
+            const cached = sessionStorage.getItem(STORAGE_KEY_ORDERS);
+            if (cached) {
+              cachedOrders = JSON.parse(cached);
+              renderOrders(cachedOrders);
+            }
+            
+            if (!cachedOrders.length) {
+              document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
+            }
           }
 
           const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
@@ -1046,6 +1058,7 @@
 
           if (data.success && data.orders) {
             cachedOrders = data.orders;
+            sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(data.orders));
             renderOrders(cachedOrders);
           } else {
             document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;

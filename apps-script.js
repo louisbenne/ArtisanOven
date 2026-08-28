@@ -208,13 +208,14 @@ function invalidateAdminToken() {
 
 // Audit logger
 function logAdminAction(action, details) {
+  // Speed up log: don't check for sheet existence every time in the login path if possible
+  // but for safety we still check. We skip the formatting for speed.
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName('Admin Log');
     if (!sheet) {
       sheet = ss.insertSheet('Admin Log');
-      var header = ['Timestamp', 'Action', 'Details', 'Actor'];
-      sheet.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold').setBackground('#E8E8E8');
+      sheet.appendRow(['Timestamp', 'Action', 'Details', 'Actor']);
     }
     sheet.appendRow([new Date(), action, details || '', 'Admin']);
   } catch (err) {
@@ -328,6 +329,12 @@ function doGet(e) {
 
     // 2. PUBLIC: LIVE SYSTEM STATUS & CAPACITY
     if (action === 'getStatus') {
+      var cache = CacheService.getScriptCache();
+      var cached = cache.get('SYSTEM_STATUS_CACHE');
+      if (cached && !params._t) { // Skip cache if cache-busting _t is present
+        return createJsonResponse(JSON.parse(cached));
+      }
+
       var settings = getSettings();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       if (!ss) {
@@ -347,6 +354,7 @@ function doGet(e) {
       for (var r = startRow; r < data.length; r++) {
         var row = data[r];
         if (!row || rowIsBlank(row)) continue;
+        if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
 
         var stats = calculateRowPizzaStats(row);
         
@@ -372,7 +380,7 @@ function doGet(e) {
         message = remaining + " pizzas remaining.";
       }
 
-      return createJsonResponse({
+      var responseData = {
         success: true,
         orderingOpen: isOpen,
         orderingEnabled: settings.orderingEnabled,
@@ -389,7 +397,12 @@ function doGet(e) {
         closedMessage: message,
         sessionId: settings.sessionTimestamp || settings.sessionId,
         closingSchedule: (settings.autoCloseDay || 'Sunday') + ' at ' + (settings.autoCloseTime || '9:00 PM')
-      });
+      };
+
+      // Cache for 2 minutes (120 seconds) to speed up public lookup
+      try { cache.put('SYSTEM_STATUS_CACHE', JSON.stringify(responseData), 120); } catch(e) {}
+
+      return createJsonResponse(responseData);
     }
 
     // 3. ADMIN: LOGIN
@@ -896,6 +909,9 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
 // ============================================================================
 
 function onFormSubmitTrigger(e) {
+  // Invalidate cache immediately so public tracker updates
+  try { CacheService.getScriptCache().remove('SYSTEM_STATUS_CACHE'); } catch(err) {}
+  
   rebuildCleanSheets();
   emailXlsxSnapshot();
   trySendOrderConfirmation(e);
@@ -1203,6 +1219,10 @@ function sendOrderConfirmationForRow(rowNum) {
   var alreadySent = raw.getRange(rowNum, CONFIRMATION_SENT_COL).getValue();
   if (alreadySent === 'SENT') return;
 
+  // Mark as SENT immediately to prevent double processing in case of trigger hiccups
+  raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
+  SpreadsheetApp.flush();
+
   var data = raw.getDataRange().getValues();
   var sessionStartRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
   var maxLimit = parseFloat(settings.maxPizzas || 20);
@@ -1326,14 +1346,18 @@ function sendOrderConfirmationForRow(rowNum) {
       '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
   }
 
-  MailApp.sendEmail({
-    to: payerEmail,
-    subject: CONFIRMATION_SUBJECT + ' (' + formattedOrderId + ')',
-    body: body,
-    htmlBody: htmlBody
-  });
-
-  raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
+  try {
+    MailApp.sendEmail({
+      to: payerEmail,
+      subject: CONFIRMATION_SUBJECT + ' (' + formattedOrderId + ')',
+      body: body,
+      htmlBody: htmlBody
+    });
+    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
+  } catch (e) {
+    Logger.log('MailApp error for row ' + rowNum + ': ' + e);
+    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('FAILED: ' + e.toString().substring(0, 50));
+  }
 }
 
 function formatSizeLabel(size) {
