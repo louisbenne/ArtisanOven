@@ -1,72 +1,59 @@
-name: 'Gemini Plan Execution'
+name: Gemini Plan Execution
 
 on:
-workflow_call:
-inputs:
-additional_context:
-type: string
-description: Any additional context from the request
-required: false
+  workflow_call:
+    inputs:
+      additional_context:
+        description: Any additional context from the request
+        required: false
+        type: string
 
 jobs:
-plan-execute:
-name: Run Gemini
-runs-on: ubuntu-latest
-timeout-minutes: 30
+  plan-execute:
+    name: Run Gemini
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
-```
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
 
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  - name: Run Gemini CLI
-    uses: google-github-actions/run-gemini-cli@v0
-    env:
-      GEMINI_CLI_TRUST_WORKSPACE: 'true'
-      TITLE: '${{ github.event.issue.title }}'
-      DESCRIPTION: '${{ github.event.issue.body }}'
-      ISSUE_NUMBER: '${{ github.event.issue.number }}'
-      REPOSITORY: '${{ github.repository }}'
-      ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
-      GITHUB_TOKEN: '${{ github.token }}'
+      - name: Run Gemini CLI
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+          GITHUB_TOKEN: ${{ github.token }}
 
-    with:
-      gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
-      prompt: |
-        You are an autonomous software development agent working on the repository ${{ github.repository }}.
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are an autonomous software development agent.
 
-        A GitHub issue has requested a change.
+            Work on the GitHub issue that triggered this workflow.
 
-        Issue title:
-        ${{ github.event.issue.title }}
+            Issue title:
+            ${{ github.event.issue.title }}
 
-        Issue description:
-        ${{ github.event.issue.body }}
+            Issue description:
+            ${{ github.event.issue.body }}
 
-        Additional context:
-        ${{ inputs.additional_context }}
+            Your task:
 
-        Your task:
+            1. Understand the issue.
+            2. Inspect the repository.
+            3. Plan the implementation.
+            4. Implement the requested changes.
+            5. Test the changes where possible.
+            6. Create a new branch.
+            7. Commit your changes.
+            8. Create a Pull Request.
 
-        1. Read and understand the issue.
-        2. Inspect the repository and understand the existing code.
-        3. Create a clear implementation plan.
-        4. Implement the requested feature or fix.
-        5. Test your changes where possible.
-        6. Create a new branch for the changes.
-        7. Commit the changes.
-        8. Create a Pull Request explaining what was changed.
-
-        Important rules:
-        - Do not modify the main branch directly.
-        - Make all changes on a new branch.
-        - Only make changes relevant to the GitHub issue.
-        - Check existing code before making changes.
-        - Test changes where possible.
-```
+            Important:
+            - Never modify main directly.
+            - Only make changes relevant to the issue.
