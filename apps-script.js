@@ -49,6 +49,7 @@ var BRANCHES = {
 var CONFIRMATION_SENT_COL = 60;
 var ORDER_TOKEN_COL = 61;
 var PAYMENT_STATUS_COL = 62;
+var IS_DELETED_COL = 63;
 
 // Standard payment info block
 var PAYMENT_INFO_BLOCK =
@@ -618,7 +619,37 @@ function doGet(e) {
       return createJsonResponse({ success: true, message: 'Order #' + orderId + ' status updated to ' + status });
     }
 
-    // 9. ADMIN: CHANGE PASSWORD
+    // 9. ADMIN: DELETE ORDER
+    if (action === 'adminDeleteOrder') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var orderId = safeTrim(params.orderId || '');
+      if (!orderId) {
+        return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      var rowNum = parseInt(orderId, 10) + 1;
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+      
+      if (rowNum < 2 || rowNum > raw.getLastRow()) {
+        return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
+      }
+
+      raw.getRange(rowNum, IS_DELETED_COL + 1).setValue('TRUE');
+      logAdminAction('Delete Order', 'Order #' + orderId + ' marked as deleted');
+      
+      return createJsonResponse({ success: true, message: 'Order #' + orderId + ' deleted successfully.' });
+    }
+
+    // 10. ADMIN: CHANGE PASSWORD
     if (action === 'adminChangePassword') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
@@ -718,6 +749,7 @@ function calculateCurrentSessionStats(settings) {
     for (var r = 1; r < data.length; r++) {
       var row = data[r];
       if (rowIsBlank(row)) continue;
+      if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
 
       var stats = calculateRowPizzaStats(row);
 
@@ -786,6 +818,7 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
     if (rowIsBlank(row)) continue;
+    if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
 
     var orderNum = r;
     var formattedId = String(orderNum);
@@ -912,6 +945,7 @@ function rebuildCleanSheets() {
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
     if (rowIsBlank(row)) continue;
+    if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
 
     var isCurrentSession = (r >= settings.sessionStartRow);
     var pizzasBeforeThisOrder = sessionPizzas;
@@ -1424,6 +1458,7 @@ function getAllOrdersForAdmin() {
   for (var r = start; r >= end; r--) {
     var row = data[r];
     if (rowIsBlank(row)) continue;
+    if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
 
     var orderNum = r;
     var formattedId = String(orderNum);

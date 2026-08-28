@@ -131,6 +131,29 @@
       opacity: 0.5;
       cursor: wait;
     }
+    
+    .delete-btn-inline {
+      background: transparent;
+      border: 1px solid #ff4d4f;
+      color: #ff4d4f;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .delete-btn-inline:hover {
+      background: #ff4d4f;
+      color: white;
+    }
+    .delete-btn-inline:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
   </style>
 </head>
 <body class="admin-body">
@@ -1127,13 +1150,24 @@
                     <span style="display: block; font-size: 0.8rem; color: var(--text-soft); font-weight: 400; margin-bottom: 2px;">Order Total</span>
                     <span>£${(order.total || 0).toFixed(2)}</span>
                   </div>
-                  <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-                      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-                    </svg>
-                    RESEND EMAIL
-                  </button>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                      </svg>
+                      RESEND EMAIL
+                    </button>
+                    <button type="button" class="delete-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                      DELETE
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1205,6 +1239,40 @@
             } catch (err) {
               console.error(err);
               showToast("Failed to resend email.", "error");
+            } finally {
+              this.disabled = false;
+              this.innerHTML = originalHtml;
+            }
+          });
+        });
+
+        container.querySelectorAll('.delete-btn-inline').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            const orderId = this.getAttribute('data-order-id');
+            if (!confirm(`Are you sure you want to PERMANENTLY DELETE Order #${orderId}?\nThis will update your capacity and statistics.`)) return;
+
+            this.disabled = true;
+            const originalHtml = this.innerHTML;
+            this.innerHTML = 'Deleting...';
+
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminDeleteOrder");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("orderId", orderId);
+
+              const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+              const data = await res.json();
+              if (data.success) {
+                showToast(data.message, "success");
+                loadDashboardData(true); // Refresh everything
+              } else {
+                showToast("Error: " + data.message, "error");
+              }
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to delete order.", "error");
             } finally {
               this.disabled = false;
               this.innerHTML = originalHtml;
