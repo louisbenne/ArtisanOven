@@ -48,6 +48,7 @@ var BRANCHES = {
 // Hidden column in RAW sheet to record confirmation email status
 var CONFIRMATION_SENT_COL = 60;
 var ORDER_TOKEN_COL = 61;
+var PAYMENT_STATUS_COL = 62;
 
 // Standard payment info block
 var PAYMENT_INFO_BLOCK =
@@ -550,7 +551,74 @@ function doGet(e) {
       });
     }
 
-    // 7. ADMIN: CHANGE PASSWORD
+    // 7. ADMIN: RESEND CONFIRMATION
+    if (action === 'adminResendConfirmation') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var orderId = safeTrim(params.orderId || '');
+      if (!orderId) {
+        return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      var rowNum = parseInt(orderId, 10) + 1;
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+      
+      if (rowNum < 2 || rowNum > raw.getLastRow()) {
+        return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
+      }
+
+      // Clear the "Sent" flag to force resend
+      raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('');
+      
+      try {
+        sendOrderConfirmationForRow(rowNum);
+        logAdminAction('Resend Confirmation', 'Manually resent confirmation for Order #' + orderId);
+        return createJsonResponse({ success: true, message: 'Confirmation resent successfully for Order #' + orderId });
+      } catch (err) {
+        return createJsonResponse({ success: false, message: 'Error resending confirmation: ' + err.toString() });
+      }
+    }
+
+    // 8. ADMIN: CHANGE PASSWORD
+    if (action === 'adminUpdatePaidStatus') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var orderId = safeTrim(params.orderId || '');
+      var status = safeTrim(params.status || ''); // 'Paid' or 'Pending'
+      if (!orderId) {
+        return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      var rowNum = parseInt(orderId, 10) + 1;
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+      
+      if (rowNum < 2 || rowNum > raw.getLastRow()) {
+        return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
+      }
+
+      raw.getRange(rowNum, PAYMENT_STATUS_COL + 1).setValue(status);
+      logAdminAction('Payment Updated', 'Order #' + orderId + ' set to ' + status);
+      
+      return createJsonResponse({ success: true, message: 'Order #' + orderId + ' status updated to ' + status });
+    }
+
+    // 9. ADMIN: CHANGE PASSWORD
     if (action === 'adminChangePassword') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
@@ -1371,6 +1439,7 @@ function getAllOrdersForAdmin() {
     var payerEmail = extractPayerEmail(row);
     var allergyYN = safeTrim(row[1]);
     var allergyText = stripHtml(safeTrim(row[2]));
+    var manualPaymentStatus = safeTrim(row[PAYMENT_STATUS_COL]);
 
     var blocks = BRANCHES[qtyDigit] || [];
     var pizzas = [];
@@ -1409,7 +1478,7 @@ function getAllOrdersForAdmin() {
         allergy: (String(allergyYN).toLowerCase() === 'yes' ? allergyText : ''),
         pizzas: pizzas,
         total: orderTotal,
-        paymentStatus: paymentMethod ? 'Paid' : 'Pending Payment'
+        paymentStatus: manualPaymentStatus || (paymentMethod ? 'Paid' : 'Pending Payment')
       });
     }
   }

@@ -55,6 +55,82 @@
       border-bottom: 1px dashed rgba(31, 58, 46, 0.05);
     }
     .order-pizza-item:last-child { border-bottom: none; }
+
+    /* Toggle Switch Style */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: var(--forest);
+    }
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+    
+    .paid-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f4f4f4;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    
+    .resend-btn-inline {
+      background: transparent;
+      border: 1px solid var(--sage);
+      color: var(--forest);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .resend-btn-inline:hover {
+      background: var(--sage);
+      color: white;
+    }
+    .resend-btn-inline:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
   </style>
 </head>
 <body class="admin-body">
@@ -556,7 +632,7 @@
     <div class="container">
       <p class="footer-brand">ARTISAN OVEN</p>
       <div class="footer-bottom">
-        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.3</a> &middot; <a href="index.html" class="admin-footer-link">Back to Homepage</a>
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.4</a> &middot; <a href="index.html" class="admin-footer-link">Back to Homepage</a>
       </div>
     </div>
   </footer>
@@ -1001,7 +1077,7 @@
         let html = '';
         filtered.forEach(order => {
           const isPaid = order.paymentStatus === 'Paid';
-          const statusClass = isPaid ? 'status-paid' : 'status-pending';
+          const statusLabel = isPaid ? 'PAID' : 'UNPAID';
           
           let pizzasHtml = '';
           if (order.pizzas) {
@@ -1022,16 +1098,22 @@
           const customerEmail = (order.customer && order.customer.email) || '';
 
           html += `
-            <div class="order-card" onclick="this.classList.toggle('expanded')">
-              <div class="order-card-header">
+            <div class="order-card" data-order-id="${order.orderId}">
+              <div class="order-card-header" onclick="this.parentElement.classList.toggle('expanded')">
                 <div>
                   <div class="order-card-title">Order #${order.orderId}</div>
                   <div class="order-card-customer" style="font-weight: 600;">${escapeHtml(customerName)}</div>
                   <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(customerEmail)}</div>
                 </div>
-                <div class="order-card-status ${statusClass}">${order.paymentStatus}</div>
+                <div class="paid-toggle-wrap" onclick="event.stopPropagation()">
+                  <span>${statusLabel}</span>
+                  <label class="switch">
+                    <input type="checkbox" class="paid-toggle" data-order-id="${order.orderId}" ${isPaid ? 'checked' : ''}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
               </div>
-              <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+              <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;" onclick="this.parentElement.classList.toggle('expanded')">
                 <span>${order.pizzas ? order.pizzas.length : 0} pizza${(order.pizzas && order.pizzas.length === 1) ? '' : 's'}</span>
                 <span style="font-weight: 700; color: var(--forest);">Total: £${(order.total || 0).toFixed(2)}</span>
               </div>
@@ -1040,9 +1122,18 @@
                 <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp)}</div>
                 ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600; border: 1px solid rgba(133, 100, 4, 0.2);">⚠️ Allergy Info: ${escapeHtml(order.allergy)}</div>` : ''}
                 <div class="pizzas-list">${pizzasHtml}</div>
-                <div class="order-card-total" style="display: flex; justify-content: space-between; padding-top: 12px; margin-top: 12px; border-top: 2px solid #eee; font-weight: 800; color: var(--forest);">
-                  <span>Order Total</span>
-                  <span>£${(order.total || 0).toFixed(2)}</span>
+                <div class="order-card-total" style="display: flex; justify-content: space-between; padding-top: 12px; margin-top: 12px; border-top: 2px solid #eee; font-weight: 800; color: var(--forest); align-items: center;">
+                  <div>
+                    <span style="display: block; font-size: 0.8rem; color: var(--text-soft); font-weight: 400; margin-bottom: 2px;">Order Total</span>
+                    <span>£${(order.total || 0).toFixed(2)}</span>
+                  </div>
+                  <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                    </svg>
+                    RESEND EMAIL
+                  </button>
                 </div>
               </div>
             </div>
@@ -1050,6 +1141,76 @@
         });
 
         container.innerHTML = html;
+
+        // Add event listeners for toggles and buttons
+        container.querySelectorAll('.paid-toggle').forEach(checkbox => {
+          checkbox.addEventListener('change', async function() {
+            const orderId = this.getAttribute('data-order-id');
+            const isChecked = this.checked;
+            const newStatus = isChecked ? 'Paid' : 'Pending Payment';
+            const label = this.parentElement.previousElementSibling;
+            
+            label.textContent = isChecked ? 'PAID' : 'UNPAID';
+            
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminUpdatePaidStatus");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("orderId", orderId);
+              url.searchParams.set("status", newStatus);
+
+              const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+              const data = await res.json();
+              if (data.success) {
+                showToast(`Order #${orderId} marked as ${newStatus}`, "success");
+              } else {
+                showToast("Error: " + data.message, "error");
+                this.checked = !isChecked; // Revert
+                label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+              }
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to update status.", "error");
+              this.checked = !isChecked; // Revert
+              label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+            }
+          });
+        });
+
+        container.querySelectorAll('.resend-btn-inline').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            const orderId = this.getAttribute('data-order-id');
+            if (!confirm(`Resend confirmation email for Order #${orderId}?`)) return;
+
+            this.disabled = true;
+            const originalHtml = this.innerHTML;
+            this.innerHTML = 'Sending...';
+
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminResendConfirmation");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("orderId", orderId);
+
+              const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+              const data = await res.json();
+              if (data.success) {
+                showToast(data.message, "success");
+                loadDashboardData(true); // Refresh logs
+              } else {
+                showToast("Error: " + data.message, "error");
+              }
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to resend email.", "error");
+            } finally {
+              this.disabled = false;
+              this.innerHTML = originalHtml;
+            }
+          });
+        });
       }
 
       function updateOrderStats(total, pizzas, pending, paid) {

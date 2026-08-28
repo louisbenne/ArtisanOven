@@ -36,12 +36,19 @@ function initAvailabilityTracker() {
 
   async function fetchStatus() {
     try {
-      const url = new URL(ORDER_API_URL);
+      const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+      if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+        throw new Error("API URL not configured");
+      }
+
+      const url = new URL(apiUrl);
       url.searchParams.set("action", "getStatus");
       url.searchParams.set("_t", new Date().getTime()); // Cache busting
       
       const response = await fetch(url.toString(), {
-        method: "GET"
+        method: "GET",
+        mode: "cors",
+        cache: "no-store"
       });
       
       if (!response.ok) {
@@ -52,7 +59,7 @@ function initAvailabilityTracker() {
       const data = await response.json();
       updateTrackerUI(data);
     } catch (err) {
-      console.error("Availability lookup error:", err.message);
+      console.error("Availability lookup error:", err.message || err);
       // Fallback: hide tracker and show form directly if backend is down
       if (trackerEl) trackerEl.style.display = "none";
       if (googleFormContainer) googleFormContainer.style.display = "block";
@@ -177,8 +184,9 @@ function initOrderLookup() {
       return;
     }
 
+    const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
     // Check if configuration placeholder is still there
-    if (!ORDER_API_URL || ORDER_API_URL === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+    if (!apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
       showFeedback(
         "Order lookup API is not configured yet. Please paste your Google Apps Script Web App URL into script.js.",
         "info"
@@ -191,7 +199,7 @@ function initOrderLookup() {
 
     try {
       // Build request URL
-      const url = new URL(ORDER_API_URL);
+      const url = new URL(apiUrl);
       url.searchParams.set("action", "getOrder");
       url.searchParams.set("query", query);
       
@@ -201,7 +209,9 @@ function initOrderLookup() {
       url.searchParams.set("t", new Date().getTime());
 
       const response = await fetch(url.toString(), {
-        method: "GET"
+        method: "GET",
+        mode: "cors",
+        cache: "no-store"
       });
 
       if (!response.ok) {
