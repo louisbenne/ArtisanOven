@@ -33,7 +33,8 @@
             document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
           }
 
-          const response = await fetch(API_URL + "?action=adminGetOrders&token=" + encodeURIComponent(currentAdminToken));
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          const response = await fetch(apiUrl + "?action=adminGetOrders&token=" + encodeURIComponent(currentAdminToken));
           const data = await response.json();
           
           if (data.unauthorized) {

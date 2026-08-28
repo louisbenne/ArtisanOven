@@ -556,7 +556,7 @@
     <div class="container">
       <p class="footer-brand">ARTISAN OVEN</p>
       <div class="footer-bottom">
-        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="index.html" class="admin-footer-link">Back to Homepage</a>
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.3</a> &middot; <a href="index.html" class="admin-footer-link">Back to Homepage</a>
       </div>
     </div>
   </footer>
@@ -626,7 +626,12 @@
           setButtonLoading(loginSubmitBtn, true);
 
           try {
-            const url = new URL(ORDER_API_URL);
+            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+            if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+              console.error("Admin Login: ORDER_API_URL missing or invalid:", apiUrl);
+              throw new Error("Backend URL not configured.");
+            }
+            const url = new URL(apiUrl);
             url.searchParams.set("action", "adminLogin");
             url.searchParams.set("password", pass);
 
@@ -676,7 +681,8 @@
           setButtonLoading(saveBtn, true);
 
           try {
-            const url = new URL(ORDER_API_URL);
+            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+            const url = new URL(apiUrl);
             url.searchParams.set("action", "adminUpdateSettings");
             url.searchParams.set("token", currentAdminToken);
             url.searchParams.set("settingsJson", JSON.stringify(payload));
@@ -726,7 +732,8 @@
           setButtonLoading(saveBtn, true);
 
           try {
-            const url = new URL(ORDER_API_URL);
+            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+            const url = new URL(apiUrl);
             url.searchParams.set("action", "adminUpdateSettings");
             url.searchParams.set("token", currentAdminToken);
             url.searchParams.set("settingsJson", JSON.stringify(payload));
@@ -864,7 +871,8 @@
         if (btn) {
           btn.addEventListener("click", async function () {
             try {
-              const url = new URL(ORDER_API_URL);
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
               url.searchParams.set("action", "adminLogout");
               url.searchParams.set("token", currentAdminToken);
               fetch(url.toString(), { method: "GET", mode: "cors" });
@@ -884,6 +892,8 @@
       const tabButtons = document.querySelectorAll('.admin-tab');
       const tabContents = document.querySelectorAll('.tab-content');
       const btnTabOrders = document.getElementById('btn-tab-orders');
+      
+      console.log("Admin: Initializing tabs. Found " + tabButtons.length + " buttons.");
       
       tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -914,7 +924,12 @@
             document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
           }
 
-          const url = new URL(ORDER_API_URL);
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+            console.error("Admin Orders: ORDER_API_URL missing or invalid:", apiUrl);
+            throw new Error("Backend URL not configured.");
+          }
+          const url = new URL(apiUrl);
           url.searchParams.set("action", "adminGetOrders");
           url.searchParams.set("token", currentAdminToken);
           
@@ -1049,7 +1064,7 @@
         if (elPaid) elPaid.textContent = paid;
       }
       async function loadDashboardData(silent = false) {
-        loadOrdersData(true);
+        await loadOrdersData(true);
         if (!currentAdminToken) {
           showLoginView();
           return;
@@ -1059,7 +1074,12 @@
         if (lastUpdatedEl) lastUpdatedEl.textContent = "Fetching latest settings & orders...";
 
         try {
-          const url = new URL(ORDER_API_URL);
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+            console.error("Admin: ORDER_API_URL is missing or invalid:", apiUrl);
+            throw new Error("Backend URL not configured correctly.");
+          }
+          const url = new URL(apiUrl);
           url.searchParams.set("action", "adminGetSettings");
           url.searchParams.set("token", currentAdminToken);
 
