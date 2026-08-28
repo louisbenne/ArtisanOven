@@ -32,6 +32,59 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_model: gemini-3-flash-preview
+          settings: |-
+            {
+              "model": {
+                "maxSessionTurns": 50
+              },
+              "telemetry": {
+                "enabled": true,
+                "target": "local",
+                "outfile": ".gemini/telemetry.log"
+              },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_issue_comment",
+                    "issue_read",
+                    "list_issues",
+                    "search_issues",
+                    "pull_request_read",
+                    "list_pull_requests",
+                    "search_pull_requests",
+                    "get_commit",
+                    "get_file_contents",
+                    "list_commits",
+                    "search_code",
+                    "pull_request_write",
+                    "issue_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              "tools": {
+                "core": [
+                  "run_shell_command(cat)",
+                  "run_shell_command(echo)",
+                  "run_shell_command(grep)",
+                  "run_shell_command(head)",
+                  "run_shell_command(tail)",
+                  "run_shell_command(ls)",
+                  "run_shell_command(git)"
+                ]
+              }
+            }
           prompt: |
             You are an autonomous software development agent.
 

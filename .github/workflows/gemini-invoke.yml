@@ -119,4 +119,4 @@ jobs:
                 ]
               }
             }
-          prompt: '/gemini-invoke'
+          prompt: '/.github/commands/gemini-invoke.toml'

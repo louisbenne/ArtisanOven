@@ -133,7 +133,7 @@ jobs:
                 ]
               }
             }
-          prompt: '/gemini-scheduled-triage'
+          prompt: '/.github/commands/gemini-scheduled-triage.toml'
 
   label:
     runs-on: 'ubuntu-latest'

@@ -113,4 +113,4 @@ jobs:
             [
               "https://github.com/gemini-cli-extensions/code-review"
             ]
-          prompt: '/pr-code-review'
+          prompt: '/.github/commands/gemini-review.toml'

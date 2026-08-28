@@ -97,7 +97,7 @@ jobs:
                 ]
               }
             }
-          prompt: '/gemini-triage'
+          prompt: '/.github/commands/gemini-triage.toml'
 
   label:
     runs-on: 'ubuntu-latest'
