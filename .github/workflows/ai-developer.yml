@@ -28,8 +28,19 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install AI Developer Agent (Aider)
-        run: python -m pip install aider-chat
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y universal-ctags
+          python -m pip install aider-chat
+
+      - name: Setup Git and Branch
+        run: |
+          git config --global user.name "AI Developer Agent"
+          git config --global user.email "actions@github.com"
+          BRANCH_NAME="ai-fix-issue-${{ github.event.issue.number }}-$(date +%s)"
+          git checkout -b $BRANCH_NAME
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Run AI Agent
         env:
@@ -46,48 +57,37 @@ jobs:
           echo "" >> request.txt
           echo "Additional comments:" >> request.txt
           echo "$COMMENT_BODY" >> request.txt
+          echo "" >> request.txt
+          echo "Please review the repository and implement the requested changes." >> request.txt
           
           # 2. Configure the Gemini Model
           MODEL_NAME="${{ vars.GEMINI_MODEL }}"
           if [ -z "$MODEL_NAME" ]; then
-            MODEL_NAME="gemini-2.5-flash" # Fallback if variable is missing
+            MODEL_NAME="gemini-1.5-pro-latest" # More stable fallback
           fi
           
           # 3. Run Aider autonomously
-          # --yes bypasses human prompts
-          # --no-auto-commits lets us manually format the git commit later
-          # --dark-mode disabled for cleaner logs
           export AIDER_DARK_MODE=false
-          aider --model "gemini/$MODEL_NAME" --message-file request.txt --yes --no-auto-commits
+          # By default Aider uses auto-commits when editing files.
+          # We pass `--read GEMINI.md` to ensure it reads the repository rules.
+          aider --model "gemini/$MODEL_NAME" --message-file request.txt --yes --read GEMINI.md
 
-      - name: Create Pull Request
+      - name: Push to GitHub and Create PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Setup Git Identity
-          git config --global user.name "AI Developer Agent"
-          git config --global user.email "actions@github.com"
-          
-          # Check if the AI actually modified any files
-          if [[ -z $(git status -s) ]]; then
-            echo "No code changes were made."
+          # Check if Aider actually made any commits
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]; then
+            echo "No code changes were made by the AI."
             exit 0
           fi
           
-          # Create a new branch
-          BRANCH_NAME="ai-fix-issue-${{ github.event.issue.number }}-$(date +%s)"
-          git checkout -b $BRANCH_NAME
-          
-          # Commit the changes
-          git add .
-          git commit -m "Automated AI fix for Issue #${{ github.event.issue.number }}"
-          
-          # Push to the repository
-          git push origin $BRANCH_NAME
+          # Push the branch to the repository
+          git push origin ${{ env.BRANCH_NAME }}
           
           # Use GitHub CLI to open a Pull Request automatically
           gh pr create \
             --title "🤖 AI Fix: ${{ github.event.issue.title }}" \
             --body "This Pull Request was generated autonomously to resolve issue #${{ github.event.issue.number }}. Please review the changes before merging." \
             --base main \
-            --head $BRANCH_NAME
+            --head ${{ env.BRANCH_NAME }}
