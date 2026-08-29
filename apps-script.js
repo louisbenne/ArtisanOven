@@ -58,11 +58,12 @@ var PAYMENT_INFO_BLOCK =
   'BANK TRANSFER\n\n' +
   'Account Name: Louis Benne\n' +
   'Sort Code: 07-09-76\n' +
-  'Account Number: 11427310\n\n' +
+  'Account Number: 11427310\n' +
+  'Payment Reference: Order Number, Name or Email\n\n' +
   'OR by using the order number on our website\n\n' +
   'https://www.artisanoven.shop\n\n' +
   'PAYPAL\n\n' +
-  'paypal.me/ArtisanOven\n\n' +
+  'paypal.me/ArtisanOven (Please include Order Number, Name or Email as reference)\n\n' +
   'Alternatively, you can pay securely using the following payment link:\n\n' +
   'paypal.com/ncp/payment/LXZKSSG3QEFJA\n\n' +
   'OR\n\n' +
@@ -354,7 +355,7 @@ function doGet(e) {
       for (var r = startRow; r < data.length; r++) {
         var row = data[r];
         if (!row || rowIsBlank(row)) continue;
-        if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
+        if (isRowDeleted(row)) continue;
 
         var stats = calculateRowPizzaStats(row);
         
@@ -806,7 +807,7 @@ function calculateCurrentSessionStats(settings) {
     for (var r = 1; r < data.length; r++) {
       var row = data[r];
       if (rowIsBlank(row)) continue;
-      if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
+      if (isRowDeleted(row)) continue;
 
       var stats = calculateRowPizzaStats(row);
 
@@ -875,7 +876,7 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
     if (rowIsBlank(row)) continue;
-    if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
+    if (isRowDeleted(row)) continue;
 
     var orderNum = r;
     var formattedId = String(orderNum);
@@ -969,6 +970,15 @@ function ensureColumnsExist(sheet, minColumns) {
   }
 }
 
+function isRowDeleted(row) {
+  if (!row || !Array.isArray(row)) return false;
+  var val = row[IS_DELETED_COL];
+  if (val === true || val === 1 || val === '1') return true;
+  if (!val && val !== 0) return false;
+  var str = safeTrim(val).toUpperCase();
+  return (str === 'TRUE' || str === 'DELETED' || str === 'YES');
+}
+
 function rowIsBlank(row) {
   return !row.some(function(cell) { return safeTrim(cell) !== ''; });
 }
@@ -1013,7 +1023,7 @@ function rebuildCleanSheets() {
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
     if (rowIsBlank(row)) continue;
-    if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
+    if (isRowDeleted(row)) continue;
 
     var isCurrentSession = (r >= settings.sessionStartRow);
     var pizzasBeforeThisOrder = sessionPizzas;
@@ -1534,7 +1544,7 @@ function getAllOrdersForAdmin() {
   for (var r = start; r >= end; r--) {
     var row = data[r];
     if (rowIsBlank(row)) continue;
-    if (safeTrim(row[IS_DELETED_COL]) === 'TRUE') continue;
+    if (isRowDeleted(row)) continue;
 
     var orderNum = r;
     var formattedId = String(orderNum);
