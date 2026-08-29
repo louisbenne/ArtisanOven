@@ -32,7 +32,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y universal-ctags
-          python -m pip install aider-chat google-generativeai
+          python -m pip install aider-chat
 
       - name: Setup Git and Branch
         run: |
@@ -58,9 +58,10 @@ jobs:
           echo "Additional comments:" >> request.txt
           echo "$COMMENT_BODY" >> request.txt
           echo "" >> request.txt
-          echo "CRITICAL INSTRUCTION: You are an autonomous AI developer executing inside a CI/CD pipeline. Your ONLY purpose is to write code and edit files. You must use the provided tools to search the repository, add relevant files to the chat, and apply the exact changes requested. DO NOT reply with conversational text or advice. YOU MUST OUTPUT FILE EDITS." >> request.txt
+          echo "CRITICAL INSTRUCTION: You are an autonomous AI developer. You MUST edit the actual code files to resolve this issue. Do not just reply with text or explanations. Find the relevant files, apply the exact changes requested, and save them." >> request.txt
           
           # 2. Configure the Gemini Model
+          # We force Gemini 1.5 Pro because legacy models (like 1.0 Pro) cannot format file edits correctly.
           MODEL_NAME="gemini-1.5-pro-latest"
           
           # 3. Run Aider autonomously
@@ -70,31 +71,22 @@ jobs:
 
       - name: Debug AI Output (If no commits were made)
         if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "$(git rev-parse HEAD)" = "$(git rev-parse @{-1})" ]; then
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]; then
             echo "--- NO COMMITS MADE. PRINTING AI CHAT LOGS FOR DEBUGGING ---"
-            if [ -f .aider.chat.history.md ]; then
-              # Comment on the issue to inform the user
-              gh issue comment ${{ github.event.issue.number }} -b "⚠️ **AI Developer Agent Failed to make code changes.** The agent ran successfully but did not output any file edits.
-
-              <details>
-              <summary>View AI Internal Chat Log</summary>
-              
-              \`\`\`markdown
-              $(cat .aider.chat.history.md)
-              \`\`\`
-              </details>"
-            fi
-            exit 1
+            cat .aider.chat.history.md || echo "No chat history found."
           fi
 
       - name: Push to GitHub and Create PR
-        if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Check if Aider actually made any commits
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]; then
+            echo "No code changes were made by the AI. The agent failed to output file edits."
+            exit 1
+          fi
+          
           # Push the branch to the repository
           git push origin ${{ env.BRANCH_NAME }}
           

@@ -1,0 +1,47 @@
+name: Deploy Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps-script/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Configure clasp authentication
+        run: |
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+
+      - name: Push Apps Script
+        working-directory: apps-script
+        run: clasp push --force
+
+      - name: Create new Apps Script version
+        working-directory: apps-script
+        run: |
+          VERSION=$(clasp version "GitHub Actions ${{ github.sha }}" | tail -1)
+          echo "Created version: $VERSION"
+
+      - name: Deploy existing deployment
+        working-directory: apps-script
+        env:
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+        run: |
+          clasp deploy \
+            --deploymentId "$DEPLOYMENT_ID" \
+            --description "GitHub Actions ${{ github.sha }}"

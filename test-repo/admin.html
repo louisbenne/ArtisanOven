@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Artisan Oven</title>
+  <meta name="description" content="Artisan Oven Operations and Administration Dashboard" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Order Card Detail Styling */
+    .order-card {
+      background: var(--white);
+      border: 1px solid rgba(31, 58, 46, 0.1);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .order-card:hover {
+      box-shadow: 0 4px 12px rgba(31, 58, 46, 0.08);
+      border-color: var(--sage);
+    }
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .order-card-title {
+      font-weight: 700;
+      color: var(--forest);
+      font-size: 1.1rem;
+    }
+    .order-card-status {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+    .status-paid { background: rgba(111, 143, 114, 0.15); color: #2D5832; }
+    .status-pending { background: rgba(198, 93, 59, 0.1); color: var(--terracotta); }
+    
+    .order-card-details {
+      display: none;
+      border-top: 1px solid rgba(31, 58, 46, 0.06);
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+    .order-card.expanded .order-card-details { display: block; }
+    
+    .order-pizza-item {
+      padding: 8px 0;
+      border-bottom: 1px dashed rgba(31, 58, 46, 0.05);
+    }
+    .order-pizza-item:last-child { border-bottom: none; }
+
+    /* Toggle Switch Style */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: var(--forest);
+    }
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+    
+    .paid-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f4f4f4;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    
+    .resend-btn-inline {
+      background: transparent;
+      border: 1px solid var(--sage);
+      color: var(--forest);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .resend-btn-inline:hover {
+      background: var(--sage);
+      color: white;
+    }
+    .resend-btn-inline:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    
+    .delete-btn-inline {
+      background: transparent;
+      border: 1px solid #ff4d4f;
+      color: #ff4d4f;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .delete-btn-inline:hover {
+      background: #ff4d4f;
+      color: white;
+    }
+    .delete-btn-inline:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+  </style>
+</head>
+<body class="admin-body">
+
+  <header class="site-header admin-header">
+    <div class="container admin-header-flex">
+      <a href="index.html" class="wordmark">
+        <span class="flame-dot" aria-hidden="true"></span>
+        ARTISAN OVEN
+        <span class="admin-badge">ADMIN</span>
+      </a>
+      <div class="admin-header-nav">
+        <a href="index.html" class="admin-nav-link" target="_blank" rel="noopener">View Public Website &rarr;</a>
+        <button type="button" id="btn-logout-header" class="admin-logout-btn" style="display: none;">Log Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="container">
+
+      <!-- Toast Feedback Message -->
+      <div id="admin-toast" class="admin-toast" role="alert" aria-live="assertive" hidden></div>
+
+      <!-- ========================================================
+           SCREEN 1: SECURE ADMIN LOGIN
+           ======================================================== -->
+      <section id="login-section" class="admin-card login-card">
+        <div class="login-icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <h1 class="admin-title">Admin Dashboard</h1>
+        <p class="admin-subtitle">Enter your administrator password to manage operations, order limits, and website settings.</p>
+
+        <form id="admin-login-form" class="admin-form">
+          <div class="form-group">
+            <label for="admin-password-input">Admin Password</label>
+            <div class="password-input-wrapper">
+              <input 
+                type="password" 
+                id="admin-password-input" 
+                class="admin-input" 
+                placeholder="Enter password" 
+                required 
+                autocomplete="current-password"
+              />
+              <button type="button" id="btn-toggle-password" class="password-toggle-btn" aria-label="Toggle password visibility">
+                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="login-error-msg" class="admin-error-banner" hidden></div>
+
+          <button type="submit" id="btn-login-submit" class="admin-primary-btn">
+            <span class="btn-text">LOG IN</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div class="login-security-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>Authentication is processed directly and securely by your Google Apps Script backend.</span>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           SCREEN 2: AUTHENTICATED ADMIN DASHBOARD
+           ======================================================== -->
+      <section id="dashboard-section" class="admin-dashboard" style="display: none;">
+
+        <!-- Top Overview Header & Quick Refresh -->
+        <div class="dashboard-topbar">
+          <div>
+            <h1 class="dashboard-heading">Operational Control Center</h1>
+            <p class="dashboard-subheading" id="dashboard-last-updated">Connecting to backend...</p>
+          </div>
+          <div class="dashboard-actions">
+            <button type="button" id="btn-refresh-data" class="admin-secondary-btn" title="Refresh latest data">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-tabs">
+          <button type="button" class="admin-tab active" data-tab="tab-dashboard">Dashboard & Settings</button>
+          <button type="button" class="admin-tab" data-tab="tab-orders" id="btn-tab-orders">Orders</button>
+        </div>
+
+        <div id="tab-dashboard" class="tab-content active">
+
+        <!-- 1. LIVE SESSION METRICS GRID -->
+        <div class="admin-metrics-grid">
+          
+          <!-- Metric: Ordering Status -->
+          <div class="metric-card">
+            <span class="metric-label">Ordering Status</span>
+            <div class="metric-value-wrap">
+              <span id="metric-status-badge" class="status-badge status-open">● OPEN</span>
+            </div>
+            <p class="metric-hint" id="metric-status-hint">Public orders are being accepted</p>
+          </div>
+
+          <!-- Metric: Pizzas Claimed -->
+          <div class="metric-card">
+            <span class="metric-label">Pizzas Claimed</span>
+            <div class="metric-value-wrap">
+              <span class="metric-number" id="metric-pizzas-claimed">-- / --</span>
+            </div>
+            <div class="admin-progress-bar">
+              <div class="admin-progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
+            </div>
+            <p class="metric-hint" id="metric-remaining-hint">-- pizzas remaining</p>
+          </div>
+
+          <!-- Metric: Current Service Date -->
+          <div class="metric-card">
+            <span class="metric-label">Active Service Session</span>
+            <div class="metric-value-wrap">
+              <span class="metric-title-text" id="metric-service-date">--</span>
+            </div>
+            <p class="metric-hint" id="metric-session-id">Session: --</p>
+          </div>
+
+          <!-- Metric: Total Orders -->
+          <div class="metric-card">
+            <span class="metric-label">Payers / Submissions</span>
+            <div class="metric-value-wrap">
+              <span class="metric-number" id="metric-orders-count">--</span>
+            </div>
+            <p class="metric-hint" id="metric-total-hint">Active responses this session</p>
+          </div>
+
+        </div>
+
+        <!-- 2. ORDER CAPACITY & LIVE CONTROLS -->
+        <div class="admin-card">
+          <div class="card-header">
+            <div class="card-header-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Order Capacity & Session Status</h2>
+              <p class="card-desc">Control the maximum order limit and manually open or close public ordering.</p>
+            </div>
+          </div>
+
+          <form id="form-order-settings" class="admin-settings-form">
+            <div class="settings-grid">
+
+              <!-- Maximum Orders -->
+              <div class="form-group">
+                <label for="setting-max-pizzas">Maximum Pizzas Allowed</label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="setting-max-pizzas" class="admin-input" min="1" max="500" step="1" required />
+                  <span class="input-unit">pizzas</span>
+                </div>
+                <span class="form-help">When this number of pizzas is reached, the public tracker changes to "Maximum pizzas have been ordered".</span>
+              </div>
+
+              <!-- Manual Ordering Status Toggle -->
+              <div class="form-group">
+                <label>Manual Ordering Status</label>
+                <div class="radio-toggle-group">
+                  <label class="radio-pill">
+                    <input type="radio" name="ordering-status-radio" value="true" id="radio-status-open" />
+                    <span class="radio-pill-content status-pill-open">● OPEN</span>
+                  </label>
+                  <label class="radio-pill">
+                    <input type="radio" name="ordering-status-radio" value="false" id="radio-status-closed" />
+                    <span class="radio-pill-content status-pill-closed">● CLOSED</span>
+                  </label>
+                </div>
+                <span class="form-help">Set to CLOSED to manually halt new orders, even if capacity remains.</span>
+              </div>
+
+            </div>
+
+            <!-- Automatic Sunday Closing -->
+            <div class="divider-subtle"></div>
+            <div class="schedule-control-box">
+              <div class="checkbox-group">
+                <input type="checkbox" id="setting-auto-close-enabled" class="admin-checkbox" />
+                <label for="setting-auto-close-enabled" class="checkbox-label">
+                  <strong>Enable Automatic Weekly Deadline Closing</strong>
+                </label>
+              </div>
+              <p class="form-help" style="margin-left: 28px; margin-bottom: 12px;">
+                Automatically closes ordering every week based on server time, giving you time to prepare for Tuesday service.
+              </p>
+
+              <div class="schedule-inputs-row" id="schedule-inputs-row">
+                <div class="form-group">
+                  <label for="setting-auto-close-day">Closing Day</label>
+                  <select id="setting-auto-close-day" class="admin-select">
+                    <option value="Sunday">Sunday</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Tuesday">Tuesday</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="setting-auto-close-time">Closing Time (24-hr)</label>
+                  <input type="text" id="setting-auto-close-time" class="admin-input" placeholder="21:00" pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="btn-save-order-settings" class="admin-primary-btn">
+                <span class="btn-text">SAVE CAPACITY & STATUS</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 3. EDITABLE WEBSITE TEXT & SERVICE DATES -->
+        <div class="admin-card">
+          <div class="card-header">
+            <div class="card-header-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Website Content & Service Dates</h2>
+              <p class="card-desc">Edit operational dates and customer-facing messages shown on the live website without altering code.</p>
+            </div>
+          </div>
+
+          <form id="form-website-text" class="admin-settings-form">
+            
+            <div class="settings-grid">
+              
+              <!-- Service Date (Full) -->
+              <div class="form-group">
+                <label for="setting-service-date">Service Date (Full)</label>
+                <input type="text" id="setting-service-date" class="admin-input" placeholder="e.g. Tuesday 15th September 2026" required />
+                <span class="form-help">Displayed in confirmations and session logs.</span>
+              </div>
+
+              <!-- Tracker Title -->
+              <div class="form-group">
+                <label for="setting-service-title">Availability Tracker Header</label>
+                <input type="text" id="setting-service-title" class="admin-input" placeholder="e.g. Tuesday 15th Sept Availability" required />
+                <span class="form-help">Appears directly above the progress bar on homepage & order page.</span>
+              </div>
+
+            </div>
+
+            <!-- Homepage Service Notice Banner -->
+            <div class="form-group">
+              <label for="setting-service-notice-date">Homepage Date of Service Banner</label>
+              <input type="text" id="setting-service-notice-date" class="admin-input" placeholder="e.g. Tuesday Lunchtime — 15th of September" required />
+              <span class="form-help">Appears in the calendar notice banner on the homepage.</span>
+            </div>
+
+            <!-- Capacity Message -->
+            <div class="form-group">
+              <label for="setting-capacity-msg">Capacity Disclaimer Message</label>
+              <textarea id="setting-capacity-msg" class="admin-textarea" rows="2"></textarea>
+              <span class="form-help">Text shown below the progress bar explaining order capacity.</span>
+            </div>
+
+            <!-- Deadline Message -->
+            <div class="form-group">
+              <label for="setting-deadline-msg">Closing Deadline Notice</label>
+              <textarea id="setting-deadline-msg" class="admin-textarea" rows="2"></textarea>
+              <span class="form-help">Clock notice text (HTML supported, e.g. &lt;strong&gt;9:00 PM on Sunday&lt;/strong&gt;).</span>
+            </div>
+
+            <!-- Fully Booked Message -->
+            <div class="form-group">
+              <label for="setting-fully-booked-msg">Fully Booked / Closed Message</label>
+              <input type="text" id="setting-fully-booked-msg" class="admin-input" placeholder="e.g. We're fully booked for this session. Please check back next time." />
+              <span class="form-help">Displayed to customers when the limit is reached or ordering is shut.</span>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="btn-save-website-text" class="admin-primary-btn">
+                <span class="btn-text">SAVE WEBSITE TEXT</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 4. START NEW WEEK (DEDICATED RESET ACTION) -->
+        <div class="admin-card card-action-danger">
+          <div class="card-header">
+            <div class="card-header-icon icon-danger">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Start New Week (Clear Spreadsheet Data)</h2>
+              <p class="card-desc">Kick off a new session for the upcoming Tuesday. This resets the active order counter and <strong>permanently deletes</strong> all historical responses in Google Sheets.</p>
+            </div>
+          </div>
+
+          <div class="new-week-box">
+            <p class="new-week-info">
+              Starting a new week creates a new session timestamp. <strong>All previous orders in your spreadsheet will be completely erased</strong> to start fresh for the new week. The layout and headers will rebuild themselves automatically upon the next incoming order.
+            </p>
+
+            <div class="settings-grid">
+              <div class="form-group">
+                <label for="new-session-date-input">Upcoming Service Date</label>
+                <input type="text" id="new-session-date-input" class="admin-input" placeholder="e.g. Tuesday 22nd September 2026" />
+              </div>
+              <div class="form-group">
+                <label for="new-session-max-input">Capacity Limit for New Week</label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="new-session-max-input" class="admin-input" value="20" min="1" max="500" />
+                  <span class="input-unit">pizzas</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 20px;">
+              <button type="button" id="btn-open-new-week-modal" class="admin-danger-btn">
+                START NEW WEEK SESSION &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. RECENT AUDIT LOGS (COLLAPSED BY DEFAULT) -->
+        <div class="admin-card collapsible-card collapsed" id="card-audit-logs">
+          <div class="card-header card-header-clickable" id="header-audit-logs" role="button" tabindex="0" aria-expanded="false" aria-controls="admin-logs-wrapper">
+            <div class="card-header-main">
+              <div class="card-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="card-title-row">
+                  <h2 class="card-title" style="margin-bottom: 0;">Recent Activity & Audit Trail</h2>
+                  <span class="badge-log-count" id="badge-log-count" style="display: none;">0 logged</span>
+                </div>
+                <p class="card-desc" style="margin-top: 4px;">Logged administrative changes and session events from Google Sheets.</p>
+              </div>
+            </div>
+            <button type="button" class="card-collapse-toggle-btn" id="btn-toggle-audit-logs" tabindex="-1" aria-hidden="true">
+              <span class="toggle-text" id="text-toggle-audit-logs">Show log</span>
+              <svg class="chevron-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <div class="admin-logs-wrapper collapsible-content" id="admin-logs-wrapper">
+            <table class="admin-logs-table" id="admin-logs-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Action</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="admin-logs-body">
+                <tr>
+                  <td colspan="3" class="table-empty">Loading audit logs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 6. SECURITY & PASSWORD MANAGEMENT -->
+        <div class="admin-card">
+          <div class="card-header">
+            <div class="card-header-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="card-title">Change Admin Password</h2>
+              <p class="card-desc">Update the master administrative password stored in Google Apps Script.</p>
+            </div>
+          </div>
+
+          <form id="form-change-password" class="admin-settings-form">
+            <div class="settings-grid">
+              <div class="form-group">
+                <label for="change-pass-current">Current Password</label>
+                <input type="password" id="change-pass-current" class="admin-input" required autocomplete="current-password" />
+              </div>
+              <div class="form-group">
+                <label for="change-pass-new">New Password (min 6 characters)</label>
+                <input type="password" id="change-pass-new" class="admin-input" minlength="6" required autocomplete="new-password" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" id="btn-submit-change-pass" class="admin-secondary-btn">
+                <span class="btn-text">UPDATE PASSWORD</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        </div> <!-- End tab-dashboard -->
+
+        <div id="tab-orders" class="tab-content">
+          <div class="orders-summary-bar" id="orders-summary-bar">
+            <div class="order-summary-stat">
+              <span class="stat-label">Total Orders</span>
+              <span class="stat-value" id="stat-total-orders">-</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Total Pizzas</span>
+              <span class="stat-value" id="stat-total-pizzas">-</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Pending Payment</span>
+              <span class="stat-value" id="stat-pending-payment">-</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Paid</span>
+              <span class="stat-value" id="stat-paid-payment">-</span>
+            </div>
+          </div>
+          
+          <div class="orders-search-bar">
+            <input type="text" id="orders-search-input" placeholder="Search orders by customer name, email, or recipient..." />
+          </div>
+
+          <div id="orders-list-container">
+            <p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>
+          </div>
+        </div>
+
+        <!-- Logout Footer Box -->
+        <div class="admin-footer-actions">
+          <button type="button" id="btn-logout-bottom" class="admin-logout-btn">
+            &larr; Log Out of Admin Dashboard
+          </button>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================
+       MODAL: CONFIRM START NEW WEEK
+       ======================================================== -->
+  <div id="new-week-modal" class="admin-modal-backdrop" style="display: none;">
+    <div class="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-new-week-title">
+      <div class="modal-header">
+        <div class="modal-icon-danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3 id="modal-new-week-title" class="modal-title">Start New Ordering Period?</h3>
+      </div>
+
+      <div class="modal-body">
+        <p>This will start a fresh ordering session for the new service date:</p>
+        <div class="modal-session-summary">
+          <div><strong>New Service Date:</strong> <span id="modal-target-date">--</span></div>
+          <div><strong>Capacity Limit:</strong> <span id="modal-target-max">-- pizzas</span></div>
+          <div><strong>Historical Orders:</strong> <span style="color: #A83220; font-weight: bold;">WILL BE PERMANENTLY ERASED</span></div>
+        </div>
+        <p class="modal-note">The public website tracker will reset to 0 pizzas claimed for the new date, and ordering will be set to OPEN. The spreadsheet will be fully cleared and will rebuild on the next order.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="btn-modal-cancel" class="admin-secondary-btn">Cancel</button>
+        <button type="button" id="btn-modal-confirm" class="admin-danger-btn">
+          <span class="btn-text">CONFIRM & START NEW WEEK</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <div class="footer-bottom">
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.4</a> &middot; <a href="index.html" class="admin-footer-link">Back to Homepage</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Admin Dashboard JavaScript Logic -->
+  <script src="script.js"></script>
+  <script>
+    // ========================================================================
+    // ADMIN DASHBOARD CLIENT-SIDE CONTROLLER
+    // ========================================================================
+    function formatPizzaAmount(value) {
+      if (typeof value !== 'number' || isNaN(value)) return '0';
+      var rounded = Math.round(value * 100) / 100;
+      if (Number.isInteger(rounded)) return String(rounded);
+      var whole = Math.floor(rounded);
+      var prefix = whole > 0 ? String(whole) : '';
+      if (rounded % 1 === 0.5) return prefix ? (prefix + '½') : '½';
+      if (rounded % 1 === 0.25) return prefix ? (prefix + '¼') : '¼';
+      if (rounded % 1 === 0.75) return prefix ? (prefix + '¾') : '¾';
+      return String(rounded);
+    }
+
+    function getPizzaItemCapacity(item) {
+      if (!item) return 1.0;
+      if (typeof item.capacity === 'number' && !isNaN(item.capacity)) {
+        return item.capacity;
+      }
+      if (item.sizeKey === 'Quarter12inch' || item.sizeKey === 'Quarter') return 0.25;
+      if (item.sizeKey === 'Half12inch' || item.sizeKey === 'Half') return 0.5;
+      if (item.sizeKey === '12inch' || item.sizeKey === 'Whole') return 1.0;
+
+      if (item.size) {
+        var s = String(item.size).toLowerCase();
+        if (s.indexOf('quarter') !== -1 || s.indexOf('0.25') !== -1 || s.indexOf('1/4') !== -1 || s.indexOf('3"') !== -1) {
+          return 0.25;
+        }
+        if (s.indexOf('half') !== -1 || s.indexOf('0.5') !== -1 || s.indexOf('1/2') !== -1 || s.indexOf('6"') !== -1) {
+          return 0.5;
+        }
+        if (s.indexOf('12') !== -1 || s.indexOf('whole') !== -1 || s.indexOf('1.0') !== -1) {
+          return 1.0;
+        }
+      }
+      return 1.0;
+    }
+
+    function calculateOrderPizzas(order) {
+      if (!order) return { fullPizzas: 0, itemsCount: 0 };
+      var fullPizzas = 0;
+      var itemsCount = 0;
+
+      if (order.pizzas && Array.isArray(order.pizzas) && order.pizzas.length > 0) {
+        itemsCount = order.pizzas.length;
+        order.pizzas.forEach(function(p) {
+          fullPizzas += getPizzaItemCapacity(p);
+        });
+      } else if (typeof order.pizzaCount === 'number') {
+        fullPizzas = order.pizzaCount;
+        itemsCount = order.itemCount || order.pizzaCount;
+      }
+
+      fullPizzas = Math.round(fullPizzas * 100) / 100;
+      return { fullPizzas: fullPizzas, itemsCount: itemsCount };
+    }
+    (function () {
+      const STORAGE_KEY_TOKEN = "ao_admin_session_token";
+      let currentAdminToken = sessionStorage.getItem(STORAGE_KEY_TOKEN) || "";
+      let cachedSettings = null;
+
+      // Elements
+      const loginSection = document.getElementById("login-section");
+      const dashboardSection = document.getElementById("dashboard-section");
+      const loginForm = document.getElementById("admin-login-form");
+      const passwordInput = document.getElementById("admin-password-input");
+      const loginErrorBanner = document.getElementById("login-error-msg");
+      const loginSubmitBtn = document.getElementById("btn-login-submit");
+      const headerLogoutBtn = document.getElementById("btn-logout-header");
+      const bottomLogoutBtn = document.getElementById("btn-logout-bottom");
+      const togglePasswordBtn = document.getElementById("btn-toggle-password");
+      const refreshBtn = document.getElementById("btn-refresh-data");
+      const toastEl = document.getElementById("admin-toast");
+
+      // Modals
+      const newWeekModal = document.getElementById("new-week-modal");
+      const openNewWeekModalBtn = document.getElementById("btn-open-new-week-modal");
+      const modalCancelBtn = document.getElementById("btn-modal-cancel");
+      const modalConfirmBtn = document.getElementById("btn-modal-confirm");
+
+      // Password toggle
+      if (togglePasswordBtn && passwordInput) {
+        togglePasswordBtn.addEventListener("click", function () {
+          const isPassword = passwordInput.type === "password";
+          passwordInput.type = isPassword ? "text" : "password";
+          togglePasswordBtn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+        });
+      }
+
+      // Initialize session check
+      if (currentAdminToken) {
+        loadDashboardData(true);
+      } else {
+        showLoginView();
+      }
+
+      // Form: Login
+      if (loginForm) {
+        loginForm.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const pass = (passwordInput.value || "").trim();
+          if (!pass) return;
+
+          hideLoginError();
+          setButtonLoading(loginSubmitBtn, true);
+
+          try {
+            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+            if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+              console.error("Admin Login: ORDER_API_URL missing or invalid:", apiUrl);
+              throw new Error("Backend URL not configured.");
+            }
+            const url = new URL(apiUrl);
+            url.searchParams.set("action", "adminLogin");
+            url.searchParams.set("password", pass);
+
+            const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+            if (!res.ok) throw new Error("Network request failed (" + res.status + ")");
+            const data = await res.json();
+
+            if (data.success && data.token) {
+              currentAdminToken = data.token;
+              sessionStorage.setItem(STORAGE_KEY_TOKEN, data.token);
+              passwordInput.value = "";
+              showToast("Logged in successfully!", "success");
+              loadDashboardData();
+              loadOrdersData(true); // Background load orders for instant tab switch later
+            } else {
+              showLoginError(data.message || "Incorrect password.");
+            }
+          } catch (err) {
+            console.error("Login error:", err);
+            showLoginError("Unable to connect to Google Apps Script. Please verify your Web App URL.");
+          } finally {
+            setButtonLoading(loginSubmitBtn, false);
+          }
+        });
+      }
+
+      // Form: Save Order Settings
+      const formOrderSettings = document.getElementById("form-order-settings");
+      if (formOrderSettings) {
+        formOrderSettings.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const maxPizzas = parseInt(document.getElementById("setting-max-pizzas").value, 10);
+          const orderingOpenRadio = document.querySelector('input[name="ordering-status-radio"]:checked');
+          const isOrderingOpen = orderingOpenRadio ? (orderingOpenRadio.value === "true") : true;
+          const autoCloseEnabled = document.getElementById("setting-auto-close-enabled").checked;
+          const autoCloseDay = document.getElementById("setting-auto-close-day").value;
+          const autoCloseTime = document.getElementById("setting-auto-close-time").value;
+
+          const payload = {
+            maxPizzas: maxPizzas,
+            orderingEnabled: isOrderingOpen,
+            autoCloseEnabled: autoCloseEnabled,
+            autoCloseDay: autoCloseDay,
+            autoCloseTime: autoCloseTime
+          };
+
+          const saveBtn = document.getElementById("btn-save-order-settings");
+          setButtonLoading(saveBtn, true);
+
+          try {
+            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+            const url = new URL(apiUrl);
+            url.searchParams.set("action", "adminUpdateSettings");
+            url.searchParams.set("token", currentAdminToken);
+            url.searchParams.set("settingsJson", JSON.stringify(payload));
+
+            const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+            const data = await res.json();
+
+            if (data.unauthorized) {
+              handleSessionExpiry();
+              return;
+            }
+
+            if (data.success) {
+              showToast("Capacity & ordering status saved successfully!", "success");
+              if (data.settings && data.stats) {
+                renderDashboard(data.settings, data.stats);
+              } else {
+                loadDashboardData();
+              }
+            } else {
+              showToast(data.message || "Failed to update settings.", "error");
+            }
+          } catch (err) {
+            console.error("Save error:", err);
+            showToast("Network error while saving settings.", "error");
+          } finally {
+            setButtonLoading(saveBtn, false);
+          }
+        });
+      }
+
+      // Form: Save Website Text
+      const formWebsiteText = document.getElementById("form-website-text");
+      if (formWebsiteText) {
+        formWebsiteText.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const payload = {
+            serviceDate: document.getElementById("setting-service-date").value.trim(),
+            serviceTitle: document.getElementById("setting-service-title").value.trim(),
+            serviceNoticeDate: document.getElementById("setting-service-notice-date").value.trim(),
+            capacityMessage: document.getElementById("setting-capacity-msg").value.trim(),
+            deadlineMessage: document.getElementById("setting-deadline-msg").value.trim(),
+            fullyBookedMessage: document.getElementById("setting-fully-booked-msg").value.trim()
+          };
+
+          const saveBtn = document.getElementById("btn-save-website-text");
+          setButtonLoading(saveBtn, true);
+
+          try {
+            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+            const url = new URL(apiUrl);
+            url.searchParams.set("action", "adminUpdateSettings");
+            url.searchParams.set("token", currentAdminToken);
+            url.searchParams.set("settingsJson", JSON.stringify(payload));
+
+            const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+            const data = await res.json();
+
+            if (data.unauthorized) {
+              handleSessionExpiry();
+              return;
+            }
+
+            if (data.success) {
+              showToast("Website text & dates saved successfully!", "success");
+              if (data.settings) renderDashboard(data.settings, data.stats);
+            } else {
+              showToast(data.message || "Failed to update website text.", "error");
+            }
+          } catch (err) {
+            console.error("Save error:", err);
+            showToast("Network error while saving website text.", "error");
+          } finally {
+            setButtonLoading(saveBtn, false);
+          }
+        });
+      }
+
+      // Start New Week Modal Trigger
+      if (openNewWeekModalBtn) {
+        openNewWeekModalBtn.addEventListener("click", function () {
+          const targetDate = document.getElementById("new-session-date-input").value.trim() || document.getElementById("setting-service-date").value;
+          const targetMax = document.getElementById("new-session-max-input").value || "20";
+          
+          document.getElementById("modal-target-date").textContent = targetDate;
+          document.getElementById("modal-target-max").textContent = targetMax + " pizzas";
+          newWeekModal.style.display = "flex";
+        });
+      }
+
+      if (modalCancelBtn) {
+        modalCancelBtn.addEventListener("click", function () {
+          newWeekModal.style.display = "none";
+        });
+      }
+
+      if (modalConfirmBtn) {
+        modalConfirmBtn.addEventListener("click", async function () {
+          const newDate = document.getElementById("new-session-date-input").value.trim();
+          const newMax = document.getElementById("new-session-max-input").value.trim();
+
+          setButtonLoading(modalConfirmBtn, true);
+
+          try {
+            const url = new URL(ORDER_API_URL);
+            url.searchParams.set("action", "adminStartNewSession");
+            url.searchParams.set("token", currentAdminToken);
+            if (newDate) url.searchParams.set("newServiceDate", newDate);
+            if (newMax) url.searchParams.set("newMaxPizzas", newMax);
+
+            const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+            const data = await res.json();
+
+            if (data.unauthorized) {
+              newWeekModal.style.display = "none";
+              handleSessionExpiry();
+              return;
+            }
+
+            if (data.success) {
+              newWeekModal.style.display = "none";
+              showToast("New week session initiated! Spreadsheet successfully cleared.", "success");
+              loadDashboardData();
+            } else {
+              showToast(data.message || "Failed to start new session.", "error");
+            }
+          } catch (err) {
+            console.error("New session error:", err);
+            showToast("Network error starting new week.", "error");
+          } finally {
+            setButtonLoading(modalConfirmBtn, false);
+          }
+        });
+      }
+
+      // Form: Change Password
+      const formChangePass = document.getElementById("form-change-password");
+      if (formChangePass) {
+        formChangePass.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          const currentPassword = document.getElementById("change-pass-current").value.trim();
+          const newPassword = document.getElementById("change-pass-new").value.trim();
+
+          const btn = document.getElementById("btn-submit-change-pass");
+          setButtonLoading(btn, true);
+
+          try {
+            const url = new URL(ORDER_API_URL);
+            url.searchParams.set("action", "adminChangePassword");
+            url.searchParams.set("token", currentAdminToken);
+            url.searchParams.set("currentPassword", currentPassword);
+            url.searchParams.set("newPassword", newPassword);
+
+            const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+            const data = await res.json();
+
+            if (data.unauthorized) {
+              handleSessionExpiry();
+              return;
+            }
+
+            if (data.success) {
+              showToast("Admin password changed successfully!", "success");
+              formChangePass.reset();
+            } else {
+              showToast(data.message || "Failed to change password.", "error");
+            }
+          } catch (err) {
+            console.error("Change pass error:", err);
+            showToast("Network error changing password.", "error");
+          } finally {
+            setButtonLoading(btn, false);
+          }
+        });
+      }
+
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+          loadDashboardData();
+          loadOrdersData();
+        });
+      }
+
+      // Collapsible Audit Logs
+      const headerAuditLogs = document.getElementById("header-audit-logs");
+      const cardAuditLogs = document.getElementById("card-audit-logs");
+      const textToggleAuditLogs = document.getElementById("text-toggle-audit-logs");
+
+      if (headerAuditLogs && cardAuditLogs) {
+        const toggleLogs = () => {
+          const isCollapsed = cardAuditLogs.classList.toggle("collapsed");
+          headerAuditLogs.setAttribute("aria-expanded", String(!isCollapsed));
+          if (textToggleAuditLogs) {
+            textToggleAuditLogs.textContent = isCollapsed ? "Show log" : "Hide log";
+          }
+        };
+
+        headerAuditLogs.addEventListener("click", toggleLogs);
+        headerAuditLogs.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleLogs();
+          }
+        });
+      }
+
+      // Logout buttons
+      [headerLogoutBtn, bottomLogoutBtn].forEach(btn => {
+        if (btn) {
+          btn.addEventListener("click", async function () {
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminLogout");
+              url.searchParams.set("token", currentAdminToken);
+              fetch(url.toString(), { method: "GET", mode: "cors" });
+            } catch (e) {}
+
+            currentAdminToken = "";
+            sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+            showToast("Logged out successfully.", "info");
+            showLoginView();
+          });
+        }
+      });
+
+      // Data loader
+      let cachedOrders = [];
+      
+      const tabButtons = document.querySelectorAll('.admin-tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+      const btnTabOrders = document.getElementById('btn-tab-orders');
+      
+      console.log("Admin: Initializing tabs. Found " + tabButtons.length + " buttons.");
+      
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabButtons.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+          
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+      });
+
+      btnTabOrders.addEventListener('click', () => {
+        loadOrdersData();
+      });
+
+      const searchInput = document.getElementById('orders-search-input');
+      if (searchInput) {
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(() => {
+            renderOrders(cachedOrders);
+          }, 150);
+        });
+      }
+
+      async function loadOrdersData(silent = false) {
+        if (!currentAdminToken) return;
+        
+        try {
+          const STORAGE_KEY_ORDERS = "AO_CACHED_ORDERS";
+          
+          if (!silent) {
+            // Check session storage first for instant feedback
+            const cached = sessionStorage.getItem(STORAGE_KEY_ORDERS);
+            if (cached) {
+              try {
+                cachedOrders = JSON.parse(cached);
+                renderOrders(cachedOrders);
+              } catch (e) {}
+            }
+            
+            if (!cachedOrders || !cachedOrders.length) {
+              document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
+            }
+          }
+
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+            console.error("Admin Orders: ORDER_API_URL missing or invalid:", apiUrl);
+            throw new Error("Backend URL not configured.");
+          }
+          const url = new URL(apiUrl);
+          url.searchParams.set("action", "adminGetOrders");
+          url.searchParams.set("token", currentAdminToken);
+          url.searchParams.set("_t", Date.now());
+          
+          const response = await fetch(url.toString(), { method: "GET", mode: "cors" });
+          if (!response.ok) throw new Error("Network request failed (" + response.status + ")");
+          const data = await response.json();
+          
+          if (data.unauthorized) {
+            sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+            currentAdminToken = "";
+            showLoginView();
+            showLoginError(data.message || "Session expired.");
+            return;
+          }
+
+          if (data.success && data.orders) {
+            cachedOrders = data.orders;
+            sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(data.orders));
+            renderOrders(cachedOrders);
+          } else {
+            document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;
+          }
+        } catch (err) {
+          console.error("Orders load error:", err);
+          if (!cachedOrders || !cachedOrders.length) {
+            document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching orders.</p>';
+          }
+        }
+      }
+
+      function renderOrders(orders) {
+        console.log("Admin: Rendering " + (orders ? orders.length : 0) + " orders");
+        const container = document.getElementById('orders-list-container');
+        if (!container) return;
+
+        const searchInputEl = document.getElementById('orders-search-input');
+        const searchTerm = (searchInputEl && searchInputEl.value || "").toLowerCase();
+        
+        let totalOrders = 0;
+        let totalFullPizzas = 0;
+        let totalPizzaItems = 0;
+        let pendingCount = 0;
+        let paidCount = 0;
+
+        if (!orders || orders.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No orders found in this session.</p>';
+          updateOrderStats(0, 0, 0, 0, 0);
+          return;
+        }
+
+        let filtered = orders.filter(o => {
+          const customerName = (o.customer && o.customer.name) || '';
+          const customerEmail = (o.customer && o.customer.email) || '';
+          const pizzaRecipients = (o.pizzas && o.pizzas.map(p => p.recipient).join(' ')) || '';
+          const matchString = `${o.orderId} ${customerName} ${customerEmail} ${pizzaRecipients}`.toLowerCase();
+          return matchString.includes(searchTerm);
+        });
+
+        orders.forEach(o => {
+          totalOrders++;
+          const calc = calculateOrderPizzas(o);
+          totalFullPizzas += calc.fullPizzas;
+          totalPizzaItems += calc.itemsCount;
+          if (o.paymentStatus === 'Paid') paidCount++;
+          else pendingCount++;
+        });
+
+        totalFullPizzas = Math.round(totalFullPizzas * 100) / 100;
+        updateOrderStats(totalOrders, totalFullPizzas, pendingCount, paidCount, totalPizzaItems);
+
+        if (filtered.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No matches found for your search.</p>';
+          return;
+        }
+
+        let html = '';
+        filtered.forEach(order => {
+          const isPaid = order.paymentStatus === 'Paid';
+          const statusLabel = isPaid ? 'PAID' : 'UNPAID';
+          
+          let pizzasHtml = '';
+          if (order.pizzas) {
+            order.pizzas.forEach(p => {
+              pizzasHtml += `
+                <div class="order-pizza-item">
+                  <div class="order-pizza-recipient" style="font-weight: 600;">${escapeHtml(p.recipient)} ${p.class ? `(${escapeHtml(p.class)})` : ''}</div>
+                  <div class="order-pizza-meta" style="font-size: 0.85rem; color: var(--text-soft); display: flex; justify-content: space-between;">
+                    <span>${escapeHtml(p.size)}</span>
+                    <span>£${(p.price || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              `;
+            });
+          }
+
+          const customerName = (order.customer && order.customer.name) || 'Unknown';
+          const customerEmail = (order.customer && order.customer.email) || '';
+          const orderCalc = calculateOrderPizzas(order);
+          const formattedOrderPizzas = formatPizzaAmount(orderCalc.fullPizzas);
+          const pizzaSummaryText = `${formattedOrderPizzas} pizza${orderCalc.fullPizzas === 1 ? '' : 's'}` + 
+            (orderCalc.itemsCount > 1 ? ` (${orderCalc.itemsCount} items)` : '');
+
+          html += `
+            <div class="order-card" data-order-id="${order.orderId}">
+              <div class="order-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+                <div>
+                  <div class="order-card-title">Order #${order.orderId}</div>
+                  <div class="order-card-customer" style="font-weight: 600;">${escapeHtml(customerName)}</div>
+                  <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(customerEmail)}</div>
+                </div>
+                <div class="paid-toggle-wrap" onclick="event.stopPropagation()">
+                  <span>${statusLabel}</span>
+                  <label class="switch">
+                    <input type="checkbox" class="paid-toggle" data-order-id="${order.orderId}" ${isPaid ? 'checked' : ''}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;" onclick="this.parentElement.classList.toggle('expanded')">
+                <span>${pizzaSummaryText}</span>
+                <span style="font-weight: 700; color: var(--forest);">Total: £${(order.total || 0).toFixed(2)}</span>
+              </div>
+              
+              <div class="order-card-details">
+                <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp)}</div>
+                ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600; border: 1px solid rgba(133, 100, 4, 0.2);">⚠️ Allergy Info: ${escapeHtml(order.allergy)}</div>` : ''}
+                <div class="pizzas-list">${pizzasHtml}</div>
+                <div class="order-card-total" style="display: flex; justify-content: space-between; padding-top: 12px; margin-top: 12px; border-top: 2px solid #eee; font-weight: 800; color: var(--forest); align-items: center;">
+                  <div>
+                    <span style="display: block; font-size: 0.8rem; color: var(--text-soft); font-weight: 400; margin-bottom: 2px;">Order Total</span>
+                    <span>£${(order.total || 0).toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                      </svg>
+                      RESEND EMAIL
+                    </button>
+                    <button type="button" class="delete-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                      DELETE
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+
+        // Add event listeners for toggles and buttons
+        container.querySelectorAll('.paid-toggle').forEach(checkbox => {
+          checkbox.addEventListener('change', async function() {
+            const orderId = this.getAttribute('data-order-id');
+            const isChecked = this.checked;
+            const newStatus = isChecked ? 'Paid' : 'Pending Payment';
+            const label = this.parentElement.previousElementSibling;
+            
+            label.textContent = isChecked ? 'PAID' : 'UNPAID';
+            
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminUpdatePaidStatus");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("orderId", orderId);
+              url.searchParams.set("status", newStatus);
+
+              const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+              const data = await res.json();
+              if (data.success) {
+                showToast(`Order #${orderId} marked as ${newStatus}`, "success");
+              } else {
+                showToast("Error: " + data.message, "error");
+                this.checked = !isChecked; // Revert
+                label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+              }
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to update status.", "error");
+              this.checked = !isChecked; // Revert
+              label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+            }
+          });
+        });
+
+        container.querySelectorAll('.resend-btn-inline').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            const orderId = this.getAttribute('data-order-id');
+            if (!confirm(`Resend confirmation email for Order #${orderId}?`)) return;
+
+            this.disabled = true;
+            const originalHtml = this.innerHTML;
+            this.innerHTML = 'Sending...';
+
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminResendConfirmation");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("orderId", orderId);
+
+              const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+              const data = await res.json();
+              if (data.success) {
+                showToast(data.message, "success");
+                loadDashboardData(true); // Refresh logs
+              } else {
+                showToast("Error: " + data.message, "error");
+              }
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to resend email.", "error");
+            } finally {
+              this.disabled = false;
+              this.innerHTML = originalHtml;
+            }
+          });
+        });
+
+        container.querySelectorAll('.delete-btn-inline').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            const orderId = this.getAttribute('data-order-id');
+            if (!orderId) return;
+
+            const existingOrder = cachedOrders.find(o => String(o.orderId) === String(orderId));
+            const customerName = (existingOrder && existingOrder.customer && existingOrder.customer.name) ? ` (${existingOrder.customer.name})` : '';
+
+            if (!confirm(`Are you sure you want to PERMANENTLY DELETE Order #${orderId}${customerName}?\n\nThis will only delete this specific order and update your available capacity.`)) return;
+
+            this.disabled = true;
+            const originalHtml = this.innerHTML;
+            this.innerHTML = 'Deleting...';
+
+            try {
+              const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminDeleteOrder");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("orderId", orderId);
+
+              const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+              const data = await res.json();
+              if (data.success) {
+                showToast(data.message || `Order #${orderId} deleted.`, "success");
+                
+                // Immediately remove only this specific order from local cached state
+                cachedOrders = cachedOrders.filter(o => String(o.orderId) !== String(orderId));
+                sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(cachedOrders));
+                renderOrders(cachedOrders);
+
+                // Fetch fresh server stats and sync
+                loadDashboardData(true);
+              } else {
+                showToast("Error: " + (data.message || "Failed to delete order."), "error");
+                this.disabled = false;
+                this.innerHTML = originalHtml;
+              }
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to delete order due to connection issue.", "error");
+              this.disabled = false;
+              this.innerHTML = originalHtml;
+            }
+          });
+        });
+      }
+
+      function updateOrderStats(total, pizzas, pending, paid, itemsCount) {
+        const elTotal = document.getElementById('stat-total-orders');
+        const elPizzas = document.getElementById('stat-total-pizzas');
+        const elPending = document.getElementById('stat-pending-payment');
+        const elPaid = document.getElementById('stat-paid-payment');
+        
+        if (elTotal) elTotal.textContent = total;
+        if (elPizzas) {
+          const formattedPizzas = formatPizzaAmount(pizzas);
+          if (itemsCount && itemsCount !== pizzas) {
+            elPizzas.innerHTML = `${formattedPizzas} <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-soft); display: block; margin-top: 2px;">(${itemsCount} items)</span>`;
+          } else {
+            elPizzas.textContent = formattedPizzas;
+          }
+        }
+        if (elPending) elPending.textContent = pending;
+        if (elPaid) elPaid.textContent = paid;
+      }
+      async function loadDashboardData(silent = false) {
+        if (!currentAdminToken) {
+          showLoginView();
+          return;
+        }
+
+        // Instant render from session cache if available
+        try {
+          const cachedSet = sessionStorage.getItem("AO_CACHED_SETTINGS");
+          const cachedSt = sessionStorage.getItem("AO_CACHED_STATS");
+          const cachedLg = sessionStorage.getItem("AO_CACHED_LOGS");
+          if (cachedSet) {
+            renderDashboard(JSON.parse(cachedSet), cachedSt ? JSON.parse(cachedSt) : null, cachedLg ? JSON.parse(cachedLg) : []);
+            showDashboardView();
+          }
+        } catch (e) {}
+
+        const lastUpdatedEl = document.getElementById("dashboard-last-updated");
+        if (lastUpdatedEl && !cachedSettings) lastUpdatedEl.textContent = "Fetching latest settings & orders...";
+
+        try {
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+            console.error("Admin: ORDER_API_URL is missing or invalid:", apiUrl);
+            throw new Error("Backend URL not configured correctly.");
+          }
+          const url = new URL(apiUrl);
+          url.searchParams.set("action", "adminGetSettings");
+          url.searchParams.set("token", currentAdminToken);
+          url.searchParams.set("_t", Date.now());
+
+          // Concurrently fetch settings and orders for 2x faster performance
+          const [settingsRes] = await Promise.all([
+            fetch(url.toString(), { method: "GET", mode: "cors" }),
+            loadOrdersData(true)
+          ]);
+
+          if (!settingsRes.ok) throw new Error("HTTP error " + settingsRes.status);
+          const data = await settingsRes.json();
+
+          if (data.unauthorized) {
+            handleSessionExpiry();
+            return;
+          }
+
+          if (data.success && data.settings) {
+            cachedSettings = data.settings;
+            sessionStorage.setItem("AO_CACHED_SETTINGS", JSON.stringify(data.settings));
+            if (data.stats) sessionStorage.setItem("AO_CACHED_STATS", JSON.stringify(data.stats));
+            if (data.logs) sessionStorage.setItem("AO_CACHED_LOGS", JSON.stringify(data.logs));
+            renderDashboard(data.settings, data.stats, data.logs);
+            showDashboardView();
+            if (!silent) showToast("Dashboard synced with live database.", "success");
+          } else {
+            showToast(data.message || "Unable to load settings.", "error");
+          }
+        } catch (err) {
+          console.error("Dashboard load error:", err);
+          if (!silent) showToast("Connection error fetching dashboard data.", "error");
+          if (lastUpdatedEl) lastUpdatedEl.textContent = "Offline or connection error.";
+        }
+      }
+
+      // Render Dashboard fields
+      function renderDashboard(settings, stats, logs) {
+        const lastUpdatedEl = document.getElementById("dashboard-last-updated");
+        if (lastUpdatedEl) {
+          const now = new Date();
+          lastUpdatedEl.textContent = "Last updated: " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // Metrics
+        const metricStatusBadge = document.getElementById("metric-status-badge");
+        const metricStatusHint = document.getElementById("metric-status-hint");
+        const metricPizzasClaimed = document.getElementById("metric-pizzas-claimed");
+        const metricProgressFill = document.getElementById("metric-progress-fill");
+        const metricRemainingHint = document.getElementById("metric-remaining-hint");
+        const metricServiceDate = document.getElementById("metric-service-date");
+        const metricSessionId = document.getElementById("metric-session-id");
+        const metricOrdersCount = document.getElementById("metric-orders-count");
+        const metricTotalHint = document.getElementById("metric-total-hint");
+
+        const curPizzas = stats ? stats.currentPizzas : 0;
+        const maxPizzas = settings.maxPizzas || 20;
+        const remaining = Math.max(0, maxPizzas - curPizzas);
+        const isOpen = stats ? stats.orderingOpen : settings.orderingEnabled;
+
+        if (metricStatusBadge) {
+          if (isOpen) {
+            metricStatusBadge.textContent = "● OPEN";
+            metricStatusBadge.className = "status-badge status-open";
+            metricStatusHint.textContent = "Public orders are being accepted";
+          } else {
+            metricStatusBadge.textContent = "● CLOSED";
+            metricStatusBadge.className = "status-badge status-closed";
+            metricStatusHint.textContent = stats && stats.isPastDeadline ? "Closed by weekly schedule" : "Closed manually or at capacity";
+          }
+        }
+
+        if (metricPizzasClaimed) {
+          metricPizzasClaimed.textContent = formatPizzaAmount(curPizzas) + " / " + formatPizzaAmount(maxPizzas);
+          const pct = Math.min(100, Math.max(0, (curPizzas / maxPizzas) * 100));
+          if (metricProgressFill) metricProgressFill.style.width = pct + "%";
+          if (metricRemainingHint) metricRemainingHint.textContent = formatPizzaAmount(remaining) + " pizzas remaining";
+        }
+
+        if (metricServiceDate) metricServiceDate.textContent = settings.serviceDate || "--";
+        if (metricSessionId) metricSessionId.textContent = "Session: " + (settings.sessionId || "Current");
+        if (metricOrdersCount && stats) {
+          metricOrdersCount.textContent = stats.currentOrders + " orders";
+          if (metricTotalHint) metricTotalHint.textContent = "Historical total: " + (stats.totalHistoricalOrders || stats.currentOrders) + " orders";
+        }
+
+        // Populate Order Settings Form
+        document.getElementById("setting-max-pizzas").value = maxPizzas;
+        if (settings.orderingEnabled) {
+          document.getElementById("radio-status-open").checked = true;
+        } else {
+          document.getElementById("radio-status-closed").checked = true;
+        }
+
+        document.getElementById("setting-auto-close-enabled").checked = settings.autoCloseEnabled !== false;
+        document.getElementById("setting-auto-close-day").value = settings.autoCloseDay || "Sunday";
+        document.getElementById("setting-auto-close-time").value = settings.autoCloseTime || "21:00";
+
+        // Populate Website Text Form
+        document.getElementById("setting-service-date").value = settings.serviceDate || "";
+        document.getElementById("setting-service-title").value = settings.serviceTitle || "";
+        document.getElementById("setting-service-notice-date").value = settings.serviceNoticeDate || "";
+        document.getElementById("setting-capacity-msg").value = settings.capacityMessage || "";
+        document.getElementById("setting-deadline-msg").value = settings.deadlineMessage || "";
+        document.getElementById("setting-fully-booked-msg").value = settings.fullyBookedMessage || "";
+
+        // Populate New Week input defaults
+        document.getElementById("new-session-date-input").value = "";
+        document.getElementById("new-session-max-input").value = maxPizzas;
+
+        // Render Logs
+        if (logs && Array.isArray(logs)) {
+          renderLogs(logs);
+        }
+      }
+
+      function renderLogs(logs) {
+        const tbody = document.getElementById("admin-logs-body");
+        const badge = document.getElementById("badge-log-count");
+        if (!tbody) return;
+
+        if (!logs || logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" class="table-empty">No activity logged yet.</td></tr>';
+          if (badge) badge.style.display = "none";
+          return;
+        }
+
+        if (badge) {
+          badge.textContent = logs.length + (logs.length === 1 ? ' event' : ' events');
+          badge.style.display = "inline-flex";
+        }
+
+        tbody.innerHTML = "";
+        logs.forEach(log => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="log-time">${escapeHtml(log.timestamp)}</td>
+            <td class="log-action"><span class="log-badge">${escapeHtml(log.action)}</span></td>
+            <td class="log-details">${escapeHtml(log.details)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      function showLoginView() {
+        console.log("Admin: Showing Login View");
+        if (loginSection) loginSection.style.display = "block";
+        if (dashboardSection) dashboardSection.style.display = "none";
+        if (headerLogoutBtn) headerLogoutBtn.style.display = "none";
+      }
+
+      function showDashboardView() {
+        console.log("Admin: Showing Dashboard View");
+        if (loginSection) loginSection.style.display = "none";
+        if (dashboardSection) dashboardSection.style.display = "block";
+        if (headerLogoutBtn) headerLogoutBtn.style.display = "inline-block";
+      }
+
+      function handleSessionExpiry() {
+        currentAdminToken = "";
+        sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+        showToast("Session expired. Please log in again.", "error");
+        showLoginView();
+      }
+
+      function showLoginError(msg) {
+        if (!loginErrorBanner) return;
+        loginErrorBanner.textContent = msg;
+        loginErrorBanner.hidden = false;
+      }
+
+      function hideLoginError() {
+        if (!loginErrorBanner) return;
+        loginErrorBanner.hidden = true;
+        loginErrorBanner.textContent = "";
+      }
+
+      function showToast(msg, type = "info") {
+        if (!toastEl) return;
+        toastEl.textContent = msg;
+        toastEl.className = "admin-toast toast-" + type;
+        toastEl.hidden = false;
+        clearTimeout(toastEl._timer);
+        toastEl._timer = setTimeout(() => {
+          toastEl.hidden = true;
+        }, 4000);
+      }
+
+      function setButtonLoading(btn, isLoading) {
+        if (!btn) return;
+        if (isLoading) {
+          btn.classList.add("is-loading");
+          btn.disabled = true;
+        } else {
+          btn.classList.remove("is-loading");
+          btn.disabled = false;
+        }
+      }
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+    })();
+  </script>
+</body>
+</html>

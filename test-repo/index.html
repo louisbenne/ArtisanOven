@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artisan Oven — Artisan Pizza, Made with Love by Students of Class 12</title>
+  <meta name="description" content="Artisan Oven — handmade pizza. Pay for an order or place a new one." />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <span class="wordmark">
+        <span class="flame-dot" aria-hidden="true"></span>
+        ARTISAN OVEN
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-heading">Artisan Pizza, Made with Love</h1>
+
+        <!-- Hand-drawn scorch-mark underline, echoing char marks on a wood-fired crust -->
+        <svg class="scorch-underline" viewBox="0 0 210 18" aria-hidden="true">
+          <path d="M6 12 C 40 4, 70 16, 105 8 S 170 2, 204 10" />
+        </svg>
+
+        <p class="hero-sub">Welcome to Artisan Oven. Please choose an option below to get started.</p>
+
+        <!-- Date of Service Notice -->
+        <div class="service-notice" id="service-notice-banner" role="region" aria-label="Next Service Date">
+          <div class="service-notice-header">
+            <svg class="service-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span class="service-notice-title">Next Date of Service</span>
+          </div>
+          <p class="service-notice-date" id="service-notice-date-text">Tuesday Lunchtime — starting 15th of August</p>
+          <p class="service-notice-footnote">Updated every week for upcoming lunch dates</p>
+        </div>
+
+        <!-- Availability Tracker -->
+        <div class="availability-tracker" id="availability-tracker" aria-live="polite">
+          <div class="tracker-header">
+            <span class="tracker-title" id="tracker-service-title">Tuesday 15th Sept Availability</span>
+            <span class="tracker-status" id="tracker-status-text">Checking...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="tracker-progress-fill" style="width: 0%; opacity: 0.5;"></div>
+          </div>
+          <div class="tracker-footer">
+            <span id="tracker-orders-taken">-- of -- pizzas claimed</span>
+            <span id="tracker-orders-remaining">-- pizzas remaining</span>
+          </div>
+          <div class="tracker-disclaimer" id="tracker-capacity-disclaimer">
+            We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.
+          </div>
+          <div class="tracker-deadline" id="tracker-deadline-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="tracker-deadline-text">Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="choices" aria-label="Choose an option">
+      <div class="container">
+        <div class="choice-grid">
+
+          <a class="choice-card" href="order.html">
+            <span class="choice-icon" aria-hidden="true">
+              <!-- Pizza slice icon -->
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M24 6 L42 40 L6 40 Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+                <circle cx="24" cy="24" r="1.8" fill="currentColor"/>
+                <circle cx="19" cy="31" r="1.8" fill="currentColor"/>
+                <circle cx="29" cy="31" r="1.8" fill="currentColor"/>
+              </svg>
+            </span>
+            <h2>I WANT TO ORDER</h2>
+            <p>Place your pizza order using our order form.</p>
+            <span class="choice-btn">PLACE AN ORDER</span>
+          </a>
+
+          <a class="choice-card" href="Payment.html">
+            <span class="choice-icon" aria-hidden="true">
+              <!-- Coin / payment icon -->
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="17" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M24 15v18M28.5 18.5c0-2-2-3.5-4.5-3.5s-4.5 1.5-4.5 3.6c0 4.4 9 2 9 6.4 0 2.1-2 3.6-4.5 3.6s-4.5-1.5-4.5-3.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <h2>I NEED TO PAY</h2>
+            <p>Make a secure payment for your order.</p>
+            <span class="choice-btn">PAY NOW</span>
+          </a>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <dl class="footer-grid">
+        <div>
+          <dt>Email</dt>
+          <dd>artisanovenst@gmail.com</dd>
+        </div>
+        <div>
+          <dt>School Lunches</dt>
+          <dd>Every Tuesday</dd>
+        </div>
+      </dl>
+      <!-- Optional: social media links. Uncomment and edit if wanted.
+      <p class="footer-optional">Follow us: [Instagram link] · [Facebook link]</p>
+      -->
+      <div class="footer-bottom">
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.4</a> &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO" class="whatsapp-float" target="_blank" rel="noopener noreferrer">
+    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12.031 0C5.389 0 0 5.39 0 12.031c0 2.124.551 4.195 1.6 6.01L.226 23.511l5.602-1.468c1.745.955 3.715 1.458 5.736 1.458h.005c6.641 0 12.034-5.391 12.034-12.033S18.216 0 12.031 0zm0 21.466c-1.802 0-3.568-.485-5.114-1.402l-.367-.218-3.799.996.999-3.704-.239-.38C2.569 15.116 2.035 13.593 2.035 12.03 2.035 6.516 6.518 2.03 12.033 2.03c2.673 0 5.187 1.042 7.078 2.934 1.89 1.892 2.932 4.406 2.932 7.081 0 5.513-4.484 9.987-9.997 9.987l-.015.034zm5.485-7.513c-.301-.151-1.779-.878-2.054-.979-.275-.101-.476-.151-.676.151-.2.301-.776.979-.952 1.18-.176.201-.352.226-.653.076-.301-.151-1.271-.469-2.42-1.498-.894-.8-1.499-1.789-1.675-2.09-.176-.301-.019-.463.131-.614.135-.135.301-.351.452-.526.151-.176.201-.301.301-.502.101-.201.05-.376-.025-.526-.075-.151-.676-1.629-.926-2.231-.243-.588-.49-.508-.676-.517-.176-.008-.376-.008-.576-.008-.2 0-.526.075-.801.376-.275.301-1.052 1.028-1.052 2.507 0 1.479 1.077 2.91 1.228 3.111.151.201 2.119 3.235 5.132 4.536 2.378 1.023 2.91 1.048 3.436 1.002.585-.051 1.779-.727 2.029-1.429.25-.702.25-1.304.176-1.429-.076-.126-.276-.202-.577-.353z" /></svg>
+    Join WhatsApp
+  </a>
+</body>
+</html>

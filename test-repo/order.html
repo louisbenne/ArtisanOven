@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Place Your Order — Artisan Oven</title>
+  <meta name="description" content="Place your pizza order using our order form." />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header secondary-header">
+    <div class="container">
+      <a class="back-link" href="index.html">&larr; Back to Home</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <section class="page-intro">
+        <h1>Place Your Order</h1>
+        <p>Complete the form below to place your order, once complete check you email for payment details</p>
+      </section>
+
+      <section class="page-content">
+        <!-- Availability Tracker -->
+        <div class="availability-tracker" id="availability-tracker" aria-live="polite" style="margin-bottom: 24px;">
+          <div class="tracker-header">
+            <span class="tracker-title" id="tracker-service-title">AVAILABILITY</span>
+            <span class="tracker-status" id="tracker-status-text">Checking...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="tracker-progress-fill" style="width: 0%; opacity: 0.5;"></div>
+          </div>
+          <div class="tracker-footer">
+            <span id="tracker-orders-taken">-- of -- pizzas claimed</span>
+            <span id="tracker-orders-remaining">-- pizzas remaining</span>
+          </div>
+          <div class="tracker-disclaimer" id="tracker-capacity-disclaimer">
+            We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.
+          </div>
+          <div class="tracker-deadline" id="tracker-deadline-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span id="tracker-deadline-text">Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
+          </div>
+        </div>
+
+        <div class="form-wrapper" id="order-form-container">
+
+          <!-- =========================================
+               GOOGLE FORM CONFIGURATION
+               Replace the src URL below with your Google
+               Form's embed URL (Send → Embed <> → copy the
+               src from the generated iframe code).
+               Adjust the height attribute if your form is
+               longer or shorter than the default.
+          ========================================= -->
+
+          <!-- GOOGLE FORM EMBED START -->
+
+          <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdvi-I8Whsc0LR3qwic_w69_MDI1Hy6k9Q3YBvX9Rqt2IrQAA/viewform?embedded=true" style="width: 100%; min-height: 1400px; border: none;" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+
+          <!-- GOOGLE FORM EMBED END -->
+
+        </div>
+
+        <!-- Return Home Section -->
+        <div class="return-home">
+          <h2>Order submitted?</h2>
+          <p>Thank you! Once you've submitted your order, use the button below to return to the Artisan Oven homepage.</p>
+          <a href="index.html" class="back-home-button">
+            &larr; BACK TO ARTISAN OVEN
+          </a>
+        </div>
+
+        <!-- Fully Booked / Closed Message -->
+        <div id="closed-message" class="closed-message" style="display: none;">
+          <h2>FULLY BOOKED</h2>
+          <p id="closed-message-text">We're fully booked for this session. Please check back next time.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <dl class="footer-grid">
+        <div>
+          <dt>Email</dt>
+          <dd>artisanovenst@gmail.com</dd>
+        </div>
+        <div>
+          <dt>School Lunches</dt>
+          <dd>Every Tuesday</dd>
+        </div>
+      </dl>
+      <div class="footer-bottom">
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.4</a> &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO" class="whatsapp-float" target="_blank" rel="noopener noreferrer">
+    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12.031 0C5.389 0 0 5.39 0 12.031c0 2.124.551 4.195 1.6 6.01L.226 23.511l5.602-1.468c1.745.955 3.715 1.458 5.736 1.458h.005c6.641 0 12.034-5.391 12.034-12.033S18.216 0 12.031 0zm0 21.466c-1.802 0-3.568-.485-5.114-1.402l-.367-.218-3.799.996.999-3.704-.239-.38C2.569 15.116 2.035 13.593 2.035 12.03 2.035 6.516 6.518 2.03 12.033 2.03c2.673 0 5.187 1.042 7.078 2.934 1.89 1.892 2.932 4.406 2.932 7.081 0 5.513-4.484 9.987-9.997 9.987l-.015.034zm5.485-7.513c-.301-.151-1.779-.878-2.054-.979-.275-.101-.476-.151-.676.151-.2.301-.776.979-.952 1.18-.176.201-.352.226-.653.076-.301-.151-1.271-.469-2.42-1.498-.894-.8-1.499-1.789-1.675-2.09-.176-.301-.019-.463.131-.614.135-.135.301-.351.452-.526.151-.176.201-.301.301-.502.101-.201.05-.376-.025-.526-.075-.151-.676-1.629-.926-2.231-.243-.588-.49-.508-.676-.517-.176-.008-.376-.008-.576-.008-.2 0-.526.075-.801.376-.275.301-1.052 1.028-1.052 2.507 0 1.479 1.077 2.91 1.228 3.111.151.201 2.119 3.235 5.132 4.536 2.378 1.023 2.91 1.048 3.436 1.002.585-.051 1.779-.727 2.029-1.429.25-.702.25-1.304.176-1.429-.076-.126-.276-.202-.577-.353z" /></svg>
+    Join WhatsApp
+  </a>
+</body>
+</html>

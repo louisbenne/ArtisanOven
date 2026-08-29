@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment — Artisan Oven</title>
+<meta name="description" content="Artisan Oven — pay for your order by bank transfer, PayPal, or cash.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<!-- Brand display font: Baar Sophia (not on Google Fonts — served via cdnfonts.com).
+     If you already self-host Baar Sophia elsewhere on the site, swap this <link>
+     for your own @font-face block so the whole site pulls from one source. -->
+<link href="https://fonts.cdnfonts.com/css/baar-sophia" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F2E7;
+    --paper-raised: #FFFDF8;
+    --ink: #2B2320;
+    --ink-soft: #6E6055;
+    --line: #E6D9C1;
+    --crust: #D69A3C;
+    --crust-deep: #B87B24;
+    --tomato: #BC4630;
+    --tomato-deep: #9E3A27;
+    --basil: #55684A;
+    --basil-tint: rgba(85,104,74,0.10);
+    --shadow: 0 1px 2px rgba(43,35,32,0.04), 0 8px 24px -12px rgba(43,35,32,0.18);
+    --font-display: 'Baar Sophia', 'Trebuchet MS', sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 480px at 50% -8%, rgba(214,154,60,0.16), transparent 60%),
+      var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a{ color: var(--tomato); }
+
+  .wrap{
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ---------- Top nav ---------- */
+  .topbar{
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px 24px;
+    background: linear-gradient(var(--paper) 70%, transparent);
+  }
+  .back-link{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-decoration:none;
+    padding: 6px 0;
+    margin-right: auto;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+  .back-link:hover{ color: var(--tomato); transform: translateX(-3px); }
+  .back-link svg{ width:16px; height:16px; flex-shrink:0; }
+
+  .menu-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1.5px solid var(--line);
+    background: var(--paper-raised);
+    color: var(--ink);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .menu-btn:hover{ border-color: var(--crust); }
+  .menu-btn svg{ width:20px; height:20px; }
+
+  .nav-wrap{ position:relative; }
+  .nav-menu{
+    position:absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 190px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 8px;
+    display:none;
+    flex-direction:column;
+    gap: 2px;
+  }
+  .nav-menu.open{ display:flex; }
+  .nav-menu a{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-decoration:none;
+  }
+  .nav-menu a:hover{ background: rgba(214,154,60,0.14); }
+  .nav-menu a svg{ width:17px; height:17px; color: var(--crust-deep); flex-shrink:0; }
+  .nav-menu .current{ color: var(--tomato); }
+
+  /* ---------- Header ---------- */
+  header.hero{
+    text-align:center;
+    padding: 12px 0 36px;
+  }
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--crust-deep);
+    margin-bottom: 18px;
+  }
+  .eyebrow::before, .eyebrow::after{
+    content:"";
+    width: 22px;
+    height:1px;
+    background: var(--crust-deep);
+    opacity:0.55;
+  }
+  h1{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.1rem, 6vw, 2.7rem);
+    line-height: 1.1;
+    margin: 0 0 14px;
+  }
+  .hero p{
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+    max-width: 46ch;
+    margin: 0 auto;
+  }
+
+  /* ---------- Perforated divider ---------- */
+  .tear{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin: 44px 0 32px;
+  }
+  .tear::before, .tear::after{
+    content:"";
+    flex:1;
+    height:0;
+    border-top: 2px dashed var(--line);
+  }
+  .tear span{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    white-space:nowrap;
+  }
+
+  /* ---------- Card ---------- */
+  .card{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 30px 28px;
+    margin-bottom: 20px;
+  }
+  .card h2{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+    text-align:center;
+  }
+  .card > .lede{
+    text-align:center;
+    color: var(--ink-soft);
+    font-size: 0.94rem;
+    margin: 0 0 22px;
+  }
+
+  /* ---------- Lookup form ---------- */
+  form.lookup{
+    display:flex;
+    flex-direction:column;
+    gap: 12px;
+  }
+  label{
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-align:center;
+  }
+  input[type="text"], input[type="email"]{
+    width:100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    font-family:'Inter', sans-serif;
+    font-size: 0.98rem;
+    color: var(--ink);
+    text-align:center;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  input::placeholder{ color: #A79B8C; }
+  input:focus{
+    outline:none;
+    border-color: var(--crust);
+    box-shadow: 0 0 0 4px rgba(214,154,60,0.18);
+  }
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: none;
+    font-family:'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    cursor:pointer;
+    text-decoration:none;
+    transition: transform .12s ease, box-shadow .12s ease, background .15s ease, border-color .15s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{
+    background: var(--tomato);
+    color: #FFF6EC;
+    box-shadow: 0 8px 18px -8px rgba(188,70,48,0.55);
+    margin-top: 4px;
+  }
+  .btn-primary:hover{ background: var(--tomato-deep); }
+  .btn-secondary{
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+  }
+  .btn-secondary:hover{ border-color: var(--crust); background: rgba(214,154,60,0.08); }
+
+  /* Preferred (fee-free) styling — quietly encouraging, not primary-loud */
+  .btn-preferred{
+    background: var(--basil);
+    color: #FBF8F0;
+    border: none;
+  }
+  .btn-preferred:hover{ background: #465939; }
+
+  /* ---------- Payment method list ---------- */
+  .methods{
+    display:flex;
+    flex-direction:column;
+    gap: 16px;
+  }
+  .method{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    position:relative;
+    padding-top: 18px;
+  }
+  .method.is-preferred{ border-color: rgba(85,104,74,0.35); }
+
+  .pref-tag{
+    display:flex;
+    width: fit-content;
+    margin: 0 auto 12px;
+    align-items:center;
+    gap: 5px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--basil);
+    background: var(--basil-tint);
+    border: 1px solid rgba(85,104,74,0.25);
+    border-radius: 999px;
+    padding: 5px 10px 5px 8px;
+  }
+  .pref-tag svg{ width:12px; height:12px; }
+
+  .method-head{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 10px;
+    padding: 0 24px 0;
+  }
+  .badge{
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: rgba(214,154,60,0.16);
+    color: var(--crust-deep);
+    flex-shrink:0;
+  }
+  .method.is-preferred .badge{
+    background: var(--basil-tint);
+    color: var(--basil);
+  }
+  .badge svg{ width:18px; height:18px; }
+  .method h3{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.28rem;
+    margin:0;
+  }
+  .method-body{
+    padding: 16px 24px 24px;
+    text-align:center;
+  }
+  .method-body > p{
+    color: var(--ink-soft);
+    font-size: 0.93rem;
+    max-width: 40ch;
+    margin: 0 auto 16px;
+  }
+
+  .detail-grid{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    max-width: 360px;
+    margin: 0 auto 6px;
+  }
+  .detail-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .detail-row .k{
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .detail-row .v{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.94rem;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+
+  .method-actions{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    max-width: 360px;
+    margin: 18px auto 0;
+  }
+
+  .note{
+    font-size: 0.86rem;
+    color: var(--ink-soft);
+    background: rgba(85,104,74,0.08);
+    border: 1px solid rgba(85,104,74,0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+    max-width: 400px;
+    margin: 14px auto 0;
+  }
+
+  .fee-note{
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    max-width: 340px;
+    margin: 10px auto 0;
+    line-height: 1.5;
+  }
+  .fee-note strong{ color: var(--ink); font-weight: 600; }
+
+  /* ---------- Collection & sign-off ---------- */
+  .signoff{ text-align:center; padding-top: 8px; }
+  .signoff p{ color: var(--ink-soft); font-size: 0.96rem; }
+  .signature{
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--ink);
+    margin-top: 6px;
+  }
+
+  /* ---------- Footer ---------- */
+  footer{
+    text-align:center;
+    margin-top: 56px;
+    padding-top: 32px;
+    border-top: 1px dashed var(--line);
+  }
+  .foot-mark{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+  }
+  .foot-grid{
+    display:flex;
+    justify-content:center;
+    gap: 36px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .foot-item .k{
+    display:block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .foot-item .v{ font-size: 0.9rem; }
+  footer .copyright{ font-size: 0.78rem; color: #A79B8C; }
+
+  @media (max-width: 420px){
+    .card{ padding: 24px 18px; }
+    .method-body{ padding: 14px 18px 22px; }
+  }
+
+  /* ---------- Lookup form: loading + feedback states ---------- */
+  .lookup-submit{ position: relative; }
+  .lookup-submit .btn-spinner{
+    display:none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,246,236,0.35);
+    border-top-color: #FFF6EC;
+    border-radius: 50%;
+    position: absolute;
+    top: calc(50% - 9px);
+    left: calc(50% - 9px);
+    animation: btn-spin 0.8s linear infinite;
+  }
+  .lookup-submit.is-loading .btn-text{ visibility:hidden; }
+  .lookup-submit.is-loading .btn-spinner{ display:inline-block; }
+  @keyframes btn-spin{ to{ transform: rotate(360deg); } }
+
+  .lookup-feedback{
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    text-align: center;
+  }
+  .feedback-error{
+    background: #FBEAE6;
+    color: var(--tomato-deep);
+    border: 1px solid rgba(188,70,48,0.28);
+  }
+  .feedback-info{
+    background: var(--basil-tint);
+    color: var(--basil);
+    border: 1px solid rgba(85,104,74,0.25);
+  }
+
+  /* ---------- Order result card ---------- */
+  .order-result-card{
+    background: var(--paper-raised);
+    border: 2px solid var(--basil);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 30px 28px;
+    margin-top: 20px;
+  }
+  .order-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .badge-order-id{
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.98rem;
+    letter-spacing: 0.03em;
+    color: var(--tomato-deep);
+  }
+  .badge-status{
+    display:inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .status-pending{
+    background: rgba(214,154,60,0.18);
+    color: var(--crust-deep);
+    border: 1px solid rgba(214,154,60,0.35);
+  }
+  .status-paid{
+    background: var(--basil-tint);
+    color: var(--basil);
+    border: 1px solid rgba(85,104,74,0.3);
+  }
+  .order-customer-title{
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.35rem;
+    margin: 0 0 20px;
+    text-align:center;
+  }
+  .order-items-container{
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .order-items-heading{
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+  }
+  .order-items-list{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+  }
+  .order-item-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap: 14px;
+    padding-bottom: 9px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .order-item-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .item-main{ display:flex; flex-direction:column; gap:2px; }
+  .item-quantity{ font-weight:700; color: var(--tomato); margin-right:4px; }
+  .item-name{ font-weight:600; color: var(--ink); }
+  .item-child{ font-size:0.84rem; color: var(--ink-soft); }
+  .item-price{ font-weight:600; color: var(--ink); white-space:nowrap; font-family:'IBM Plex Mono', monospace; }
+
+  .order-total-banner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 14px 18px;
+    background: var(--ink);
+    color: var(--paper-raised);
+    border-radius: 12px;
+    margin-bottom: 22px;
+  }
+  .order-total-banner .total-label{ font-family: var(--font-display); font-size: 1.05rem; }
+  .order-total-banner .total-amount{
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    color: #F2C879;
+  }
+
+  .order-actions{ display:flex; flex-direction:column; gap: 10px; }
+  .paypal-btn{ background:#0070BA; box-shadow:none; }
+  .paypal-btn:hover{ background:#005EA6; }
+  /* ---------- WhatsApp Floating Button ---------- */
+  .whatsapp-float {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background-color: #25D366;
+    color: #fff;
+    border-radius: 50px;
+    padding: 12px 20px 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    text-decoration: none;
+    z-index: 999;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+  .whatsapp-float:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    background-color: #20BA56;
+  }
+  .whatsapp-float svg {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    flex-shrink: 0;
+    fill: currentColor;
+    display: block;
+  }
+
+  @media (max-width: 480px) {
+    .whatsapp-float {
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 16px 10px 12px;
+      font-size: 0.9rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="back-link" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to Home
+    </a>
+
+    <div class="nav-wrap">
+      <button class="menu-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <nav class="nav-menu" id="navMenu" role="menu">
+        <a href="index.html" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+          Home
+        </a>
+        <a href="order.html" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 0 1 8 0c0 2-2 2-2 4"/><path d="M12 17h.01"/></svg>
+          Place an Order
+        </a>
+        <a href="Payment.html" class="current" role="menuitem" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
+          Payment
+        </a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <header class="hero">
+      <span class="eyebrow">Artisan Oven</span>
+      <h1>Payment &amp; Order Lookup</h1>
+      <p>Look up your order below to view your balance, then pay securely using any of the options underneath.</p>
+    </header>
+
+    <section class="card" aria-labelledby="lookup-heading">
+      <h2 id="lookup-heading">Find Your Order</h2>
+      <p class="lede">Enter the email address (or Order ID) you used when placing your order.</p>
+      <form class="lookup" id="order-lookup-form" novalidate>
+        <label for="order-query-input">Email address or Order ID</label>
+        <input id="order-query-input" type="text" placeholder="check your email for your order number" autocomplete="email">
+        <button type="submit" id="lookup-btn" class="btn btn-primary lookup-submit">
+          <span class="btn-text">Find My Order</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+      <div id="lookup-feedback" class="lookup-feedback" role="alert" aria-live="polite" hidden></div>
+    </section>
+
+    <section id="order-result-section" hidden aria-live="polite">
+      <div class="order-result-card">
+        <div class="order-card-header">
+          <span class="badge-order-id" id="result-order-id">Order Details</span>
+        </div>
+        <h3 class="order-customer-title" id="result-customer-name">Order for Customer</h3>
+
+        <div class="order-items-container">
+          <h4 class="order-items-heading">Your Order Details</h4>
+          <ul id="result-items-list" class="order-items-list"></ul>
+        </div>
+
+        <div class="order-total-banner">
+          <span class="total-label">Total to Pay</span>
+          <span class="total-amount" id="result-total-price">£0.00</span>
+        </div>
+
+        <div class="order-actions" style="display: none;">
+          <a id="result-paypal-btn" class="btn btn-primary paypal-btn" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">
+            <svg class="paypal-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.79.79 0 0 1 .778-.656h6.613c3.08 0 5.485.669 6.275 3.324.47 1.58.118 3.52-.962 4.793-1.077 1.27-2.829 1.838-5.068 1.838H9.688a.637.637 0 0 0-.63.535l-.982 7.783zm9.055-14.77c-.47-1.58-2.227-2.152-4.636-2.152H7.218L5.27 18.064h2.793l.85-6.73a1.597 1.597 0 0 1 1.579-1.341h2.152c3.056 0 5.17-1.127 5.867-3.426z"/>
+            </svg>
+            Pay with PayPal (<span id="result-paypal-amount">£0.00</span>)
+          </a>
+          <a id="result-paypal-ncp" class="btn btn-secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">
+            Alternative PayPal Payment Link
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <div class="tear" id="default-tear"><span>All payment options</span></div>
+
+    <section class="methods" id="payment-methods-container" aria-label="Payment options">
+
+      <article class="method is-preferred">
+        <span class="pref-tag">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Preferred · No fees
+        </span>
+        <div class="method-head">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
+          </span>
+          <h3>Bank Transfer</h3>
+        </div>
+        <div class="method-body">
+          <p>Send payment directly using the details below</p>
+          <div class="detail-grid">
+            <div class="detail-row"><span class="k">Account Name</span><span class="v">Louis Benne</span></div>
+            <div class="detail-row"><span class="k">Sort Code</span><span class="v">07-09-76</span></div>
+            <div class="detail-row"><span class="k">Account Number</span><span class="v">11427310</span></div>
+            <div class="detail-row"><span class="k">Payment Reference</span><span class="v" style="font-family: inherit; font-size: 0.85rem; font-weight: 600; text-align: right; color: var(--tomato-deep);">Order number, Name or Email</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="method is-preferred">
+        <div class="method-head">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8a5 5 0 0 0-5-5H7v14h4"/><path d="M7 17h5a5 5 0 0 0 5-5"/></svg>
+          </span>
+          <h3>PayPal</h3>
+        </div>
+        <div class="method-body">
+          <p>Pay via our PayPal.Me link, or use the secure checkout link below.</p>
+          <div class="detail-grid" style="margin-bottom: 16px;">
+            <div class="detail-row"><span class="k">Payment Reference</span><span class="v" style="font-family: inherit; font-size: 0.85rem; font-weight: 600; text-align: right; color: var(--tomato-deep);">Order number, Name or Email</span></div>
+          </div>
+          <div class="method-actions">
+            <a id="methods-paypal-me" class="btn btn-preferred" href="https://paypal.me/ArtisanOven" target="_blank" rel="noopener">paypal.me/ArtisanOven</a>
+            <a id="methods-paypal-ncp" class="btn btn-secondary" href="https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA" target="_blank" rel="noopener">Pay via secure PayPal checkout</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="method">
+        <div class="method-head">
+          <span class="badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3 2.45c-.9.2-1.5.9-1.5 1.55v.5M12 17h.01"/></svg>
+          </span>
+          <h3>Cash</h3>
+        </div>
+        <div class="method-body">
+          <p>Cash payments may be sent with your child.</p>
+          <div class="note">Please ensure the exact amount is provided, as we're unable to give change.</div>
+        </div>
+      </article>
+
+    </section>
+
+    <div class="tear"><span>Collection</span></div>
+
+    <section class="card signoff">
+      <p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>
+      <p style="margin-bottom:0;">Thank you.</p>
+      <div class="signature">Marlow, Louis &amp; Quinton</div>
+    </section>
+
+    <footer>
+      <div class="foot-mark">Artisan Oven</div>
+      <div class="foot-grid">
+        <div class="foot-item">
+          <span class="k">Email</span>
+          <span class="v"><a href="mailto:artisanovenst@gmail.com">artisanovenst@gmail.com</a></span>
+        </div>
+        <div class="foot-item">
+          <span class="k">School Lunches</span>
+          <span class="v">Every Tuesday</span>
+        </div>
+      </div>
+      <div class="copyright"><span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="https://github.com/louisbenne/ArtisanOven.git" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; opacity: 0.8;">v1.3.4</a> &middot; <a href="admin.html" class="admin-footer-link">Admin</a></div>
+    </footer>
+
+  </div>
+
+  <script>
+    (function(){
+      var btn = document.getElementById('menuBtn');
+      var menu = document.getElementById('navMenu');
+
+      function closeMenu(){
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+      function toggleMenu(e){
+        e.stopPropagation();
+        var isOpen = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', String(isOpen));
+      }
+      btn.addEventListener('click', toggleMenu);
+      document.addEventListener('click', function(e){
+        if (!menu.contains(e.target) && e.target !== btn) closeMenu();
+      });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') closeMenu();
+      });
+    })();
+  </script>
+
+  <script src="script.js"></script>
+  <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO" class="whatsapp-float" target="_blank" rel="noopener noreferrer">
+    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12.031 0C5.389 0 0 5.39 0 12.031c0 2.124.551 4.195 1.6 6.01L.226 23.511l5.602-1.468c1.745.955 3.715 1.458 5.736 1.458h.005c6.641 0 12.034-5.391 12.034-12.033S18.216 0 12.031 0zm0 21.466c-1.802 0-3.568-.485-5.114-1.402l-.367-.218-3.799.996.999-3.704-.239-.38C2.569 15.116 2.035 13.593 2.035 12.03 2.035 6.516 6.518 2.03 12.033 2.03c2.673 0 5.187 1.042 7.078 2.934 1.89 1.892 2.932 4.406 2.932 7.081 0 5.513-4.484 9.987-9.997 9.987l-.015.034zm5.485-7.513c-.301-.151-1.779-.878-2.054-.979-.275-.101-.476-.151-.676.151-.2.301-.776.979-.952 1.18-.176.201-.352.226-.653.076-.301-.151-1.271-.469-2.42-1.498-.894-.8-1.499-1.789-1.675-2.09-.176-.301-.019-.463.131-.614.135-.135.301-.351.452-.526.151-.176.201-.301.301-.502.101-.201.05-.376-.025-.526-.075-.151-.676-1.629-.926-2.231-.243-.588-.49-.508-.676-.517-.176-.008-.376-.008-.576-.008-.2 0-.526.075-.801.376-.275.301-1.052 1.028-1.052 2.507 0 1.479 1.077 2.91 1.228 3.111.151.201 2.119 3.235 5.132 4.536 2.378 1.023 2.91 1.048 3.436 1.002.585-.051 1.779-.727 2.029-1.429.25-.702.25-1.304.176-1.429-.076-.126-.276-.202-.577-.353z" /></svg>
+    Join WhatsApp
+  </a>
+</body>
+</html>
