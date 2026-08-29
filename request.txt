@@ -1,0 +1,7 @@
+GitHub Issue: update readme
+
+Description:
+update readme to say what the repo is and how it works, add a todo list
+
+Additional comments:
+

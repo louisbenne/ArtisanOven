@@ -3,3 +3,4 @@
 
 # GitHub App credentials
 gha-creds-*.json
+.aider*
