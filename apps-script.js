@@ -581,7 +581,12 @@ function doGet(e) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
       }
 
-      var rowNum = parseInt(orderId, 10) + 1;
+      var parsedId = parseInt(orderId, 10);
+      if (isNaN(parsedId) || parsedId < 1) {
+        return createJsonResponse({ success: false, message: 'Invalid Order ID #' + orderId });
+      }
+
+      var rowNum = parsedId + 1;
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       
@@ -589,8 +594,10 @@ function doGet(e) {
         return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
       }
 
+      ensureColumnsExist(raw, CONFIRMATION_SENT_COL);
       // Clear the "Sent" flag to force resend
       raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('');
+      SpreadsheetApp.flush();
       
       try {
         sendOrderConfirmationForRow(rowNum);
@@ -601,7 +608,7 @@ function doGet(e) {
       }
     }
 
-    // 8. ADMIN: CHANGE PASSWORD
+    // 8. ADMIN: UPDATE PAYMENT STATUS
     if (action === 'adminUpdatePaidStatus') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
@@ -618,7 +625,12 @@ function doGet(e) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
       }
 
-      var rowNum = parseInt(orderId, 10) + 1;
+      var parsedId = parseInt(orderId, 10);
+      if (isNaN(parsedId) || parsedId < 1) {
+        return createJsonResponse({ success: false, message: 'Invalid Order ID #' + orderId });
+      }
+
+      var rowNum = parsedId + 1;
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       
@@ -626,7 +638,10 @@ function doGet(e) {
         return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
       }
 
+      ensureColumnsExist(raw, PAYMENT_STATUS_COL + 1);
       raw.getRange(rowNum, PAYMENT_STATUS_COL + 1).setValue(status);
+      SpreadsheetApp.flush();
+
       logAdminAction('Payment Updated', 'Order #' + orderId + ' set to ' + status);
       
       return createJsonResponse({ success: true, message: 'Order #' + orderId + ' status updated to ' + status });
@@ -648,7 +663,12 @@ function doGet(e) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
       }
 
-      var rowNum = parseInt(orderId, 10) + 1;
+      var parsedId = parseInt(orderId, 10);
+      if (isNaN(parsedId) || parsedId < 1) {
+        return createJsonResponse({ success: false, message: 'Invalid Order ID #' + orderId });
+      }
+
+      var rowNum = parsedId + 1;
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       
@@ -656,10 +676,34 @@ function doGet(e) {
         return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
       }
 
+      // Ensure the sheet has enough columns for the deleted flag
+      ensureColumnsExist(raw, IS_DELETED_COL + 1);
+
+      // Mark only this specific row as deleted
       raw.getRange(rowNum, IS_DELETED_COL + 1).setValue('TRUE');
-      logAdminAction('Delete Order', 'Order #' + orderId + ' marked as deleted');
+      SpreadsheetApp.flush();
+
+      // Clear cache so real-time status updates immediately
+      try { CacheService.getScriptCache().remove('SYSTEM_STATUS_CACHE'); } catch(err) {}
+
+      logAdminAction('Delete Order', 'Order #' + orderId + ' (Row ' + rowNum + ') marked as deleted');
       
-      return createJsonResponse({ success: true, message: 'Order #' + orderId + ' deleted successfully.' });
+      // Update clean summary sheets and recalculate capacity stats
+      try {
+        rebuildCleanSheets();
+      } catch (err) {
+        Logger.log('Error rebuilding sheets after deletion: ' + err);
+      }
+
+      var settings = getSettings();
+      var stats = calculateCurrentSessionStats(settings);
+
+      return createJsonResponse({
+        success: true,
+        message: 'Order #' + orderId + ' deleted successfully.',
+        orderId: orderId,
+        stats: stats
+      });
     }
 
     // 10. ADMIN: CHANGE PASSWORD
@@ -915,6 +959,14 @@ function onFormSubmitTrigger(e) {
   rebuildCleanSheets();
   emailXlsxSnapshot();
   trySendOrderConfirmation(e);
+}
+
+function ensureColumnsExist(sheet, minColumns) {
+  if (!sheet) return;
+  var maxCols = sheet.getMaxColumns();
+  if (maxCols < minColumns) {
+    sheet.insertColumnsAfter(maxCols, minColumns - maxCols);
+  }
 }
 
 function rowIsBlank(row) {
@@ -1545,3 +1597,26 @@ function getAllOrdersForAdmin() {
   Logger.log('getAllOrdersForAdmin: Successfully parsed ' + allOrders.length + ' orders.');
   return allOrders;
 }
+
+/**
+ * ============================================================================
+ * VERSION RELEASE NOTES
+ * ============================================================================
+ * What this new version does:
+ * 1. Targeted Single-Order Deletion:
+ *    - Allows administrators to delete a specific individual order without affecting
+ *      any other orders, rows, or numbering across the system.
+ *
+ * 2. Instant Capacity & Status Bar Recalculation:
+ *    - When an order is deleted, all pizzas in that order—including whole (1.0),
+ *      half (0.5), and quarter (0.25) fractional slices—are immediately excluded
+ *      from total ordered calculations.
+ *    - Automatically frees up the exact fractional capacity and adds the pizzas
+ *      back to the remaining pizza count on the live website status bar and admin dashboard.
+ *
+ * 3. Automatic Column Expansion & Cache Invalidation:
+ *    - Dynamically ensures the spreadsheet has sufficient columns for metadata flags.
+ *    - Automatically purges cached status data and flushes pending writes to ensure
+ *      instant real-time status synchronization across all client pages.
+ * ============================================================================
+ */

@@ -1262,7 +1262,12 @@
         container.querySelectorAll('.delete-btn-inline').forEach(btn => {
           btn.addEventListener('click', async function() {
             const orderId = this.getAttribute('data-order-id');
-            if (!confirm(`Are you sure you want to PERMANENTLY DELETE Order #${orderId}?\nThis will update your capacity and statistics.`)) return;
+            if (!orderId) return;
+
+            const existingOrder = cachedOrders.find(o => String(o.orderId) === String(orderId));
+            const customerName = (existingOrder && existingOrder.customer && existingOrder.customer.name) ? ` (${existingOrder.customer.name})` : '';
+
+            if (!confirm(`Are you sure you want to PERMANENTLY DELETE Order #${orderId}${customerName}?\n\nThis will only delete this specific order and update your available capacity.`)) return;
 
             this.disabled = true;
             const originalHtml = this.innerHTML;
@@ -1278,15 +1283,23 @@
               const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
               const data = await res.json();
               if (data.success) {
-                showToast(data.message, "success");
-                loadDashboardData(true); // Refresh everything
+                showToast(data.message || `Order #${orderId} deleted.`, "success");
+                
+                // Immediately remove only this specific order from local cached state
+                cachedOrders = cachedOrders.filter(o => String(o.orderId) !== String(orderId));
+                sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(cachedOrders));
+                renderOrders(cachedOrders);
+
+                // Fetch fresh server stats and sync
+                loadDashboardData(true);
               } else {
-                showToast("Error: " + data.message, "error");
+                showToast("Error: " + (data.message || "Failed to delete order."), "error");
+                this.disabled = false;
+                this.innerHTML = originalHtml;
               }
             } catch (err) {
               console.error(err);
-              showToast("Failed to delete order.", "error");
-            } finally {
+              showToast("Failed to delete order due to connection issue.", "error");
               this.disabled = false;
               this.innerHTML = originalHtml;
             }
