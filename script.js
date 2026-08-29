@@ -390,22 +390,26 @@ function initOrderLookup() {
 
 
 function formatPizzaAmount(value) {
+  if (typeof value !== 'number' || isNaN(value)) return '0';
   var rounded = Math.round(value * 100) / 100;
 
   if (Number.isInteger(rounded)) {
     return String(rounded);
   }
 
+  var whole = Math.floor(rounded);
+  var prefix = whole > 0 ? String(whole) : '';
+
   if (rounded % 1 === 0.5) {
-    return Math.floor(rounded) + '½';
+    return prefix ? (prefix + '½') : '½';
   }
 
   if (rounded % 1 === 0.25) {
-    return Math.floor(rounded) + '¼';
+    return prefix ? (prefix + '¼') : '¼';
   }
 
   if (rounded % 1 === 0.75) {
-    return Math.floor(rounded) + '¾';
+    return prefix ? (prefix + '¾') : '¾';
   }
 
   return String(rounded);

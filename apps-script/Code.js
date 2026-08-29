@@ -1565,6 +1565,7 @@ function getAllOrdersForAdmin() {
     var blocks = BRANCHES[qtyDigit] || [];
     var pizzas = [];
     var orderTotal = 0;
+    var orderCapacity = 0;
 
     for (var b = 0; b < blocks.length; b++) {
       var cols = blocks[b];
@@ -1578,11 +1579,15 @@ function getAllOrdersForAdmin() {
       
       var size = mapSize(sizeRaw);
       var price = PRICE_MAP[size] || 0;
+      var cap = getPizzaCapacityValue(sizeRaw);
       orderTotal += price;
+      orderCapacity += cap;
       
       pizzas.push({
         recipient: childName || 'Student',
         size: formatSizeLabel(size) || sizeRaw,
+        sizeKey: size,
+        capacity: cap,
         price: price,
         class: cls || ''
       });
@@ -1599,6 +1604,9 @@ function getAllOrdersForAdmin() {
         allergy: (String(allergyYN).toLowerCase() === 'yes' ? allergyText : ''),
         pizzas: pizzas,
         total: orderTotal,
+        pizzaCount: normalizePizzaCapacity(orderCapacity),
+        totalCapacity: normalizePizzaCapacity(orderCapacity),
+        itemCount: pizzas.length,
         paymentStatus: manualPaymentStatus || (paymentMethod ? 'Paid' : 'Pending Payment')
       });
     }
@@ -1628,5 +1636,10 @@ function getAllOrdersForAdmin() {
  *    - Dynamically ensures the spreadsheet has sufficient columns for metadata flags.
  *    - Automatically purges cached status data and flushes pending writes to ensure
  *      instant real-time status synchronization across all client pages.
+ *
+ * 4. Unified Fractional Pizza Capacity & Item Counter:
+ *    - Accurately tracks fractional pizza portions (whole = 1.0, half = 0.5, quarter = 0.25)
+ *      across all administrative orders and dashboard summary bars.
+ *    - Provides distinct counts for oven capacity (full pizzas) and order line items.
  * ============================================================================
  */

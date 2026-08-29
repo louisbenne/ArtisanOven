@@ -1762,7 +1762,102 @@ button:focus-visible,
   line-height: 1.5;
 }
 
-/* Audit Logs Table */
+/* Audit Logs Table & Collapsible Card */
+.collapsible-card {
+  transition: all 0.25s ease;
+}
+
+.card-header-clickable {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 8px;
+  padding: 4px;
+  margin: -4px -4px 20px -4px;
+  transition: background 0.2s ease, margin 0.2s ease, padding 0.2s ease;
+}
+
+.card-header-clickable:hover {
+  background: rgba(31, 58, 46, 0.03);
+}
+
+.card-header-clickable:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 2px;
+}
+
+.card-header-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.badge-log-count {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(31, 58, 46, 0.08);
+  color: var(--forest);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.02em;
+}
+
+.card-collapse-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  border: 1px solid rgba(31, 58, 46, 0.18);
+  color: var(--forest);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.card-header-clickable:hover .card-collapse-toggle-btn {
+  background: var(--cream);
+  border-color: var(--forest);
+}
+
+.chevron-toggle-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-card.collapsed .collapsible-content {
+  display: none;
+}
+
+.collapsible-card.collapsed .card-header {
+  margin-bottom: 0;
+  padding-bottom: 4px;
+  border-bottom: none;
+}
+
+.collapsible-card:not(.collapsed) .chevron-toggle-icon {
+  transform: rotate(180deg);
+}
+
 .admin-logs-wrapper {
   overflow-x: auto;
 }
