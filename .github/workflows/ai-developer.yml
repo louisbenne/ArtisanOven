@@ -63,7 +63,7 @@ jobs:
           # 2. Configure the Gemini Model
           MODEL_NAME="${{ vars.GEMINI_MODEL }}"
           if [ -z "$MODEL_NAME" ]; then
-            MODEL_NAME="gemini-1.5-pro"
+            MODEL_NAME="gemini-2.5-pro"
           fi
           
           # 3. Run Aider autonomously
