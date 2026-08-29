@@ -17,6 +17,10 @@ app.get(['/order', '/order.html', '/Order', '/Order.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'order.html'));
 });
 
+app.get(['/admin', '/admin.html', '/Admin', '/Admin.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 app.get(['/', '/index.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });

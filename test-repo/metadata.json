@@ -1,6 +1,0 @@
-{
-  "name": "Artisan Oven",
-  "description": "Artisan Pizza handmade website with payment and order links",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
