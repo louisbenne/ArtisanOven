@@ -61,7 +61,10 @@ jobs:
           echo "CRITICAL INSTRUCTION: You are an autonomous AI developer executing inside a CI/CD pipeline. Your ONLY purpose is to write code and edit files. You must use the provided tools to search the repository, add relevant files to the chat, and apply the exact changes requested. DO NOT reply with conversational text or advice. YOU MUST OUTPUT FILE EDITS." >> request.txt
           
           # 2. Configure the Gemini Model
-          MODEL_NAME="gemini-1.5-pro-latest"
+          MODEL_NAME="${{ vars.GEMINI_MODEL }}"
+          if [ -z "$MODEL_NAME" ]; then
+            MODEL_NAME="gemini-1.5-pro"
+          fi
           
           # 3. Run Aider autonomously
           export AIDER_DARK_MODE=false
