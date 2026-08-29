@@ -58,19 +58,24 @@ jobs:
           echo "Additional comments:" >> request.txt
           echo "$COMMENT_BODY" >> request.txt
           echo "" >> request.txt
-          echo "Please review the repository and implement the requested changes." >> request.txt
+          echo "CRITICAL INSTRUCTION: You are an autonomous AI developer. You MUST edit the actual code files to resolve this issue. Do not just reply with text or explanations. Find the relevant files, apply the exact changes requested, and save them." >> request.txt
           
           # 2. Configure the Gemini Model
-          MODEL_NAME="${{ vars.GEMINI_MODEL }}"
-          if [ -z "$MODEL_NAME" ]; then
-            MODEL_NAME="gemini-1.5-pro-latest" # More stable fallback
-          fi
+          # We force Gemini 1.5 Pro because legacy models (like 1.0 Pro) cannot format file edits correctly.
+          MODEL_NAME="gemini-1.5-pro-latest"
           
           # 3. Run Aider autonomously
           export AIDER_DARK_MODE=false
-          # By default Aider uses auto-commits when editing files.
           # We pass `--read GEMINI.md` to ensure it reads the repository rules.
           aider --model "gemini/$MODEL_NAME" --message-file request.txt --yes --read GEMINI.md
+
+      - name: Debug AI Output (If no commits were made)
+        if: always()
+        run: |
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]; then
+            echo "--- NO COMMITS MADE. PRINTING AI CHAT LOGS FOR DEBUGGING ---"
+            cat .aider.chat.history.md || echo "No chat history found."
+          fi
 
       - name: Push to GitHub and Create PR
         env:
@@ -78,8 +83,8 @@ jobs:
         run: |
           # Check if Aider actually made any commits
           if [ "$(git rev-parse HEAD)" = "$(git rev-parse main)" ]; then
-            echo "No code changes were made by the AI."
-            exit 0
+            echo "No code changes were made by the AI. The agent failed to output file edits."
+            exit 1
           fi
           
           # Push the branch to the repository
