@@ -1,3 +1,4 @@
+
 # Artisan Oven
 
 Ordering system and website for [artisanoven.shop](https://www.artisanoven.shop).
@@ -119,3 +120,10 @@ Note the frontend is a static mirror of production; backend behavior requires th
 deployed Apps Script project and its connected Sheet. Apps Script changes are made in
 `apps-script.js` / `apps-script/` and flow out through the `deploy-apps-script.yml`
 workflow.
+
+## To-Do List
+
+- icons
+- improvements and optimisations
+- add ios 'add to home screen' optimisations (incl icon)
+ 
