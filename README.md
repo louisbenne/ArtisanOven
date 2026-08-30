@@ -119,7 +119,3 @@ Note the frontend is a static mirror of production; backend behavior requires th
 deployed Apps Script project and its connected Sheet. Apps Script changes are made in
 `apps-script.js` / `apps-script/` and flow out through the `deploy-apps-script.yml`
 workflow.
-
-## License
-
-MIT
