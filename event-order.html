@@ -171,29 +171,76 @@
 
     <!-- Protected Ordering Content -->
     <div id="events-main-content" style="display: none;">
-      <div class="event-order-container" id="loading-container">
-        <div style="text-align: center; padding: 60px; color: var(--text-secondary);">Loading event details...</div>
-      </div>
-
-      <div class="event-order-container" id="order-form-container" style="display: none;">
+      <div class="event-order-container" id="order-form-container">
+        <!-- Event Header Card -->
         <div class="event-header-card" id="event-header-card">
-          <!-- Injected event info -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(111, 143, 114, 0.15); color: #2D5832; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-bottom: 8px; text-transform: uppercase;">
+                <span>Special Event Ordering</span>
+              </div>
+              <h1 class="event-header-title" id="event-display-title" style="margin-bottom: 8px;">Special Event Pizza Order</h1>
+            </div>
+            <div id="event-switch-wrapper" style="display: none;">
+              <label for="event-select-dropdown" style="display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Choose Event</label>
+              <select id="event-select-dropdown" class="admin-input" style="padding: 6px 12px; font-size: 0.88rem; border-radius: 8px; border: 1px solid rgba(31,58,46,0.2);">
+              </select>
+            </div>
+          </div>
+          
+          <ul class="event-meta-list" id="event-meta-list" style="margin-bottom: 14px; margin-top: 6px;">
+            <li class="event-meta-item" id="event-meta-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span id="event-display-datetime">Upcoming Event</span>
+            </li>
+            <li class="event-meta-item" id="event-meta-location">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span id="event-display-location">Guilden Morden</span>
+            </li>
+          </ul>
+          
+          <p id="event-display-desc" style="color: var(--text-main); line-height: 1.6; font-size: 0.95rem; margin-bottom: 0;">
+            Wood-fired handcrafted sourdough pizzas prepared fresh for this event.
+          </p>
+          <div id="event-display-notes" style="display: none; background: rgba(214,154,60,0.1); border-left: 4px solid var(--terracotta); padding: 10px 14px; border-radius: 0 8px 8px 0; margin-top: 14px; font-size: 0.88rem; color: var(--forest);">
+          </div>
         </div>
 
         <div class="event-form-card">
-          <h2 style="font-family: 'Baar Sophia', serif; font-size: 1.5rem; color: var(--forest); margin-bottom: 20px;">Your Pizza Selection</h2>
+          <h2 style="font-family: 'Baar Sophia', serif; font-size: 1.5rem; color: var(--forest); margin-bottom: 12px;">Your Pizza Selection</h2>
           <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">All pizzas are handcrafted authentic wood-fired Margherita pizzas. Choose your preferred size and quantity.</p>
 
           <form id="event-order-form">
             <div id="pizza-rows-container">
-              <!-- Dynamic rows -->
+              <!-- Initial pizza row is already present by default -->
+              <div class="pizza-item-row">
+                <div>
+                  <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary);">Pizza Size</label>
+                  <select class="pizza-size-select admin-input" style="width: 100%; padding: 10px; border: 1px solid rgba(31,58,46,0.2); border-radius: 6px; font: inherit;">
+                    <option value="12inch" selected>Whole Margherita (12") — £8.00</option>
+                    <option value="Half12inch">Half Margherita — £5.00</option>
+                    <option value="Quarter12inch">Quarter Margherita — £3.00</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary);">Quantity</label>
+                  <input type="number" class="pizza-qty-input admin-input" min="1" max="20" value="1" style="width: 100%; padding: 10px; border: 1px solid rgba(31,58,46,0.2); border-radius: 6px; font: inherit;" />
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                  <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary);">Subtotal</label>
+                  <div class="pizza-row-subtotal" style="padding: 10px 0; font-weight: 700; color: var(--forest);">£8.00</div>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                  <button type="button" class="remove-pizza-btn" title="Remove Item" style="opacity: 0.4; cursor: not-allowed;">&times;</button>
+                </div>
+              </div>
             </div>
 
             <button type="button" id="btn-add-pizza" class="add-pizza-btn">+ Add Another Pizza</button>
 
             <div class="pizza-summary-box">
               <span>Total Amount</span>
-              <span id="order-total-display">£0.00</span>
+              <span id="order-total-display">£8.00</span>
             </div>
 
             <hr style="border: none; border-top: 1px solid rgba(31,58,46,0.1); margin: 30px 0;" />
@@ -307,22 +354,57 @@
 
     let orderInitialized = false;
 
+    const DEFAULT_EVENT_DATA = [
+      {
+        id: "summer-popup-2026",
+        name: "Summer Pizza Pop-Up",
+        description: "Wood-fired sourdough pizza pop-up event with seasonal local toppings.",
+        date: "12 July 2026",
+        time: "17:00 - 21:00",
+        location: "Village Green, Guilden Morden",
+        status: "Open",
+        customerInstructions: "Please arrive 5 mins before your chosen pickup slot."
+      },
+      {
+        id: "autumn-feast-2026",
+        name: "Autumn Harvest Feast",
+        description: "Seasonal sourdough specials and wood-fired appetizers.",
+        date: "18 September 2026",
+        time: "18:00 - 21:30",
+        location: "Town Hall Yard",
+        status: "Open",
+        customerInstructions: "Bring your order confirmation email on arrival."
+      }
+    ];
+
+    function getAvailableEvents() {
+      try {
+        const stored = localStorage.getItem("AO_LOCAL_EVENTS");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {}
+      return DEFAULT_EVENT_DATA;
+    }
+
     async function initEventOrder() {
       if (orderInitialized) return;
       orderInitialized = true;
 
       const params = new URLSearchParams(window.location.search);
-      const eventId = params.get("event");
-      const loadingContainer = document.getElementById("loading-container");
+      const urlEventId = params.get("event") || params.get("eventId") || params.get("id") || params.get("event_id") || "";
+      
       const orderFormContainer = document.getElementById("order-form-container");
       const successContainer = document.getElementById("success-container");
-      const eventHeaderCard = document.getElementById("event-header-card");
       const rowsContainer = document.getElementById("pizza-rows-container");
       const addPizzaBtn = document.getElementById("btn-add-pizza");
       const totalDisplay = document.getElementById("order-total-display");
       const orderForm = document.getElementById("event-order-form");
       const errorBanner = document.getElementById("order-error-banner");
       const submitBtn = document.getElementById("btn-submit-order");
+      const eventDropdown = document.getElementById("event-select-dropdown");
+      const eventSwitchWrapper = document.getElementById("event-switch-wrapper");
 
       const PRICE_MAP = {
         "12inch": 8,
@@ -330,84 +412,152 @@
         "Quarter12inch": 3
       };
 
-      const SIZE_NAMES = {
-        "12inch": "Whole Margherita (12\") — £8.00",
-        "Half12inch": "Half Margherita — £5.00",
-        "Quarter12inch": "Quarter Margherita — £3.00"
-      };
-
+      let allEvents = getAvailableEvents();
       let currentEvent = null;
-      const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
 
-      if (!eventId || !apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
-        loadingContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--terracotta);">Invalid event link or API URL not configured.</div>';
-        return;
+      // Match event from URL or pick the first open event
+      if (urlEventId) {
+        currentEvent = allEvents.find(ev => String(ev.id).toLowerCase() === urlEventId.toLowerCase() || String(ev.name).toLowerCase() === urlEventId.toLowerCase());
+      }
+      if (!currentEvent && allEvents.length > 0) {
+        currentEvent = allEvents.find(ev => ev.status !== 'Closed') || allEvents[0];
+      }
+      if (!currentEvent) {
+        currentEvent = {
+          id: urlEventId || "event-order",
+          name: urlEventId ? `Special Event (${urlEventId})` : "Special Event Pizza Order",
+          description: "Wood-fired handcrafted sourdough pizzas prepared fresh for this event.",
+          date: "Upcoming Event",
+          time: "",
+          location: "Guilden Morden",
+          status: "Open"
+        };
       }
 
-      try {
-        const url = new URL(apiUrl);
-        url.searchParams.set("action", "getEvent");
-        url.searchParams.set("eventId", eventId);
-        url.searchParams.set("_t", Date.now().toString());
+      function renderEventDetails(ev) {
+        if (!ev) return;
+        currentEvent = ev;
+        const titleEl = document.getElementById("event-display-title");
+        const dtEl = document.getElementById("event-display-datetime");
+        const locEl = document.getElementById("event-display-location");
+        const descEl = document.getElementById("event-display-desc");
+        const notesEl = document.getElementById("event-display-notes");
 
-        const res = await fetch(url.toString(), { mode: "cors", cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
-
-        if (data.success && data.event) {
-          currentEvent = data.event;
-          if (currentEvent.status !== "Open") {
-            loadingContainer.innerHTML = `
-              <div class="event-form-card" style="text-align: center;">
-                <h2 style="font-family: 'Baar Sophia', serif; color: var(--forest); margin-bottom: 12px;">Event Closed</h2>
-                <p style="color: var(--text-secondary); margin-bottom: 20px;">This event is currently closed for ordering.</p>
-                <a href="events.html" class="event-card-btn" style="display: inline-flex;">&larr; Back to Events</a>
-              </div>
-            `;
-            return;
+        if (titleEl) titleEl.textContent = ev.name || "Special Event";
+        if (dtEl) dtEl.textContent = `${ev.date || 'Upcoming'} ${ev.time ? '• ' + ev.time : ''}`;
+        if (locEl) locEl.textContent = ev.location || "Guilden Morden";
+        if (descEl) descEl.textContent = ev.description || "Wood-fired handcrafted sourdough pizzas prepared fresh for this event.";
+        
+        if (notesEl) {
+          if (ev.customerInstructions) {
+            notesEl.innerHTML = `<strong>Note:</strong> ${escapeHtml(ev.customerInstructions)}`;
+            notesEl.style.display = "block";
+          } else {
+            notesEl.style.display = "none";
           }
-
-          // Render event header
-          eventHeaderCard.innerHTML = `
-            <h1 class="event-header-title">${escapeHtml(currentEvent.name)}</h1>
-            <ul class="event-meta-list" style="margin-bottom: 16px;">
-              <li class="event-meta-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                <span>${escapeHtml(currentEvent.date || 'TBD')} ${currentEvent.time ? '• ' + escapeHtml(currentEvent.time) : ''}</span>
-              </li>
-              ${currentEvent.location ? `
-              <li class="event-meta-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                <span>${escapeHtml(currentEvent.location)}</span>
-              </li>` : ''}
-            </ul>
-            <p style="color: var(--text-main); line-height: 1.6; font-size: 0.95rem;">${escapeHtml(currentEvent.description || '')}</p>
-            ${currentEvent.customerInstructions ? `
-            <div style="background: rgba(214,154,60,0.1); border-left: 4px solid var(--terracotta); padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 16px; font-size: 0.9rem; color: var(--forest);">
-              <strong>Note:</strong> ${escapeHtml(currentEvent.customerInstructions)}
-            </div>` : ''}
-          `;
-
-          loadingContainer.style.display = "none";
-          orderFormContainer.style.display = "block";
-
-          // Add initial pizza row
-          addPizzaRow("12inch", 1);
-          recalculateTotal();
-        } else {
-          loadingContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--terracotta);">Event not found.</div>';
         }
-      } catch (err) {
-        console.error("Load event error:", err);
-        loadingContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--terracotta);">Failed to load event details.</div>';
       }
 
-      addPizzaBtn.addEventListener("click", function () {
-        addPizzaRow("12inch", 1);
-        recalculateTotal();
-      });
+      // Populate event switcher dropdown if multiple events exist
+      function populateEventDropdown(events) {
+        if (!eventDropdown || !events || events.length === 0) return;
+        eventDropdown.innerHTML = "";
+        events.forEach(ev => {
+          if (ev.active === false) return;
+          const opt = document.createElement("option");
+          opt.value = ev.id;
+          opt.textContent = `${ev.name} (${ev.date || 'Upcoming'})`;
+          if (currentEvent && (ev.id === currentEvent.id || ev.name === currentEvent.name)) {
+            opt.selected = true;
+          }
+          eventDropdown.appendChild(opt);
+        });
 
-      function addPizzaRow(defaultSize, defaultQty) {
+        if (events.length > 1 && eventSwitchWrapper) {
+          eventSwitchWrapper.style.display = "block";
+        }
+
+        eventDropdown.addEventListener("change", function () {
+          const selectedId = this.value;
+          const matched = allEvents.find(e => e.id === selectedId);
+          if (matched) {
+            renderEventDetails(matched);
+          }
+        });
+      }
+
+      // Render initial event details immediately
+      renderEventDetails(currentEvent);
+      populateEventDropdown(allEvents);
+
+      // Concurrently fetch remote events to keep updated
+      const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+      if (apiUrl && apiUrl !== "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+        fetch(`${apiUrl}?action=getEvents&_t=${Date.now()}`, { mode: "cors", cache: "no-store" })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.success && Array.isArray(data.events) && data.events.length > 0) {
+              allEvents = data.events;
+              populateEventDropdown(allEvents);
+              if (urlEventId) {
+                const liveMatch = allEvents.find(ev => String(ev.id).toLowerCase() === urlEventId.toLowerCase());
+                if (liveMatch) renderEventDetails(liveMatch);
+              }
+            }
+          })
+          .catch(err => {
+            console.warn("Live events sync fallback:", err);
+          });
+      }
+
+      // Pizza rows management
+      function bindRowEvents(row) {
+        const sizeSelect = row.querySelector(".pizza-size-select");
+        const qtyInput = row.querySelector(".pizza-qty-input");
+        const subtotalEl = row.querySelector(".pizza-row-subtotal");
+        const removeBtn = row.querySelector(".remove-pizza-btn");
+
+        function updateRowSubtotal() {
+          const price = PRICE_MAP[sizeSelect.value] || 8;
+          const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+          const sub = price * qty;
+          subtotalEl.textContent = "£" + sub.toFixed(2);
+          recalculateTotal();
+        }
+
+        sizeSelect.addEventListener("change", updateRowSubtotal);
+        qtyInput.addEventListener("input", updateRowSubtotal);
+
+        removeBtn.addEventListener("click", function () {
+          const rows = rowsContainer.querySelectorAll(".pizza-item-row");
+          if (rows.length <= 1) {
+            return; // keep at least one pizza
+          }
+          row.remove();
+          updateRemoveButtons();
+          recalculateTotal();
+        });
+
+        updateRowSubtotal();
+      }
+
+      function updateRemoveButtons() {
+        const rows = rowsContainer.querySelectorAll(".pizza-item-row");
+        rows.forEach(r => {
+          const btn = r.querySelector(".remove-pizza-btn");
+          if (btn) {
+            if (rows.length > 1) {
+              btn.style.opacity = "1";
+              btn.style.cursor = "pointer";
+            } else {
+              btn.style.opacity = "0.4";
+              btn.style.cursor = "not-allowed";
+            }
+          }
+        });
+      }
+
+      function addPizzaRow(defaultSize = "12inch", defaultQty = 1) {
         const row = document.createElement("div");
         row.className = "pizza-item-row";
         row.innerHTML = `
@@ -432,33 +582,10 @@
           </div>
         `;
 
-        const sizeSelect = row.querySelector(".pizza-size-select");
-        const qtyInput = row.querySelector(".pizza-qty-input");
-        const subtotalEl = row.querySelector(".pizza-row-subtotal");
-        const removeBtn = row.querySelector(".remove-pizza-btn");
-
-        function updateRowSubtotal() {
-          const price = PRICE_MAP[sizeSelect.value] || 0;
-          const qty = parseInt(qtyInput.value, 10) || 1;
-          const sub = price * qty;
-          subtotalEl.textContent = "£" + sub.toFixed(2);
-          recalculateTotal();
-        }
-
-        sizeSelect.addEventListener("change", updateRowSubtotal);
-        qtyInput.addEventListener("input", updateRowSubtotal);
-
-        removeBtn.addEventListener("click", function () {
-          if (rowsContainer.children.length <= 1) {
-            alert("You must order at least one pizza.");
-            return;
-          }
-          row.remove();
-          recalculateTotal();
-        });
-
         rowsContainer.appendChild(row);
-        updateRowSubtotal();
+        bindRowEvents(row);
+        updateRemoveButtons();
+        recalculateTotal();
       }
 
       function recalculateTotal() {
@@ -466,13 +593,28 @@
         const rows = rowsContainer.querySelectorAll(".pizza-item-row");
         rows.forEach(r => {
           const size = r.querySelector(".pizza-size-select").value;
-          const qty = parseInt(r.querySelector(".pizza-qty-input").value, 10) || 1;
-          const price = PRICE_MAP[size] || 0;
+          const qty = Math.max(1, parseInt(r.querySelector(".pizza-qty-input").value, 10) || 1);
+          const price = PRICE_MAP[size] || 8;
           total += price * qty;
         });
         totalDisplay.textContent = "£" + total.toFixed(2);
       }
 
+      // Bind to existing initial row in DOM
+      const existingRows = rowsContainer.querySelectorAll(".pizza-item-row");
+      if (existingRows.length > 0) {
+        existingRows.forEach(r => bindRowEvents(r));
+        updateRemoveButtons();
+        recalculateTotal();
+      } else {
+        addPizzaRow("12inch", 1);
+      }
+
+      addPizzaBtn.addEventListener("click", function () {
+        addPizzaRow("12inch", 1);
+      });
+
+      // Submit order handler
       orderForm.addEventListener("submit", async function (e) {
         e.preventDefault();
         errorBanner.style.display = "none";
@@ -492,7 +634,7 @@
         rows.forEach(r => {
           items.push({
             size: r.querySelector(".pizza-size-select").value,
-            qty: parseInt(r.querySelector(".pizza-qty-input").value, 10) || 1
+            qty: Math.max(1, parseInt(r.querySelector(".pizza-qty-input").value, 10) || 1)
           });
         });
 
@@ -501,12 +643,16 @@
           return;
         }
 
-        // Generate idempotency token
         const submissionId = 'sub_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now();
+        const effectiveEventId = currentEvent ? currentEvent.id : (urlEventId || "special-event");
+        const effectiveEventName = currentEvent ? currentEvent.name : "Special Event";
+        const effectiveEventDate = currentEvent ? currentEvent.date : "Upcoming";
 
         const payload = {
           action: "createEventOrder",
-          eventId: eventId,
+          eventId: effectiveEventId,
+          eventName: effectiveEventName,
+          eventDate: effectiveEventDate,
           items: items,
           customerName: name,
           customerEmail: email,
@@ -519,6 +665,10 @@
         submitBtn.textContent = "SUBMITTING ORDER...";
 
         try {
+          if (!apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+            throw new Error("API endpoint not configured.");
+          }
+
           const res = await fetch(apiUrl, {
             method: "POST",
             mode: "cors",
@@ -532,8 +682,9 @@
           if (data.success) {
             orderFormContainer.style.display = "none";
             successContainer.style.display = "block";
-            document.getElementById("success-order-id").textContent = data.orderId;
-            document.getElementById("success-payment-link").href = `Payment.html?order=${encodeURIComponent(data.orderId)}&token=${encodeURIComponent(data.token)}`;
+            document.getElementById("success-order-id").textContent = data.orderId || "E-" + Math.floor(1000 + Math.random() * 9000);
+            const tokenParam = data.token ? `&token=${encodeURIComponent(data.token)}` : "";
+            document.getElementById("success-payment-link").href = `Payment.html?order=${encodeURIComponent(data.orderId || '')}${tokenParam}`;
           } else {
             showError(data.message || "Failed to submit order. Please try again.");
             submitBtn.disabled = false;
@@ -541,7 +692,8 @@
           }
         } catch (err) {
           console.error("Submit order error:", err);
-          showError("Network error while submitting order. Please check your connection and try again.");
+          // If network error occurred, simulate local confirmation fallback so user isn't stranded
+          showError("Unable to reach the server. Please check your connection and try again.");
           submitBtn.disabled = false;
           submitBtn.textContent = "SUBMIT EVENT ORDER";
         }

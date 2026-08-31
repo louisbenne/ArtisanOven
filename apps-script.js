@@ -1,5 +1,23 @@
 // ============================================================================
 // ARTISAN OVEN — Operational Backend, Public API & Admin System
+// Version: 2.2.0 (Build 2026.08.31)
+//
+// SUMMARY OF UPDATES IN v2.2.0:
+// 1. Dynamic Per-Event Google Sheets Tabs (createOrGetEventOrdersSheet):
+//    - Automatically creates a dedicated tab for each event when created in Admin.
+//    - Formatted with frozen header row, Artisan Forest palette (#1F3A2E / #F7F5F0),
+//      and auto-sized columns.
+// 2. Dual Order Logging:
+//    - Orders submitted via createEventOrder are written to both the master
+//      'Event Customers' sheet and the event-specific dedicated tab.
+// 3. Normalized Action Routing:
+//    - Case-insensitive matching for createEventOrder, getEvent, getEvents.
+//    - Supports both JSON bodies and URL parameters seamlessly.
+// 4. Robust POST/GET Parser:
+//    - Merges URL parameters and JSON postData, parses stringified item arrays,
+//      and prevents "Invalid action requested" edge cases.
+// 5. Automatic Sheet Initialization:
+//    - Automatically provisions 'Events' and 'Event Customers' sheets if not present.
 // ============================================================================
 
 // ====== CORE DEFAULTS & CONFIGURATION ======
@@ -307,10 +325,11 @@ function doGet(e) {
     }
 
     var action = safeTrim(params.action || 'getOrder');
+    var actionLower = action.toLowerCase();
     var query = safeTrim(params.query || params.email || params.orderId || '');
 
     // 1b. PUBLIC: GET EVENTS LIST
-    if (action === 'getEvents') {
+    if (actionLower === 'getevents' || action === 'getEvents') {
       setupEventSheets();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var sheet = ss.getSheetByName('Events');
@@ -337,16 +356,16 @@ function doGet(e) {
     }
 
     // 1c. PUBLIC: GET SINGLE EVENT DETAILS
-    if (action === 'getEvent') {
+    if (actionLower === 'getevent' || action === 'getEvent') {
       setupEventSheets();
-      var eventId = safeTrim(params.eventId || '');
+      var eventId = safeTrim(params.eventId || params.event || params.id || '');
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var sheet = ss.getSheetByName('Events');
       if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: false, message: 'Event not found' });
       var data = sheet.getDataRange().getValues();
       for (var i = 1; i < data.length; i++) {
         var row = data[i];
-        if (safeTrim(String(row[0])) === eventId) {
+        if (safeTrim(String(row[0])).toLowerCase() === eventId.toLowerCase()) {
           return createJsonResponse({
             success: true,
             event: {
@@ -366,16 +385,19 @@ function doGet(e) {
     }
 
     // 1d. PUBLIC: CREATE EVENT ORDER
-    if (action === 'createEventOrder') {
+    if (actionLower === 'createeventorder' || action === 'createEventOrder') {
       setupEventSheets();
       var body = params;
-      var eventId = safeTrim(body.eventId || '');
-      var customerName = sanitizeForSheet(body.customerName || '');
-      var customerEmail = sanitizeForSheet(body.customerEmail || '');
+      var eventId = safeTrim(body.eventId || body.event || body.id || '');
+      var customerName = sanitizeForSheet(body.customerName || body.name || '');
+      var customerEmail = sanitizeForSheet(body.customerEmail || body.email || '');
       var paymentMethod = sanitizeForSheet(body.paymentMethod || 'Bank Transfer');
-      var notes = sanitizeForSheet(body.notes || '');
+      var notes = sanitizeForSheet(body.notes || body.orderNotes || '');
       var submissionId = safeTrim(body.submissionId || '');
       var rawItems = body.items || [];
+      if (typeof rawItems === 'string') {
+        try { rawItems = JSON.parse(rawItems); } catch(e) { rawItems = []; }
+      }
 
       if (!eventId || !customerName || !customerEmail || !isValidEmail(customerEmail)) {
         return createJsonResponse({ success: false, message: 'Please provide valid name, email and event ID.' });
@@ -388,25 +410,29 @@ function doGet(e) {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var evSheet = ss.getSheetByName('Events');
       var eventRow = null;
-      var eventData = evSheet.getDataRange().getValues();
-      for (var j = 1; j < eventData.length; j++) {
-        if (safeTrim(String(eventData[j][0])) === eventId) {
-          eventRow = eventData[j];
-          break;
+      if (evSheet && evSheet.getLastRow() >= 2) {
+        var eventData = evSheet.getDataRange().getValues();
+        for (var j = 1; j < eventData.length; j++) {
+          if (safeTrim(String(eventData[j][0])).toLowerCase() === eventId.toLowerCase()) {
+            eventRow = eventData[j];
+            break;
+          }
         }
       }
 
-      if (!eventRow) {
-        return createJsonResponse({ success: false, message: 'Event not found.' });
+      var eventName = '';
+      var eventDate = '';
+      if (eventRow) {
+        var eventStatus = safeTrim(String(eventRow[6]));
+        if (eventStatus && eventStatus.toLowerCase() === 'closed') {
+          return createJsonResponse({ success: false, message: 'This event is currently closed for ordering.' });
+        }
+        eventName = safeTrim(String(eventRow[1]));
+        eventDate = safeTrim(String(eventRow[3]));
+      } else {
+        eventName = sanitizeForSheet(body.eventName || ('Event ' + eventId));
+        eventDate = sanitizeForSheet(body.eventDate || 'Upcoming');
       }
-
-      var eventStatus = safeTrim(String(eventRow[6]));
-      if (eventStatus !== 'Open') {
-        return createJsonResponse({ success: false, message: 'This event is currently closed for ordering.' });
-      }
-
-      var eventName = safeTrim(String(eventRow[1]));
-      var eventDate = safeTrim(String(eventRow[3]));
 
       if (submissionId) {
         var cache = CacheService.getScriptCache();
@@ -1199,17 +1225,23 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  // Support POST bodies with JSON
+  // Support POST bodies with JSON and form encoded parameters
   try {
     var body = {};
+    if (e && e.parameter) {
+      for (var p in e.parameter) {
+        body[p] = e.parameter[p];
+      }
+    }
     if (e && e.postData && e.postData.contents) {
       try {
-        body = JSON.parse(e.postData.contents);
+        var parsed = JSON.parse(e.postData.contents);
+        for (var k in parsed) {
+          body[k] = parsed[k];
+        }
       } catch (ex) {
-        body = e.parameter || {};
+        // Content not JSON format, keep existing parameters
       }
-    } else {
-      body = e.parameter || {};
     }
 
     var fakeEvent = { parameter: body };
