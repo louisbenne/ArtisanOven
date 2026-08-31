@@ -34,6 +34,16 @@ app.get(['/admin', '/admin.html', '/Admin', '/Admin.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+app.get(['/events', '/events.html', '/Events', '/Events.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'events.html'));
+});
+
+app.get(['/event-order', '/event-order.html', '/Event-Order', '/Event-Order.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'event-order.html'));
+});
+
 app.get(['/', '/index.html'], (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'index.html'));

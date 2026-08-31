@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Place Event Order — Artisan Oven</title>
+  <meta name="description" content="Order artisan pizzas for your special event." />
+
+  <!-- Resource Hints -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin />
+  <link rel="dns-prefetch" href="https://script.google.com" />
+  <link rel="preload" href="fonts/BaarSophia.ttf" as="font" type="font/ttf" crossorigin />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .event-order-container {
+      max-width: 700px;
+      margin: 40px auto 80px;
+      padding: 0 20px;
+    }
+    .event-header-card {
+      background: var(--paper-raised);
+      border: 1px solid rgba(31, 58, 46, 0.12);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 16px rgba(31, 58, 46, 0.04);
+    }
+    .event-header-title {
+      font-family: "Baar Sophia", serif;
+      font-size: 2rem;
+      color: var(--forest);
+      margin-bottom: 12px;
+    }
+    .event-form-card {
+      background: var(--paper-raised);
+      border: 1px solid rgba(31, 58, 46, 0.12);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 16px rgba(31, 58, 46, 0.04);
+    }
+    .pizza-item-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed rgba(31,58,46,0.1);
+    }
+    @media (max-width: 600px) {
+      .pizza-item-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    .pizza-summary-box {
+      background: rgba(31, 58, 46, 0.04);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--forest);
+    }
+    .remove-pizza-btn {
+      background: transparent;
+      border: 1px solid var(--terracotta);
+      color: var(--terracotta);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .remove-pizza-btn:hover {
+      background: var(--terracotta);
+      color: white;
+    }
+    .add-pizza-btn {
+      background: transparent;
+      border: 1px dashed var(--basil);
+      color: var(--basil);
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      margin-bottom: 24px;
+    }
+    .add-pizza-btn:hover {
+      background: rgba(111, 143, 114, 0.08);
+    }
+    .success-card {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .success-icon {
+      width: 64px;
+      height: 64px;
+      background: rgba(111, 143, 114, 0.15);
+      color: var(--basil);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+      <a href="index.html" class="wordmark" style="text-decoration: none; color: inherit;">
+        <span class="flame-dot" aria-hidden="true"></span>
+        ARTISAN OVEN
+      </a>
+      <a href="events.html" style="font-size: 0.9rem; font-weight: 600; color: var(--forest); text-decoration: none;">&larr; Back to Events</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="event-order-container" id="loading-container">
+      <div style="text-align: center; padding: 60px; color: var(--text-secondary);">Loading event details...</div>
+    </div>
+
+    <div class="event-order-container" id="order-form-container" style="display: none;">
+      <div class="event-header-card" id="event-header-card">
+        <!-- Injected event info -->
+      </div>
+
+      <div class="event-form-card">
+        <h2 style="font-family: 'Baar Sophia', serif; font-size: 1.5rem; color: var(--forest); margin-bottom: 20px;">Your Pizza Selection</h2>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">All pizzas are handcrafted authentic wood-fired Margherita pizzas. Choose your preferred size and quantity.</p>
+
+        <form id="event-order-form">
+          <div id="pizza-rows-container">
+            <!-- Dynamic rows -->
+          </div>
+
+          <button type="button" id="btn-add-pizza" class="add-pizza-btn">+ Add Another Pizza</button>
+
+          <div class="pizza-summary-box">
+            <span>Total Amount</span>
+            <span id="order-total-display">£0.00</span>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid rgba(31,58,46,0.1); margin: 30px 0;" />
+
+          <h3 style="font-family: 'Baar Sophia', serif; font-size: 1.3rem; color: var(--forest); margin-bottom: 20px;">Payer Contact & Payment</h3>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="payer-name" style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.9rem;">Your Full Name *</label>
+            <input type="text" id="payer-name" class="admin-input" style="width: 100%; padding: 12px; border: 1px solid rgba(31,58,46,0.2); border-radius: 8px; font: inherit;" required placeholder="e.g. Sarah Jenkins" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="payer-email" style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.9rem;">Email Address (for order confirmation & payment link) *</label>
+            <input type="email" id="payer-email" class="admin-input" style="width: 100%; padding: 12px; border: 1px solid rgba(31,58,46,0.2); border-radius: 8px; font: inherit;" required placeholder="e.g. sarah@example.com" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="payment-method" style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.9rem;">Preferred Payment Method *</label>
+            <select id="payment-method" class="admin-input" style="width: 100%; padding: 12px; border: 1px solid rgba(31,58,46,0.2); border-radius: 8px; font: inherit;" required>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="PayPal">PayPal</option>
+              <option value="Cash">Cash (Collected on site)</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 24px;">
+            <label for="order-notes" style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.9rem;">Allergies or Special Notes (Optional)</label>
+            <textarea id="order-notes" class="admin-input" style="width: 100%; padding: 12px; border: 1px solid rgba(31,58,46,0.2); border-radius: 8px; font: inherit; min-height: 80px;" placeholder="e.g. Gluten-free requirement or pickup instructions"></textarea>
+          </div>
+
+          <div id="order-error-banner" style="background: rgba(198,93,59,0.1); color: var(--terracotta); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; display: none;"></div>
+
+          <button type="submit" id="btn-submit-order" class="choice-btn" style="width: 100%; padding: 16px; font-size: 1rem; border: none; cursor: pointer;">
+            SUBMIT EVENT ORDER
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="event-order-container" id="success-container" style="display: none;">
+      <div class="event-form-card success-card">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <h2 style="font-family: 'Baar Sophia', serif; font-size: 2rem; color: var(--forest); margin-bottom: 12px;">Order Successfully Placed!</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 1.05rem;" id="success-msg-text">Your order has been recorded. We have sent a confirmation email with payment details.</p>
+        
+        <div style="background: rgba(31,58,46,0.04); padding: 20px; border-radius: 12px; margin-bottom: 24px; display: inline-block;">
+          <div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Order Reference</div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--forest); font-family: 'IBM Plex Mono', monospace;" id="success-order-id">E--</div>
+        </div>
+
+        <div>
+          <a href="#" id="success-payment-link" class="event-card-btn" style="padding: 14px 28px; text-decoration: none; display: inline-flex;">PROCEED TO PAYMENT &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" style="margin-top: 60px;">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <div class="footer-bottom">
+        <span>© 2026</span> Artisan Oven &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const params = new URLSearchParams(window.location.search);
+      const eventId = params.get("event");
+      const loadingContainer = document.getElementById("loading-container");
+      const orderFormContainer = document.getElementById("order-form-container");
+      const successContainer = document.getElementById("success-container");
+      const eventHeaderCard = document.getElementById("event-header-card");
+      const rowsContainer = document.getElementById("pizza-rows-container");
+      const addPizzaBtn = document.getElementById("btn-add-pizza");
+      const totalDisplay = document.getElementById("order-total-display");
+      const orderForm = document.getElementById("event-order-form");
+      const errorBanner = document.getElementById("order-error-banner");
+      const submitBtn = document.getElementById("btn-submit-order");
+
+      const PRICE_MAP = {
+        "12inch": 8,
+        "Half12inch": 5,
+        "Quarter12inch": 3
+      };
+
+      const SIZE_NAMES = {
+        "12inch": "Whole Margherita (12\") — £8.00",
+        "Half12inch": "Half Margherita — £5.00",
+        "Quarter12inch": "Quarter Margherita — £3.00"
+      };
+
+      let currentEvent = null;
+      const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+
+      if (!eventId || !apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+        loadingContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--terracotta);">Invalid event link or API URL not configured.</div>';
+        return;
+      }
+
+      try {
+        const url = new URL(apiUrl);
+        url.searchParams.set("action", "getEvent");
+        url.searchParams.set("eventId", eventId);
+        url.searchParams.set("_t", Date.now().toString());
+
+        const res = await fetch(url.toString(), { mode: "cors", cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        if (data.success && data.event) {
+          currentEvent = data.event;
+          if (currentEvent.status !== "Open") {
+            loadingContainer.innerHTML = `
+              <div class="event-form-card" style="text-align: center;">
+                <h2 style="font-family: 'Baar Sophia', serif; color: var(--forest); margin-bottom: 12px;">Event Closed</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">This event is currently closed for ordering.</p>
+                <a href="events.html" class="event-card-btn" style="display: inline-flex;">&larr; Back to Events</a>
+              </div>
+            `;
+            return;
+          }
+
+          // Render event header
+          eventHeaderCard.innerHTML = `
+            <h1 class="event-header-title">${escapeHtml(currentEvent.name)}</h1>
+            <ul class="event-meta-list" style="margin-bottom: 16px;">
+              <li class="event-meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span>${escapeHtml(currentEvent.date || 'TBD')} ${currentEvent.time ? '• ' + escapeHtml(currentEvent.time) : ''}</span>
+              </li>
+              ${currentEvent.location ? `
+              <li class="event-meta-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <span>${escapeHtml(currentEvent.location)}</span>
+              </li>` : ''}
+            </ul>
+            <p style="color: var(--text-main); line-height: 1.6; font-size: 0.95rem;">${escapeHtml(currentEvent.description || '')}</p>
+            ${currentEvent.customerInstructions ? `
+            <div style="background: rgba(214,154,60,0.1); border-left: 4px solid var(--terracotta); padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 16px; font-size: 0.9rem; color: var(--forest);">
+              <strong>Note:</strong> ${escapeHtml(currentEvent.customerInstructions)}
+            </div>` : ''}
+          `;
+
+          loadingContainer.style.display = "none";
+          orderFormContainer.style.display = "block";
+
+          // Add initial pizza row
+          addPizzaRow("12inch", 1);
+          recalculateTotal();
+        } else {
+          loadingContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--terracotta);">Event not found.</div>';
+        }
+      } catch (err) {
+        console.error("Load event error:", err);
+        loadingContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--terracotta);">Failed to load event details.</div>';
+      }
+
+      addPizzaBtn.addEventListener("click", function () {
+        addPizzaRow("12inch", 1);
+        recalculateTotal();
+      });
+
+      function addPizzaRow(defaultSize, defaultQty) {
+        const row = document.createElement("div");
+        row.className = "pizza-item-row";
+        row.innerHTML = `
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary);">Pizza Size</label>
+            <select class="pizza-size-select admin-input" style="width: 100%; padding: 10px; border: 1px solid rgba(31,58,46,0.2); border-radius: 6px; font: inherit;">
+              <option value="12inch" ${defaultSize === '12inch' ? 'selected' : ''}>Whole Margherita (12") — £8.00</option>
+              <option value="Half12inch" ${defaultSize === 'Half12inch' ? 'selected' : ''}>Half Margherita — £5.00</option>
+              <option value="Quarter12inch" ${defaultSize === 'Quarter12inch' ? 'selected' : ''}>Quarter Margherita — £3.00</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary);">Quantity</label>
+            <input type="number" class="pizza-qty-input admin-input" min="1" max="20" value="${defaultQty}" style="width: 100%; padding: 10px; border: 1px solid rgba(31,58,46,0.2); border-radius: 6px; font: inherit;" />
+          </div>
+          <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-secondary);">Subtotal</label>
+            <div class="pizza-row-subtotal" style="padding: 10px 0; font-weight: 700; color: var(--forest);">£8.00</div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <button type="button" class="remove-pizza-btn" title="Remove Item">&times;</button>
+          </div>
+        `;
+
+        const sizeSelect = row.querySelector(".pizza-size-select");
+        const qtyInput = row.querySelector(".pizza-qty-input");
+        const subtotalEl = row.querySelector(".pizza-row-subtotal");
+        const removeBtn = row.querySelector(".remove-pizza-btn");
+
+        function updateRowSubtotal() {
+          const price = PRICE_MAP[sizeSelect.value] || 0;
+          const qty = parseInt(qtyInput.value, 10) || 1;
+          const sub = price * qty;
+          subtotalEl.textContent = "£" + sub.toFixed(2);
+          recalculateTotal();
+        }
+
+        sizeSelect.addEventListener("change", updateRowSubtotal);
+        qtyInput.addEventListener("input", updateRowSubtotal);
+
+        removeBtn.addEventListener("click", function () {
+          if (rowsContainer.children.length <= 1) {
+            alert("You must order at least one pizza.");
+            return;
+          }
+          row.remove();
+          recalculateTotal();
+        });
+
+        rowsContainer.appendChild(row);
+        updateRowSubtotal();
+      }
+
+      function recalculateTotal() {
+        let total = 0;
+        const rows = rowsContainer.querySelectorAll(".pizza-item-row");
+        rows.forEach(r => {
+          const size = r.querySelector(".pizza-size-select").value;
+          const qty = parseInt(r.querySelector(".pizza-qty-input").value, 10) || 1;
+          const price = PRICE_MAP[size] || 0;
+          total += price * qty;
+        });
+        totalDisplay.textContent = "£" + total.toFixed(2);
+      }
+
+      orderForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        errorBanner.style.display = "none";
+
+        const name = document.getElementById("payer-name").value.trim();
+        const email = document.getElementById("payer-email").value.trim();
+        const paymentMethod = document.getElementById("payment-method").value;
+        const notes = document.getElementById("order-notes").value.trim();
+
+        if (!name || !email) {
+          showError("Please enter your name and email address.");
+          return;
+        }
+
+        const items = [];
+        const rows = rowsContainer.querySelectorAll(".pizza-item-row");
+        rows.forEach(r => {
+          items.push({
+            size: r.querySelector(".pizza-size-select").value,
+            qty: parseInt(r.querySelector(".pizza-qty-input").value, 10) || 1
+          });
+        });
+
+        if (items.length === 0) {
+          showError("Please add at least one pizza to your order.");
+          return;
+        }
+
+        // Generate idempotency token
+        const submissionId = 'sub_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now();
+
+        const payload = {
+          action: "createEventOrder",
+          eventId: eventId,
+          items: items,
+          customerName: name,
+          customerEmail: email,
+          paymentMethod: paymentMethod,
+          notes: notes,
+          submissionId: submissionId
+        };
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "SUBMITTING ORDER...";
+
+        try {
+          const res = await fetch(apiUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+
+          if (data.success) {
+            orderFormContainer.style.display = "none";
+            successContainer.style.display = "block";
+            document.getElementById("success-order-id").textContent = data.orderId;
+            document.getElementById("success-payment-link").href = `Payment.html?order=${encodeURIComponent(data.orderId)}&token=${encodeURIComponent(data.token)}`;
+          } else {
+            showError(data.message || "Failed to submit order. Please try again.");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "SUBMIT EVENT ORDER";
+          }
+        } catch (err) {
+          console.error("Submit order error:", err);
+          showError("Network error while submitting order. Please check your connection and try again.");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "SUBMIT EVENT ORDER";
+        }
+      });
+
+      function showError(msg) {
+        errorBanner.textContent = msg;
+        errorBanner.style.display = "block";
+        errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+    });
+  </script>
+</body>
+</html>

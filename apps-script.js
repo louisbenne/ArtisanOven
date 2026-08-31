@@ -295,6 +295,174 @@ function doGet(e) {
     var action = params.action || 'getOrder';
     var query = safeTrim(params.query || params.email || params.orderId || '');
 
+    // 1b. PUBLIC: GET EVENTS LIST
+    if (action === 'getEvents') {
+      setupEventSheets();
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Events');
+      if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: true, events: [] });
+      var data = sheet.getDataRange().getValues();
+      var events = [];
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i];
+        var active = row[11];
+        var status = safeTrim(String(row[6]));
+        if (active === true || active === 'TRUE' || active === '1') {
+          events.push({
+            id: safeTrim(String(row[0])),
+            name: safeTrim(String(row[1])),
+            description: safeTrim(String(row[2])),
+            date: safeTrim(String(row[3])),
+            time: safeTrim(String(row[4])),
+            location: safeTrim(String(row[5])),
+            status: status || 'Open'
+          });
+        }
+      }
+      return createJsonResponse({ success: true, events: events });
+    }
+
+    // 1c. PUBLIC: GET SINGLE EVENT DETAILS
+    if (action === 'getEvent') {
+      setupEventSheets();
+      var eventId = safeTrim(params.eventId || '');
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Events');
+      if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: false, message: 'Event not found' });
+      var data = sheet.getDataRange().getValues();
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i];
+        if (safeTrim(String(row[0])) === eventId) {
+          return createJsonResponse({
+            success: true,
+            event: {
+              id: safeTrim(String(row[0])),
+              name: safeTrim(String(row[1])),
+              description: safeTrim(String(row[2])),
+              date: safeTrim(String(row[3])),
+              time: safeTrim(String(row[4])),
+              location: safeTrim(String(row[5])),
+              status: safeTrim(String(row[6])) || 'Open',
+              customerInstructions: safeTrim(String(row[8]))
+            }
+          });
+        }
+      }
+      return createJsonResponse({ success: false, message: 'Event not found' });
+    }
+
+    // 1d. PUBLIC: CREATE EVENT ORDER
+    if (action === 'createEventOrder') {
+      setupEventSheets();
+      var body = params;
+      var eventId = safeTrim(body.eventId || '');
+      var customerName = sanitizeForSheet(body.customerName || '');
+      var customerEmail = sanitizeForSheet(body.customerEmail || '');
+      var paymentMethod = sanitizeForSheet(body.paymentMethod || 'Bank Transfer');
+      var notes = sanitizeForSheet(body.notes || '');
+      var submissionId = safeTrim(body.submissionId || '');
+      var rawItems = body.items || [];
+
+      if (!eventId || !customerName || !customerEmail || !isValidEmail(customerEmail)) {
+        return createJsonResponse({ success: false, message: 'Please provide valid name, email and event ID.' });
+      }
+
+      if (!Array.isArray(rawItems) || rawItems.length === 0) {
+        return createJsonResponse({ success: false, message: 'Please include at least one pizza item.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var evSheet = ss.getSheetByName('Events');
+      var eventRow = null;
+      var eventData = evSheet.getDataRange().getValues();
+      for (var j = 1; j < eventData.length; j++) {
+        if (safeTrim(String(eventData[j][0])) === eventId) {
+          eventRow = eventData[j];
+          break;
+        }
+      }
+
+      if (!eventRow) {
+        return createJsonResponse({ success: false, message: 'Event not found.' });
+      }
+
+      var eventStatus = safeTrim(String(eventRow[6]));
+      if (eventStatus !== 'Open') {
+        return createJsonResponse({ success: false, message: 'This event is currently closed for ordering.' });
+      }
+
+      var eventName = safeTrim(String(eventRow[1]));
+      var eventDate = safeTrim(String(eventRow[3]));
+
+      if (submissionId) {
+        var cache = CacheService.getScriptCache();
+        if (cache.get(submissionId)) {
+          return createJsonResponse({ success: false, message: 'This order was already submitted successfully.' });
+        }
+        try { cache.put(submissionId, 'processed', 300); } catch (e) {}
+      }
+
+      var validatedItems = [];
+      var calculatedTotal = 0;
+      for (var k = 0; k < rawItems.length; k++) {
+        var itm = rawItems[k];
+        var sizeKey = safeTrim(itm.size);
+        var qty = parseInt(itm.qty, 10);
+        if (!PRICE_MAP[sizeKey]) {
+          return createJsonResponse({ success: false, message: 'Invalid pizza size selected.' });
+        }
+        if (isNaN(qty) || qty < 1 || qty > 50) {
+          return createJsonResponse({ success: false, message: 'Invalid quantity.' });
+        }
+        var unitPrice = PRICE_MAP[sizeKey];
+        calculatedTotal += unitPrice * qty;
+        validatedItems.push({
+          size: sizeKey,
+          qty: qty,
+          unitPrice: unitPrice
+        });
+      }
+
+      var orderId = getNextOrderNumber();
+      var token = Utilities.getUuid();
+
+      var custSheet = ss.getSheetByName('Event Customers');
+      custSheet.appendRow([
+        new Date(),
+        orderId,
+        eventId,
+        eventName,
+        eventDate,
+        customerName,
+        customerEmail,
+        paymentMethod,
+        JSON.stringify(validatedItems),
+        calculatedTotal,
+        '', // Payment Status
+        'Confirmed', // Order Status
+        'PENDING', // Confirmation Status
+        notes,
+        token,
+        false, // Deleted
+        submissionId
+      ]);
+      SpreadsheetApp.flush();
+
+      try {
+        sendEventConfirmation(orderId);
+      } catch (err) {
+        Logger.log('Error sending event confirmation email: ' + err);
+      }
+
+      return createJsonResponse({
+        success: true,
+        orderId: orderId,
+        total: calculatedTotal,
+        token: token,
+        message: 'Order successfully placed.'
+      });
+    }
+
     // 1. PUBLIC: ORDER LOOKUP
     if (action === 'getOrder') {
       if (!query) {
@@ -622,8 +790,30 @@ function doGet(e) {
 
       var orderId = safeTrim(params.orderId || '');
       var status = safeTrim(params.status || ''); // 'Paid' or 'Pending'
+      var source = safeTrim(params.source || 'lunch');
       if (!orderId) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      if (source === 'event' || /^E/i.test(orderId)) {
+        var sheet = ss.getSheetByName('Event Customers');
+        var foundRow = -1;
+        var evData = sheet ? sheet.getDataRange().getValues() : [];
+        for (var i = 1; i < evData.length; i++) {
+          if (safeTrim(String(evData[i][1])).toUpperCase() === orderId.toUpperCase()) {
+            foundRow = i + 1;
+            break;
+          }
+        }
+        if (foundRow < 2) {
+          return createJsonResponse({ success: false, message: 'Event order #' + orderId + ' not found.' });
+        }
+        sheet.getRange(foundRow, 11).setValue(status);
+        SpreadsheetApp.flush();
+        logAdminAction('Payment Updated', 'Event Order #' + orderId + ' set to ' + status);
+        return createJsonResponse({ success: true, message: 'Event Order #' + orderId + ' status updated to ' + status });
       }
 
       var parsedId = parseInt(orderId, 10);
@@ -632,7 +822,6 @@ function doGet(e) {
       }
 
       var rowNum = parsedId + 1;
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       
       if (rowNum < 2 || rowNum > raw.getLastRow()) {
@@ -660,8 +849,30 @@ function doGet(e) {
       }
 
       var orderId = safeTrim(params.orderId || '');
+      var source = safeTrim(params.source || 'lunch');
       if (!orderId) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      if (source === 'event' || /^E/i.test(orderId)) {
+        var sheet = ss.getSheetByName('Event Customers');
+        var foundRow = -1;
+        var evData = sheet ? sheet.getDataRange().getValues() : [];
+        for (var i = 1; i < evData.length; i++) {
+          if (safeTrim(String(evData[i][1])).toUpperCase() === orderId.toUpperCase()) {
+            foundRow = i + 1;
+            break;
+          }
+        }
+        if (foundRow < 2) {
+          return createJsonResponse({ success: false, message: 'Event order #' + orderId + ' not found.' });
+        }
+        sheet.getRange(foundRow, 16).setValue('TRUE');
+        SpreadsheetApp.flush();
+        logAdminAction('Delete Event Order', 'Event Order #' + orderId + ' marked as deleted');
+        return createJsonResponse({ success: true, message: 'Event Order #' + orderId + ' deleted successfully.' });
       }
 
       var parsedId = parseInt(orderId, 10);
@@ -670,7 +881,6 @@ function doGet(e) {
       }
 
       var rowNum = parsedId + 1;
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       
       if (rowNum < 2 || rowNum > raw.getLastRow()) {
@@ -705,6 +915,151 @@ function doGet(e) {
         orderId: orderId,
         stats: stats
       });
+    }
+
+    // 11. ADMIN: GET EVENTS FOR MANAGEMENT
+    if (action === 'adminGetEvents') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+      }
+      setupEventSheets();
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Events');
+      if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: true, events: [] });
+      var data = sheet.getDataRange().getValues();
+      var events = [];
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i];
+        events.push({
+          id: safeTrim(String(row[0])),
+          name: safeTrim(String(row[1])),
+          description: safeTrim(String(row[2])),
+          date: safeTrim(String(row[3])),
+          time: safeTrim(String(row[4])),
+          location: safeTrim(String(row[5])),
+          status: safeTrim(String(row[6])),
+          deadline: safeTrim(String(row[7])),
+          customerInstructions: safeTrim(String(row[8])),
+          emailSubject: safeTrim(String(row[9])),
+          emailMessage: safeTrim(String(row[10])),
+          active: row[11] === true || row[11] === 'TRUE' || row[11] === 1
+        });
+      }
+      return createJsonResponse({ success: true, events: events });
+    }
+
+    // 12. ADMIN: SAVE EVENT
+    if (action === 'adminSaveEvent') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+      }
+      setupEventSheets();
+      var eventId = safeTrim(params.eventId || '');
+      var name = sanitizeForSheet(params.name || '');
+      var desc = sanitizeForSheet(params.description || '');
+      var date = sanitizeForSheet(params.date || '');
+      var time = sanitizeForSheet(params.time || '');
+      var location = sanitizeForSheet(params.location || '');
+      var status = sanitizeForSheet(params.status || 'Open');
+      var instructions = sanitizeForSheet(params.customerInstructions || '');
+      var emailSub = sanitizeForSheet(params.emailSubject || '');
+      var emailMsg = sanitizeForSheet(params.emailMessage || '');
+      var active = params.active === true || params.active === 'true' || params.active === '1';
+
+      if (!name) {
+        return createJsonResponse({ success: false, message: 'Event Name is required.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Events');
+      var data = sheet.getDataRange().getValues();
+      var rowIndex = -1;
+
+      if (!eventId) {
+        eventId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString().slice(-4);
+      }
+
+      for (var i = 1; i < data.length; i++) {
+        if (safeTrim(String(data[i][0])) === eventId) {
+          rowIndex = i + 1;
+          break;
+        }
+      }
+
+      if (rowIndex > 0) {
+        sheet.getRange(rowIndex, 2, 1, 12).setValues([[
+          name, desc, date, time, location, status, '', instructions, emailSub, emailMsg, active, new Date()
+        ]]);
+        logAdminAction('Update Event', 'Updated event: ' + name);
+      } else {
+        sheet.appendRow([
+          eventId, name, desc, date, time, location, status, '', instructions, emailSub, emailMsg, active, new Date()
+        ]);
+        logAdminAction('Create Event', 'Created event: ' + name);
+      }
+      SpreadsheetApp.flush();
+
+      return createJsonResponse({ success: true, message: 'Event saved successfully.', eventId: eventId });
+    }
+
+    // 13. ADMIN: GET EVENT ORDERS
+    if (action === 'adminGetEventOrders') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+      }
+      setupEventSheets();
+      var eventId = safeTrim(params.eventId || '');
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Event Customers');
+      if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: true, orders: [] });
+      var data = sheet.getDataRange().getValues();
+      var orders = [];
+
+      for (var i = data.length - 1; i >= 1; i--) {
+        var row = data[i];
+        if (eventId && safeTrim(String(row[2])) !== eventId) continue;
+        var isDel = String(row[15]).toUpperCase() === 'TRUE';
+        if (isDel) continue;
+
+        var orderId = safeTrim(String(row[1]));
+        var timestamp = row[0] instanceof Date ? Utilities.formatDate(row[0], 'Europe/London', 'dd MMM yyyy HH:mm') : String(row[0]);
+        var custName = safeTrim(String(row[5]));
+        var custEmail = safeTrim(String(row[6]));
+        var paymentMethod = mapPaymentMethod(row[7]);
+        var contentsJson = safeTrim(String(row[8]) || '[]');
+        var total = parseFloat(row[9]) || 0;
+        var paymentStatus = safeTrim(String(row[10])) || (paymentMethod ? 'Paid' : 'Pending Payment');
+        var notes = safeTrim(String(row[13]));
+
+        var items = [];
+        try { items = JSON.parse(contentsJson); } catch(e) {}
+
+        var pizzas = items.map(function(item) {
+          var up = parseFloat(item.unitPrice || PRICE_MAP[item.size] || 8);
+          var q = parseInt(item.qty, 10) || 1;
+          return {
+            recipient: custName,
+            class: '',
+            size: formatSizeLabel(item.size) + ' x ' + q,
+            price: up * q
+          };
+        });
+
+        orders.push({
+          orderId: orderId,
+          timestamp: timestamp,
+          customer: { name: custName, email: custEmail },
+          allergy: notes,
+          pizzas: pizzas,
+          total: total,
+          paymentStatus: paymentStatus
+        });
+      }
+
+      return createJsonResponse({ success: true, orders: orders });
     }
 
     // 10. ADMIN: CHANGE PASSWORD
@@ -863,10 +1218,21 @@ function createJsonResponse(data) {
 }
 
 function lookupOrder(searchEmail, searchOrderId, searchToken) {
+  var searchIdClean = searchOrderId ? safeTrim(searchOrderId).toUpperCase() : '';
+  if (searchIdClean && /^E/i.test(searchIdClean)) {
+    var eventRes = lookupEventOrder(searchEmail, searchOrderId, searchToken);
+    if (eventRes) return eventRes;
+  }
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
   var data = raw.getDataRange().getValues();
-  if (data.length < 2) return null;
+  if (data.length < 2) {
+    if (searchEmail) {
+      return lookupEventOrder(searchEmail, '', searchToken);
+    }
+    return null;
+  }
 
   var matchingOrders = [];
   var normalizedSearchEmail = searchEmail ? searchEmail.toLowerCase() : '';
@@ -945,7 +1311,12 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
     }
   }
 
-  if (matchingOrders.length === 0) return null;
+  if (matchingOrders.length === 0) {
+    if (searchEmail) {
+      return lookupEventOrder(searchEmail, '', searchToken);
+    }
+    return null;
+  }
   return matchingOrders[matchingOrders.length - 1];
 }
 
@@ -1618,28 +1989,259 @@ function getAllOrdersForAdmin() {
 
 /**
  * ============================================================================
- * VERSION RELEASE NOTES
- * ============================================================================
- * What this new version does:
- * 1. Targeted Single-Order Deletion:
- *    - Allows administrators to delete a specific individual order without affecting
- *      any other orders, rows, or numbering across the system.
- *
- * 2. Instant Capacity & Status Bar Recalculation:
- *    - When an order is deleted, all pizzas in that order—including whole (1.0),
- *      half (0.5), and quarter (0.25) fractional slices—are immediately excluded
- *      from total ordered calculations.
- *    - Automatically frees up the exact fractional capacity and adds the pizzas
- *      back to the remaining pizza count on the live website status bar and admin dashboard.
- *
- * 3. Automatic Column Expansion & Cache Invalidation:
- *    - Dynamically ensures the spreadsheet has sufficient columns for metadata flags.
- *    - Automatically purges cached status data and flushes pending writes to ensure
- *      instant real-time status synchronization across all client pages.
- *
- * 4. Unified Fractional Pizza Capacity & Item Counter:
- *    - Accurately tracks fractional pizza portions (whole = 1.0, half = 0.5, quarter = 0.25)
- *      across all administrative orders and dashboard summary bars.
- *    - Provides distinct counts for oven capacity (full pizzas) and order line items.
+ * SPECIAL EVENTS & CATERING BACKEND HELPERS
  * ============================================================================
  */
+
+function seedOrderCounter() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+    var lastRow = raw ? raw.getLastRow() : 1;
+    var seed = Math.max(100, lastRow + 1);
+    PropertiesService.getScriptProperties().setProperty('NEXT_ORDER_NUMBER', String(seed));
+    return seed;
+  } catch (e) {
+    return 100;
+  }
+}
+
+function getNextOrderNumber() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var current = parseInt(props.getProperty('NEXT_ORDER_NUMBER'), 10);
+    if (!current || isNaN(current)) {
+      current = seedOrderCounter();
+    }
+    var next = current + 1;
+    props.setProperty('NEXT_ORDER_NUMBER', String(next));
+    return 'E' + current;
+  } finally {
+    try { lock.releaseLock(); } catch(e) {}
+  }
+}
+
+function sanitizeForSheet(str) {
+  if (!str) return '';
+  var clean = String(str).trim();
+  if (/^[=+\-@]/.test(clean)) {
+    clean = "'" + clean;
+  }
+  return clean;
+}
+
+function setupEventSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  var eventsSheet = ss.getSheetByName('Events');
+  if (!eventsSheet) {
+    eventsSheet = ss.insertSheet('Events');
+    eventsSheet.appendRow([
+      'Event ID', 'Event Name', 'Description', 'Event Date', 'Event Time',
+      'Location', 'Status', 'Ordering Deadline', 'Customer Instructions',
+      'Email Subject', 'Email Message', 'Active', 'Created At'
+    ]);
+    eventsSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#E8E8E8');
+    
+    eventsSheet.appendRow([
+      'summer-fair-2026',
+      'Summer School Fair & BBQ',
+      'Join us for our annual Summer Fair wood-fired pizza dinner.',
+      'Friday 10th July 2026',
+      '17:30 - 20:00',
+      'School Courtyard',
+      'Open',
+      '',
+      'Please collect your pizzas from the courtyard oven marquee.',
+      'Artisan Oven — Summer Fair Order Confirmation',
+      'Thank you for ordering for the Summer Fair!',
+      true,
+      new Date()
+    ]);
+  }
+
+  var custSheet = ss.getSheetByName('Event Customers');
+  if (!custSheet) {
+    custSheet = ss.insertSheet('Event Customers');
+    custSheet.appendRow([
+      'Timestamp', 'Order ID', 'Event ID', 'Event Name', 'Event Date',
+      'Customer Name', 'Customer Email', 'Payment Method', 'Order Contents JSON',
+      'Total (£)', 'Payment Status', 'Order Status', 'Confirmation Status',
+      'Customer Notes', 'Order Token', 'Deleted', 'Submission ID'
+    ]);
+    custSheet.getRange(1, 1, 1, 17).setFontWeight('bold').setBackground('#E8E8E8');
+  }
+}
+
+function lookupEventOrder(searchEmail, searchOrderId, searchToken) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Event Customers');
+  if (!sheet || sheet.getLastRow() < 2) return null;
+  var data = sheet.getDataRange().getValues();
+
+  var normEmail = searchEmail ? searchEmail.toLowerCase() : '';
+  var normId = searchOrderId ? searchOrderId.toUpperCase().replace(/\s+/g, '') : '';
+  var sToken = searchToken ? safeTrim(searchToken) : '';
+
+  for (var i = data.length - 1; i >= 1; i--) {
+    var row = data[i];
+    var isDel = String(row[15]).toUpperCase() === 'TRUE';
+    if (isDel) continue;
+
+    var orderId = safeTrim(String(row[1] || '')).toUpperCase();
+    var customerName = safeTrim(String(row[5] || ''));
+    var customerEmail = safeTrim(String(row[6] || ''));
+    var paymentMethod = mapPaymentMethod(row[7]);
+    var contentsJson = safeTrim(String(row[8] || '[]'));
+    var total = parseFloat(row[9]) || 0;
+    var paymentStatus = safeTrim(String(row[10] || ''));
+    var token = safeTrim(String(row[14] || ''));
+
+    var idMatches = normId && (normId === orderId);
+    var emailMatches = normEmail && customerEmail && (customerEmail.toLowerCase() === normEmail);
+    var tokenMatches = sToken && idMatches && (token === sToken);
+
+    if (tokenMatches || emailMatches || (idMatches && !sToken)) {
+      var items = [];
+      try {
+        items = JSON.parse(contentsJson);
+      } catch (e) {
+        items = [];
+      }
+
+      var pizzas = items.map(function(item, idx) {
+        var unitPrice = parseFloat(item.unitPrice || PRICE_MAP[item.size] || 8);
+        var qty = parseInt(item.qty, 10) || 1;
+        return {
+          item: formatSizeLabel(item.size),
+          sizeKey: item.size,
+          quantity: qty,
+          childName: customerName,
+          class: '',
+          price: unitPrice * qty,
+          priceFormatted: '£' + (unitPrice * qty).toFixed(2),
+          pickupId: orderId + '-' + (idx + 1)
+        };
+      });
+
+      return {
+        orderIndex: orderId,
+        formattedOrderId: orderId,
+        payerName: customerName,
+        payerEmail: customerEmail,
+        paymentMethod: paymentMethod,
+        paid: (paymentStatus === 'Paid' || paymentMethod) ? 'Yes' : 'No',
+        total: total,
+        pizzas: pizzas
+      };
+    }
+  }
+  return null;
+}
+
+function sendEventConfirmation(orderId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Event Customers');
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var data = sheet.getDataRange().getValues();
+
+  var rowNum = -1;
+  var row = null;
+  for (var i = 1; i < data.length; i++) {
+    if (safeTrim(String(data[i][1])).toUpperCase() === orderId.toUpperCase()) {
+      rowNum = i + 1;
+      row = data[i];
+      break;
+    }
+  }
+
+  if (!row) return;
+
+  var alreadySent = safeTrim(String(row[12]));
+  if (alreadySent === 'SENT') return;
+
+  sheet.getRange(rowNum, 13).setValue('SENT');
+  SpreadsheetApp.flush();
+
+  var eventId = safeTrim(String(row[2]));
+  var eventName = safeTrim(String(row[3])) || 'Special Event';
+  var eventDate = safeTrim(String(row[4])) || '';
+  var payerName = safeTrim(String(row[5])) || 'there';
+  var payerEmail = safeTrim(String(row[6])) || '';
+  var contentsJson = safeTrim(String(row[8])) || '[]';
+  var total = parseFloat(row[9]) || 0;
+  var token = safeTrim(String(row[14]));
+
+  if (!token) {
+    token = Utilities.getUuid();
+    sheet.getRange(rowNum, 15).setValue(token);
+  }
+
+  if (!payerEmail) return;
+
+  var evSheet = ss.getSheetByName('Events');
+  var emailSub = 'Artisan Oven — Event Order Confirmation (' + orderId + ')';
+  var customMsg = '';
+  if (evSheet && evSheet.getLastRow() >= 2) {
+    var evData = evSheet.getDataRange().getValues();
+    for (var j = 1; j < evData.length; j++) {
+      if (safeTrim(String(evData[j][0])) === eventId) {
+        if (evData[j][9]) emailSub = String(evData[j][9]) + ' (' + orderId + ')';
+        if (evData[j][10]) customMsg = String(evData[j][10]);
+        break;
+      }
+    }
+  }
+
+  var items = [];
+  try { items = JSON.parse(contentsJson); } catch(e) {}
+
+  var lines = items.map(function(item) {
+    var up = parseFloat(item.unitPrice || PRICE_MAP[item.size] || 8);
+    var q = parseInt(item.qty, 10) || 1;
+    return formatSizeLabel(item.size) + ' x ' + q + ' — £' + (up * q).toFixed(2);
+  });
+
+  var orderLink = 'https://artisanoven.shop/Payment.html?order=' + orderId + '&token=' + token + '&t=' + new Date().getTime();
+
+  var body =
+    'Hi ' + payerName + ',\n\n' +
+    'Thank you for placing your pizza order for ' + eventName + (eventDate ? ' (' + eventDate + ')' : '') + '.\n\n' +
+    'ORDER NUMBER: #' + orderId + '\n\n' +
+    'View your order and payment details here:\n' + orderLink + '\n\n' +
+    'ORDER SUMMARY\n\n' +
+    lines.join('\n') + '\n\n' +
+    'TOTAL AMOUNT DUE: £' + total.toFixed(2) + '\n\n' +
+    (customMsg ? customMsg + '\n\n' : '') +
+    PAYMENT_INFO_BLOCK + '\n\n' +
+    'Thank you for supporting Artisan Oven!\n\n' +
+    'Kind regards,\n\nMarlow, Louis, and Quinton';
+
+  var htmlBody =
+    '<p>Hi ' + payerName + ',</p>' +
+    '<p>Thank you for placing your pizza order for <strong>' + eventName + '</strong>' + (eventDate ? ' (' + eventDate + ')' : '') + '.</p>' +
+    '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + orderId + '</a></strong></p>' +
+    '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
+    '<p><strong>ORDER SUMMARY</strong></p>' +
+    '<p>' + lines.join('<br>') + '</p>' +
+    '<p><strong>TOTAL AMOUNT DUE: £' + total.toFixed(2) + '</strong></p>' +
+    (customMsg ? '<p><em>' + customMsg + '</em></p>' : '') +
+    '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
+    '<p>Thank you for supporting Artisan Oven!</p>' +
+    '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
+
+  try {
+    MailApp.sendEmail({
+      to: payerEmail,
+      subject: emailSub,
+      body: body,
+      htmlBody: htmlBody
+    });
+    sheet.getRange(rowNum, 13).setValue('SENT');
+  } catch (e) {
+    sheet.getRange(rowNum, 13).setValue('FAILED: ' + e.toString().substring(0, 50));
+  }
+}
+

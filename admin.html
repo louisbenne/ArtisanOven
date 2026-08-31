@@ -254,6 +254,7 @@
         <div class="admin-tabs">
           <button type="button" class="admin-tab active" data-tab="tab-dashboard">Dashboard & Settings</button>
           <button type="button" class="admin-tab" data-tab="tab-orders" id="btn-tab-orders">Orders</button>
+          <button type="button" class="admin-tab" data-tab="tab-events" id="btn-tab-events">Events</button>
         </div>
 
         <div id="tab-dashboard" class="tab-content active">
@@ -614,6 +615,15 @@
           </div>
         </div>
 
+        <div id="tab-events" class="tab-content">
+          <div class="orders-summary-bar">
+            <h3>Manage Special Events</h3>
+          </div>
+          <div id="events-list-container">
+            <p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading events...</p>
+          </div>
+        </div>
+
         <!-- Logout Footer Box -->
         <div class="admin-footer-actions">
           <button type="button" id="btn-logout-bottom" class="admin-logout-btn">
@@ -662,6 +672,70 @@
     </div>
   </div>
 
+  <div id="event-modal" class="admin-modal-backdrop" style="display: none;">
+    <div class="admin-modal-card" style="max-width: 580px; width: 90%;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="event-modal-title">Configure Special Event</h3>
+      </div>
+      <div class="modal-body">
+        <form id="form-save-event" onsubmit="event.preventDefault(); saveEvent();">
+          <input type="hidden" id="event-id" name="eventId" />
+          
+          <div class="admin-form-group">
+            <label for="event-name">Event Name *</label>
+            <input type="text" id="event-name" name="name" placeholder="e.g. Summer Pizza Pop-Up" required />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="admin-form-group">
+              <label for="event-date">Event Date</label>
+              <input type="text" id="event-date" name="date" placeholder="e.g. 12 July 2026" />
+            </div>
+            <div class="admin-form-group">
+              <label for="event-time">Time Range</label>
+              <input type="text" id="event-time" name="time" placeholder="e.g. 17:00 - 21:00" />
+            </div>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="event-location">Location / Venue</label>
+            <input type="text" id="event-location" name="location" placeholder="e.g. Village Green, Guilden Morden" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="admin-form-group">
+              <label for="event-status">Ordering Status</label>
+              <select id="event-status" name="status">
+                <option value="Open">Open (Taking Orders)</option>
+                <option value="Closed">Closed (Sold Out / Ended)</option>
+              </select>
+            </div>
+            <div class="admin-form-group" style="display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 6px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="event-active" name="active" style="width: 18px; height: 18px;" checked />
+                <strong>Published on Website</strong>
+              </label>
+            </div>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="event-description">Event Description</label>
+            <textarea id="event-description" name="description" rows="2" style="width: 100%; border: 1fr solid #ccc; border-radius: 6px; padding: 8px;" placeholder="Short summary for customers..."></textarea>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="event-instructions">Customer Pickup Instructions</label>
+            <input type="text" id="event-instructions" name="customerInstructions" placeholder="e.g. Please arrive 5 mins before your chosen pickup slot." />
+          </div>
+        </form>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="admin-secondary-btn" onclick="closeEventModal()">Cancel</button>
+        <button type="button" class="admin-primary-btn" onclick="saveEvent()">Save Event</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="site-footer">
     <div class="container">
       <p class="footer-brand">ARTISAN OVEN</p>
@@ -673,6 +747,7 @@
 
   <!-- Admin Dashboard JavaScript Logic -->
   <script src="script.js"></script>
+  <script src="admin_events.js?v=1.0.8"></script>
   <script>
     // ========================================================================
     // ADMIN DASHBOARD CLIENT-SIDE CONTROLLER
@@ -767,6 +842,7 @@
       // Initialize session check
       if (currentAdminToken) {
         loadDashboardData(true);
+        if (typeof window.initEventsTab === 'function') window.initEventsTab();
       } else {
         showLoginView();
       }
@@ -802,6 +878,7 @@
               showToast("Logged in successfully!", "success");
               loadDashboardData();
               loadOrdersData(true); // Background load orders for instant tab switch later
+              if (typeof window.initEventsTab === 'function') window.initEventsTab();
             } else {
               showLoginError(data.message || "Incorrect password.");
             }
@@ -1072,6 +1149,7 @@
       const tabButtons = document.querySelectorAll('.admin-tab');
       const tabContents = document.querySelectorAll('.tab-content');
       const btnTabOrders = document.getElementById('btn-tab-orders');
+      const btnTabEvents = document.getElementById('btn-tab-events');
       
       console.log("Admin: Initializing tabs. Found " + tabButtons.length + " buttons.");
       
@@ -1087,6 +1165,10 @@
 
       btnTabOrders.addEventListener('click', () => {
         loadOrdersData();
+      });
+
+      btnTabEvents.addEventListener('click', () => {
+        initEventsTab();
       });
 
       const searchInput = document.getElementById('orders-search-input');

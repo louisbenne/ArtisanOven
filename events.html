@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Special Events & Catering — Artisan Oven</title>
+  <meta name="description" content="Browse and order artisan wood-fired pizzas for special school events and catering." />
+
+  <!-- Resource Hints -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin />
+  <link rel="dns-prefetch" href="https://script.google.com" />
+  <link rel="preload" href="fonts/BaarSophia.ttf" as="font" type="font/ttf" crossorigin />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .events-hero {
+      text-align: center;
+      padding: 60px 20px 40px;
+    }
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+    }
+    .event-card {
+      background: var(--paper-raised);
+      border: 1px solid rgba(31, 58, 46, 0.12);
+      border-radius: 16px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 16px rgba(31, 58, 46, 0.04);
+    }
+    .event-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(31, 58, 46, 0.08);
+      border-color: var(--sage);
+    }
+    .event-card-title {
+      font-family: "Baar Sophia", serif;
+      font-size: 1.5rem;
+      color: var(--forest);
+      margin-bottom: 12px;
+    }
+    .event-meta-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 20px 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .event-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .event-meta-item svg {
+      width: 16px;
+      height: 16px;
+      color: var(--basil);
+      flex-shrink: 0;
+    }
+    .event-desc {
+      font-size: 0.95rem;
+      color: var(--text-main);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .event-card-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--forest);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+      text-align: center;
+    }
+    .event-card-btn:hover {
+      background: var(--basil);
+    }
+    .events-loading, .events-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+      <a href="index.html" class="wordmark" style="text-decoration: none; color: inherit;">
+        <span class="flame-dot" aria-hidden="true"></span>
+        ARTISAN OVEN
+      </a>
+      <a href="index.html" style="font-size: 0.9rem; font-weight: 600; color: var(--forest); text-decoration: none;">&larr; Back to Home</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="events-hero">
+      <div class="container">
+        <h1 class="hero-heading" style="font-size: 2.5rem; margin-bottom: 12px;">Special Events & Catering</h1>
+        <p class="hero-sub" style="max-width: 600px; margin: 0 auto;">Choose from our upcoming special school events and place your artisan pizza order below.</p>
+      </div>
+    </section>
+
+    <div id="events-container">
+      <div class="events-loading" id="events-loading">Loading available events...</div>
+      <div class="events-grid" id="events-grid" style="display: none;"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer" style="margin-top: 60px;">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <div class="footer-bottom">
+        <span>© 2026</span> Artisan Oven &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const grid = document.getElementById("events-grid");
+      const loading = document.getElementById("events-loading");
+      const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+
+      if (!apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+        loading.innerHTML = '<p style="color: var(--terracotta);">API URL not configured in script.js.</p>';
+        return;
+      }
+
+      function getLocalEvents() {
+        try {
+          const raw = localStorage.getItem("AO_LOCAL_EVENTS");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        } catch(e) {}
+        return [
+          {
+            id: "summer-popup-2026",
+            name: "Summer Pizza Pop-Up",
+            description: "Wood-fired sourdough pizza pop-up event with seasonal local toppings.",
+            date: "12 July 2026",
+            time: "17:00 - 21:00",
+            location: "Village Green, Guilden Morden",
+            status: "Open",
+            active: true
+          },
+          {
+            id: "autumn-feast-2026",
+            name: "Autumn Harvest Feast",
+            description: "Seasonal sourdough specials and wood-fired appetizers.",
+            date: "18 September 2026",
+            time: "18:00 - 21:30",
+            location: "Town Hall Yard",
+            status: "Open",
+            active: true
+          }
+        ];
+      }
+
+      function renderEventsArray(eventsList) {
+        if (!eventsList || eventsList.length === 0) {
+          loading.innerHTML = `
+            <div style="background: var(--paper-raised); padding: 40px; border-radius: 12px; border: 1px solid rgba(31,58,46,0.1); max-width: 500px; margin: 0 auto;">
+              <h3 style="color: var(--forest); margin-bottom: 8px; font-family: 'Baar Sophia', serif; font-size: 1.3rem;">No Active Events Right Now</h3>
+              <p style="color: var(--text-secondary); font-size: 0.95rem;">There are currently no special events open for ordering. Check back soon or visit our weekly Tuesday school lunch orders!</p>
+              <a href="order.html" class="event-card-btn" style="margin-top: 20px; display: inline-flex;">Go to Tuesday School Lunch Order &rarr;</a>
+            </div>
+          `;
+          return;
+        }
+
+        loading.style.display = "none";
+        grid.style.display = "grid";
+        grid.innerHTML = "";
+
+        eventsList.forEach(ev => {
+          if (ev.active === false) return;
+          const card = document.createElement("div");
+          card.className = "event-card";
+          card.innerHTML = `
+            <div>
+              <h2 class="event-card-title">${escapeHtml(ev.name)}</h2>
+              <ul class="event-meta-list">
+                <li class="event-meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  <span>${escapeHtml(ev.date || 'TBD')} ${ev.time ? '• ' + escapeHtml(ev.time) : ''}</span>
+                </li>
+                ${ev.location ? `
+                <li class="event-meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                  <span>${escapeHtml(ev.location)}</span>
+                </li>` : ''}
+              </ul>
+              <p class="event-desc">${escapeHtml(ev.description || 'Join us for freshly baked wood-fired artisan pizza.')}</p>
+            </div>
+            <a href="event-order.html?event=${encodeURIComponent(ev.id)}" class="event-card-btn">ORDER FOR THIS EVENT &rarr;</a>
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      try {
+        const url = new URL(apiUrl);
+        url.searchParams.set("action", "getEvents");
+        url.searchParams.set("_t", Date.now().toString());
+
+        const res = await fetch(url.toString(), { mode: "cors", cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        if (data.success && data.events && data.events.length > 0) {
+          renderEventsArray(data.events);
+        } else {
+          renderEventsArray(getLocalEvents());
+        }
+      } catch (err) {
+        console.warn("Using local events fallback:", err);
+        renderEventsArray(getLocalEvents());
+      }
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+    });
+  </script>
+</body>
+</html>
