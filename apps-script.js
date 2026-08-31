@@ -1,23 +1,22 @@
 // ============================================================================
 // ARTISAN OVEN — Operational Backend, Public API & Admin System
-// Version: 2.2.0 (Build 2026.08.31)
+// Version: 2.3.0 (Build 2026.08.31)
 //
-// SUMMARY OF UPDATES IN v2.2.0:
-// 1. Dynamic Per-Event Google Sheets Tabs (createOrGetEventOrdersSheet):
-//    - Automatically creates a dedicated tab for each event when created in Admin.
-//    - Formatted with frozen header row, Artisan Forest palette (#1F3A2E / #F7F5F0),
-//      and auto-sized columns.
-// 2. Dual Order Logging:
-//    - Orders submitted via createEventOrder are written to both the master
-//      'Event Customers' sheet and the event-specific dedicated tab.
-// 3. Normalized Action Routing:
-//    - Case-insensitive matching for createEventOrder, getEvent, getEvents.
-//    - Supports both JSON bodies and URL parameters seamlessly.
-// 4. Robust POST/GET Parser:
-//    - Merges URL parameters and JSON postData, parses stringified item arrays,
-//      and prevents "Invalid action requested" edge cases.
-// 5. Automatic Sheet Initialization:
-//    - Automatically provisions 'Events' and 'Event Customers' sheets if not present.
+// SUMMARY OF UPDATES IN v2.3.0:
+// 1. Separation of School Lunch Orders & Special Event Orders:
+//    - adminGetOrders specifically reads school lunch orders from 'Form Responses 1'.
+//    - adminGetEventOrders specifically reads special event orders from 'Event Customers'
+//      with optional eventId filtering, returning complete customer & pizza item details.
+// 2. Case-Insensitive Normalized Action Routing:
+//    - Action matching is normalized across all endpoints (adminGetOrders, adminGetSettings,
+//      adminGetEvents, adminGetEventOrders, adminUpdatePaidStatus, adminDeleteOrder,
+//      adminResendConfirmation, adminSaveEvent, adminDeleteEvent, adminStartNewSession,
+//      adminChangePassword, createEventOrder, getEvent, getEvents, etc.).
+// 3. Unified Paid Status & Order Deletion Handling:
+//    - adminUpdatePaidStatus & adminDeleteOrder seamlessly detect both school lunch orders
+//      (numeric row IDs) and event orders (E-prefixed IDs or source='event').
+// 4. Enhanced Event Orders Confirmation Resend:
+//    - adminResendConfirmation routes event orders to sendEventConfirmation.
 // ============================================================================
 
 // ====== CORE DEFAULTS & CONFIGURATION ======
@@ -642,7 +641,7 @@ function doGet(e) {
     }
 
     // 3. ADMIN: LOGIN
-    if (action === 'adminLogin') {
+    if (action === 'adminLogin' || actionLower === 'adminlogin') {
       var password = safeTrim(params.password || '');
       if (password && password === getAdminPassword()) {
         var token = generateAdminToken();
@@ -661,7 +660,7 @@ function doGet(e) {
     }
 
     // 4. ADMIN: GET ALL SETTINGS
-    if (action === 'adminGetSettings') {
+    if (action === 'adminGetSettings' || actionLower === 'admingetsettings') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -682,8 +681,8 @@ function doGet(e) {
       });
     }
 
-    // 5. ADMIN: UPDATE SETTINGS
-    if (action === 'adminGetOrders') {
+    // 5. ADMIN: GET SCHOOL LUNCH ORDERS
+    if (action === 'adminGetOrders' || actionLower === 'admingetorders') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -697,7 +696,9 @@ function doGet(e) {
         orders: getAllOrdersForAdmin()
       });
     }
-    if (action === 'adminUpdateSettings') {
+
+    // 5b. ADMIN: UPDATE SETTINGS
+    if (action === 'adminUpdateSettings' || actionLower === 'adminupdatesettings') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -743,7 +744,7 @@ function doGet(e) {
     }
 
     // 6. ADMIN: START NEW WEEK / NEW SESSION
-    if (action === 'adminStartNewSession') {
+    if (action === 'adminStartNewSession' || actionLower === 'adminstartnewsession') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -802,7 +803,7 @@ function doGet(e) {
     }
 
     // 7. ADMIN: RESEND CONFIRMATION
-    if (action === 'adminResendConfirmation') {
+    if (action === 'adminResendConfirmation' || actionLower === 'adminresendconfirmation') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -813,8 +814,19 @@ function doGet(e) {
       }
 
       var orderId = safeTrim(params.orderId || '');
+      var source = safeTrim(params.source || '');
       if (!orderId) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      if (source === 'event' || /^E/i.test(orderId)) {
+        try {
+          sendEventConfirmation(orderId);
+          logAdminAction('Resend Confirmation', 'Manually resent confirmation for Event Order #' + orderId);
+          return createJsonResponse({ success: true, message: 'Confirmation resent successfully for Event Order #' + orderId });
+        } catch (err) {
+          return createJsonResponse({ success: false, message: 'Error resending event confirmation: ' + err.toString() });
+        }
       }
 
       var parsedId = parseInt(orderId, 10);
@@ -837,7 +849,7 @@ function doGet(e) {
       
       try {
         sendOrderConfirmationForRow(rowNum);
-        logAdminAction('Resend Confirmation', 'Manually resent confirmation for Order #' + orderId);
+        logAdminAction('Resend Confirmation', 'Manually resent confirmation for School Lunch Order #' + orderId);
         return createJsonResponse({ success: true, message: 'Confirmation resent successfully for Order #' + orderId });
       } catch (err) {
         return createJsonResponse({ success: false, message: 'Error resending confirmation: ' + err.toString() });
@@ -845,7 +857,7 @@ function doGet(e) {
     }
 
     // 8. ADMIN: UPDATE PAYMENT STATUS
-    if (action === 'adminUpdatePaidStatus') {
+    if (action === 'adminUpdatePaidStatus' || actionLower === 'adminupdatepaidstatus') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -905,7 +917,7 @@ function doGet(e) {
     }
 
     // 9. ADMIN: DELETE ORDER
-    if (action === 'adminDeleteOrder') {
+    if (action === 'adminDeleteOrder' || actionLower === 'admindeleteorder') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -985,7 +997,7 @@ function doGet(e) {
     }
 
     // 11. ADMIN: GET EVENTS FOR MANAGEMENT
-    if (action === 'adminGetEvents') {
+    if (action === 'adminGetEvents' || actionLower === 'admingetevents') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
@@ -1017,7 +1029,7 @@ function doGet(e) {
     }
 
     // 12. ADMIN: SAVE EVENT
-    if (action === 'adminSaveEvent') {
+    if (action === 'adminSaveEvent' || actionLower === 'adminsaveevent') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
@@ -1079,7 +1091,7 @@ function doGet(e) {
     }
 
     // 12b. ADMIN: DELETE EVENT
-    if (action === 'adminDeleteEvent') {
+    if (action === 'adminDeleteEvent' || actionLower === 'admindeleteevent') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
@@ -1106,14 +1118,14 @@ function doGet(e) {
       return createJsonResponse({ success: true, message: 'Event not found or already deleted.' });
     }
 
-    // 13. ADMIN: GET EVENT ORDERS
-    if (action === 'adminGetEventOrders') {
+    // 13. ADMIN: GET EVENT ORDERS (Dedicated to Special Events)
+    if (action === 'adminGetEventOrders' || actionLower === 'admingeteventorders') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
       }
       setupEventSheets();
-      var eventId = safeTrim(params.eventId || '');
+      var eventId = safeTrim(params.eventId || params.event || '');
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var sheet = ss.getSheetByName('Event Customers');
       if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: true, orders: [] });
@@ -1122,14 +1134,17 @@ function doGet(e) {
 
       for (var i = data.length - 1; i >= 1; i--) {
         var row = data[i];
-        if (eventId && safeTrim(String(row[2])) !== eventId) continue;
+        var rowEventId = safeTrim(String(row[2]));
+        if (eventId && rowEventId.toLowerCase() !== eventId.toLowerCase()) continue;
         var isDel = String(row[15]).toUpperCase() === 'TRUE';
         if (isDel) continue;
 
         var orderId = safeTrim(String(row[1]));
         var timestamp = row[0] instanceof Date ? Utilities.formatDate(row[0], 'Europe/London', 'dd MMM yyyy HH:mm') : String(row[0]);
-        var custName = safeTrim(String(row[5]));
-        var custEmail = safeTrim(String(row[6]));
+        var evName = safeTrim(String(row[3])) || 'Special Event';
+        var evDate = safeTrim(String(row[4])) || '';
+        var custName = safeTrim(String(row[5])) || 'Customer';
+        var custEmail = safeTrim(String(row[6])) || '';
         var paymentMethod = mapPaymentMethod(row[7]);
         var contentsJson = safeTrim(String(row[8]) || '[]');
         var total = parseFloat(row[9]) || 0;
@@ -1145,15 +1160,21 @@ function doGet(e) {
           return {
             recipient: custName,
             class: '',
-            size: formatSizeLabel(item.size) + ' x ' + q,
+            size: formatSizeLabel(item.size),
+            quantity: q,
+            unitPrice: up,
             price: up * q
           };
         });
 
         orders.push({
           orderId: orderId,
+          eventId: rowEventId,
+          eventName: evName,
+          eventDate: evDate,
           timestamp: timestamp,
           customer: { name: custName, email: custEmail },
+          paymentMethod: paymentMethod,
           allergy: notes,
           pizzas: pizzas,
           total: total,
@@ -1165,7 +1186,7 @@ function doGet(e) {
     }
 
     // 10. ADMIN: CHANGE PASSWORD
-    if (action === 'adminChangePassword') {
+    if (action === 'adminChangePassword' || actionLower === 'adminchangepassword') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
@@ -1202,7 +1223,7 @@ function doGet(e) {
     }
 
     // 8. ADMIN: LOGOUT
-    if (action === 'adminLogout') {
+    if (action === 'adminLogout' || actionLower === 'adminlogout') {
       invalidateAdminToken();
       return createJsonResponse({
         success: true,
