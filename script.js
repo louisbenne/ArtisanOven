@@ -72,29 +72,44 @@ function initAvailabilityTracker() {
       url.searchParams.set("action", "getStatus");
       url.searchParams.set("_t", Date.now().toString()); // Cache busting
 
-      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timeoutId = controller ? setTimeout(() => controller.abort(), 9000) : null;
+      let signal = null;
+      let timeoutId = null;
+      if (typeof AbortController !== 'undefined') {
+        const controller = new AbortController();
+        signal = controller.signal;
+        timeoutId = setTimeout(() => {
+          try {
+            controller.abort(new Error("Availability lookup timeout"));
+          } catch (e) {
+            controller.abort();
+          }
+        }, 15000);
+      }
 
       const fetchOptions = {
         method: "GET",
         mode: "cors",
         cache: "no-store"
       };
-      if (controller) {
-        fetchOptions.signal = controller.signal;
+      if (signal) {
+        fetchOptions.signal = signal;
       }
 
-      const response = await fetch(url.toString(), fetchOptions);
-      if (timeoutId) clearTimeout(timeoutId);
+      let response;
+      try {
+        response = await fetch(url.toString(), fetchOptions);
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         console.warn("Availability lookup returned non-OK status:", response.status);
-        throw new Error("HTTP Status " + response.status);
+        return;
       }
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data && data.success) {
         const serialized = JSON.stringify(data);
         sessionStorage.setItem('STATUS_CACHE_DATA', serialized);
         sessionStorage.setItem('STATUS_CACHE_TIME', Date.now().toString());
@@ -104,7 +119,14 @@ function initAvailabilityTracker() {
         updateTrackerUI(data);
       }
     } catch (err) {
-      console.error("Availability lookup error:", err.message || err);
+      const isAbort = err.name === 'AbortError' || 
+                      err.name === 'TimeoutError' || 
+                      (err.message && err.message.toLowerCase().includes('abort'));
+      if (isAbort) {
+        console.warn("Availability lookup timed out or aborted, using fallback state.");
+      } else {
+        console.warn("Availability lookup note:", err.message || err);
+      }
       // If we don't already have rendered data, fallback safely
       const hasRendered = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
       if (!hasRendered) {
@@ -289,11 +311,21 @@ function initOrderLookup() {
       let timeoutId = null;
       if (activeLookupController) {
         fetchOpts.signal = activeLookupController.signal;
-        timeoutId = setTimeout(() => activeLookupController.abort(), 12000);
+        timeoutId = setTimeout(() => {
+          try {
+            activeLookupController.abort(new Error("Lookup timeout"));
+          } catch (e) {
+            activeLookupController.abort();
+          }
+        }, 15000);
       }
 
-      const response = await fetch(url.toString(), fetchOpts);
-      if (timeoutId) clearTimeout(timeoutId);
+      let response;
+      try {
+        response = await fetch(url.toString(), fetchOpts);
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         console.warn("Order lookup returned non-OK status:", response.status);
@@ -311,10 +343,13 @@ function initOrderLookup() {
         );
       }
     } catch (err) {
-      if (err.name === 'AbortError') {
+      const isAbort = err.name === 'AbortError' || 
+                      err.name === 'TimeoutError' || 
+                      (err.message && err.message.toLowerCase().includes('abort'));
+      if (isAbort) {
         showFeedback("Request took too long. Please check your connection and try again.", "error");
       } else {
-        console.error("Order lookup error:", err);
+        console.warn("Order lookup note:", err.message || err);
         showFeedback(
           "We couldn't find your order. Please check your details and try again.",
           "error"
