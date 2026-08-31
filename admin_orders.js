@@ -1,4 +1,5 @@
       let cachedOrders = [];
+      let searchDebounceTimer = null;
       
       const tabButtons = document.querySelectorAll('.admin-tab');
       const tabContents = document.querySelectorAll('.tab-content');
@@ -21,8 +22,21 @@
       const searchInput = document.getElementById('orders-search-input');
       if (searchInput) {
         searchInput.addEventListener('input', () => {
-          renderOrders(cachedOrders);
+          clearTimeout(searchDebounceTimer);
+          searchDebounceTimer = setTimeout(() => {
+            renderOrders(cachedOrders);
+          }, 120);
         });
+      }
+
+      function escapeAdminHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
       }
 
       async function loadOrdersData(silent = false) {
@@ -49,7 +63,7 @@
             cachedOrders = data.orders;
             renderOrders(cachedOrders);
           } else {
-            document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;
+            document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${escapeAdminHtml(data.message) || "Failed to load orders."}</p>`;
           }
         } catch (err) {
           console.error("Orders load error:", err);
@@ -67,14 +81,14 @@
         let paidCount = 0;
 
         let filtered = orders.filter(o => {
-          const matchString = `${o.orderId} ${o.customer.name} ${o.customer.email} ${o.pizzas.map(p => p.recipient).join(' ')}`.toLowerCase();
+          const matchString = `${o.orderId} ${o.customer?.name || ''} ${o.customer?.email || ''} ${(o.pizzas || []).map(p => p.recipient).join(' ')}`.toLowerCase();
           return matchString.includes(searchTerm);
         });
 
-        // Compute stats from all orders (or just filtered?) - usually from all.
+        // Compute stats from all orders
         orders.forEach(o => {
           totalOrders++;
-          totalPizzas += o.pizzas.length;
+          totalPizzas += (o.pizzas ? o.pizzas.length : 0);
           if (o.paymentStatus === 'Paid') paidCount++;
           else pendingCount++;
         });
@@ -94,40 +108,46 @@
           const statusClass = order.paymentStatus === 'Paid' ? 'paid' : 'pending';
           
           let pizzasHtml = '';
-          order.pizzas.forEach(p => {
+          (order.pizzas || []).forEach(p => {
             pizzasHtml += `
               <div class="order-pizza-item">
-                <div class="order-pizza-recipient">${p.recipient} ${p.class ? `(${p.class})` : ''}</div>
+                <div class="order-pizza-recipient">${escapeAdminHtml(p.recipient)} ${p.class ? `(${escapeAdminHtml(p.class)})` : ''}</div>
                 <div class="order-pizza-meta">
-                  <span>${p.size}</span>
-                  <span>£${p.price.toFixed(2)}</span>
+                  <span>${escapeAdminHtml(p.size)}</span>
+                  <span>£${(Number(p.price) || 0).toFixed(2)}</span>
                 </div>
               </div>
             `;
           });
 
+          const orderIdDisplay = escapeAdminHtml(String(order.orderId || ''));
+          const customerNameDisplay = escapeAdminHtml(order.customer?.name || '');
+          const customerEmailDisplay = escapeAdminHtml(order.customer?.email || '');
+          const totalFormatted = (Number(order.total) || 0).toFixed(2);
+          const pizzaCount = order.pizzas ? order.pizzas.length : 0;
+
           html += `
             <div class="order-card" onclick="this.classList.toggle('expanded')">
               <div class="order-card-header">
                 <div>
-                  <div class="order-card-title">Order #${order.orderId}</div>
-                  <div class="order-card-customer">${order.customer.name}</div>
-                  <div class="order-card-email">${order.customer.email}</div>
+                  <div class="order-card-title">Order #${orderIdDisplay}</div>
+                  <div class="order-card-customer">${customerNameDisplay}</div>
+                  <div class="order-card-email">${customerEmailDisplay}</div>
                 </div>
-                <div class="order-card-status ${statusClass}">${order.paymentStatus}</div>
+                <div class="order-card-status ${statusClass}">${escapeAdminHtml(order.paymentStatus)}</div>
               </div>
               <div class="order-card-summary">
-                <span>${order.pizzas.length} pizza${order.pizzas.length === 1 ? '' : 's'}</span>
-                <span style="font-weight: 700;">Total: £${order.total.toFixed(2)}</span>
+                <span>${pizzaCount} pizza${pizzaCount === 1 ? '' : 's'}</span>
+                <span style="font-weight: 700;">Total: £${totalFormatted}</span>
               </div>
               
               <div class="order-card-details">
-                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Ordered: ${order.timestamp}</div>
-                ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600;">Allergy Info: ${order.allergy}</div>` : ''}
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Ordered: ${escapeAdminHtml(order.timestamp || '')}</div>
+                ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 8px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600;">Allergy Info: ${escapeAdminHtml(order.allergy)}</div>` : ''}
                 ${pizzasHtml}
                 <div class="order-card-total">
                   <span>Total</span>
-                  <span>£${order.total.toFixed(2)}</span>
+                  <span>£${totalFormatted}</span>
                 </div>
               </div>
             </div>

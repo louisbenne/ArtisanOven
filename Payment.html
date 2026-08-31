@@ -7,12 +7,21 @@
 <meta name="description" content="Artisan Oven — pay for your order by bank transfer, PayPal, or cash.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
+<link rel="preload" href="fonts/BaarSophia.ttf" as="font" type="font/ttf" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<!-- Brand display font: Baar Sophia (not on Google Fonts — served via cdnfonts.com).
-     If you already self-host Baar Sophia elsewhere on the site, swap this <link>
-     for your own @font-face block so the whole site pulls from one source. -->
+<!-- Brand display font: Baar Sophia -->
 <link href="https://fonts.cdnfonts.com/css/baar-sophia" rel="stylesheet">
 <style>
+  @font-face {
+    font-family: "Baar Sophia";
+    src: url("fonts/BaarSophia.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
   :root{
     --paper: #F7F2E7;
     --paper-raised: #FFFDF8;
@@ -388,6 +397,49 @@
     letter-spacing: 0.02em;
   }
 
+  .copy-btn{
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 3px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .copy-btn:hover{
+    background: rgba(214,154,60,0.12);
+    border-color: rgba(214,154,60,0.25);
+  }
+  .copy-btn svg{
+    opacity: 0.6;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .copy-btn:hover svg{
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  .copy-btn.copied{
+    background: rgba(85,104,74,0.14);
+    border-color: var(--basil);
+  }
+  .copy-btn.copied svg{
+    color: var(--basil);
+  }
+  .copy-feedback{
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--basil);
+    display: none;
+  }
+  .copy-btn.copied .copy-feedback{
+    display: inline;
+  }
+
   .method-actions{
     display:flex;
     flex-direction:column;
@@ -753,9 +805,30 @@
         <div class="method-body">
           <p>Send payment directly using the details below</p>
           <div class="detail-grid">
-            <div class="detail-row"><span class="k">Account Name</span><span class="v">Louis Benne</span></div>
-            <div class="detail-row"><span class="k">Sort Code</span><span class="v">07-09-76</span></div>
-            <div class="detail-row"><span class="k">Account Number</span><span class="v">11427310</span></div>
+            <div class="detail-row">
+              <span class="k">Account Name</span>
+              <button type="button" class="copy-btn" data-copy="Louis Benne" title="Copy Account Name">
+                <span class="v">Louis Benne</span>
+                <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span class="copy-feedback">Copied!</span>
+              </button>
+            </div>
+            <div class="detail-row">
+              <span class="k">Sort Code</span>
+              <button type="button" class="copy-btn" data-copy="07-09-76" title="Copy Sort Code">
+                <span class="v">07-09-76</span>
+                <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span class="copy-feedback">Copied!</span>
+              </button>
+            </div>
+            <div class="detail-row">
+              <span class="k">Account Number</span>
+              <button type="button" class="copy-btn" data-copy="11427310" title="Copy Account Number">
+                <span class="v">11427310</span>
+                <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span class="copy-feedback">Copied!</span>
+              </button>
+            </div>
             <div class="detail-row"><span class="k">Payment Reference</span><span class="v" style="font-family: inherit; font-size: 0.85rem; font-weight: 600; text-align: right; color: var(--tomato-deep);">Order number, Name or Email</span></div>
           </div>
         </div>
