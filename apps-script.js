@@ -291,8 +291,22 @@ function isPastAutoClosingDeadline(settings) {
 
 function doGet(e) {
   try {
-    var params = (e && e.parameter) ? e.parameter : {};
-    var action = params.action || 'getOrder';
+    var params = {};
+    if (e && e.parameter) {
+      params = e.parameter;
+    }
+    
+    // Support nested or stringified JSON payload if sent via parameters
+    if (params.postData && typeof params.postData === 'string') {
+      try {
+        var parsedPost = JSON.parse(params.postData);
+        for (var k in parsedPost) {
+          if (params[k] === undefined) params[k] = parsedPost[k];
+        }
+      } catch (errPost) {}
+    }
+
+    var action = safeTrim(params.action || 'getOrder');
     var query = safeTrim(params.query || params.email || params.orderId || '');
 
     // 1b. PUBLIC: GET EVENTS LIST
@@ -427,25 +441,52 @@ function doGet(e) {
       var token = Utilities.getUuid();
 
       var custSheet = ss.getSheetByName('Event Customers');
-      custSheet.appendRow([
-        new Date(),
-        orderId,
-        eventId,
-        eventName,
-        eventDate,
-        customerName,
-        customerEmail,
-        paymentMethod,
-        JSON.stringify(validatedItems),
-        calculatedTotal,
-        '', // Payment Status
-        'Confirmed', // Order Status
-        'PENDING', // Confirmation Status
-        notes,
-        token,
-        false, // Deleted
-        submissionId
-      ]);
+      if (custSheet) {
+        custSheet.appendRow([
+          new Date(),
+          orderId,
+          eventId,
+          eventName,
+          eventDate,
+          customerName,
+          customerEmail,
+          paymentMethod,
+          JSON.stringify(validatedItems),
+          calculatedTotal,
+          '', // Payment Status
+          'Confirmed', // Order Status
+          'PENDING', // Confirmation Status
+          notes,
+          token,
+          false, // Deleted
+          submissionId
+        ]);
+      }
+
+      // Also append to dedicated sheet tab for this event
+      try {
+        var dedicatedSheet = createOrGetEventOrdersSheet(ss, eventName, eventId);
+        if (dedicatedSheet) {
+          var itemsSummary = validatedItems.map(function(itm) {
+            return formatSizeLabel(itm.size) + ' x ' + itm.qty;
+          }).join(', ');
+
+          dedicatedSheet.appendRow([
+            new Date(),
+            orderId,
+            customerName,
+            customerEmail,
+            itemsSummary,
+            calculatedTotal,
+            paymentMethod,
+            'Pending Payment',
+            notes,
+            'Confirmed'
+          ]);
+        }
+      } catch (errTab) {
+        Logger.log('Error appending to dedicated event tab: ' + errTab);
+      }
       SpreadsheetApp.flush();
 
       try {
@@ -998,6 +1039,13 @@ function doGet(e) {
           eventId, name, desc, date, time, location, status, '', instructions, emailSub, emailMsg, active, new Date()
         ]);
         logAdminAction('Create Event', 'Created event: ' + name);
+
+        // Automatically create a dedicated tab on Google Sheets for this new event
+        try {
+          createOrGetEventOrdersSheet(ss, name, eventId);
+        } catch (sheetErr) {
+          Logger.log('Error creating dedicated tab for event: ' + sheetErr);
+        }
       }
       SpreadsheetApp.flush();
 
@@ -2101,6 +2149,45 @@ function setupEventSheets() {
     ]);
     custSheet.getRange(1, 1, 1, 17).setFontWeight('bold').setBackground('#E8E8E8');
   }
+}
+
+/**
+ * Creates or retrieves a dedicated tab/sheet for a specific event's orders.
+ * Google Sheet tab names are limited to 31 characters.
+ */
+function createOrGetEventOrdersSheet(ss, eventName, eventId) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return null;
+
+  // Clean and format tab name: "Event - Summer Fair 2026"
+  var cleanName = (eventName || eventId || 'Special Event').replace(/[:\/\?\*\[\]\\]/g, ' ').trim();
+  var tabTitle = 'Event - ' + cleanName;
+  if (tabTitle.length > 31) {
+    tabTitle = tabTitle.substring(0, 31).trim();
+  }
+
+  var sheet = ss.getSheetByName(tabTitle);
+  if (!sheet) {
+    // Check fallback by eventId if name truncation collided
+    sheet = ss.insertSheet(tabTitle);
+    sheet.appendRow([
+      'Timestamp', 'Order ID', 'Customer Name', 'Customer Email',
+      'Pizzas Ordered', 'Total (£)', 'Payment Method', 'Payment Status',
+      'Notes & Dietary', 'Status'
+    ]);
+    
+    // Style header row with Artisan Forest Theme
+    sheet.getRange(1, 1, 1, 10)
+      .setFontWeight('bold')
+      .setFontFamily('Arial')
+      .setBackground('#1F3A2E')
+      .setFontColor('#F7F5F0')
+      .setHorizontalAlignment('center');
+      
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, 10);
+  }
+  return sheet;
 }
 
 function lookupEventOrder(searchEmail, searchOrderId, searchToken) {
