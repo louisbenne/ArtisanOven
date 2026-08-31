@@ -2206,3 +2206,126 @@ button:focus-visible,
   padding-top: 12px;
   border-top: 1px dashed var(--border);
 }
+
+/* ========================================================
+   EVENT MANAGEMENT CARD ACTION BUTTONS
+   (Artisan Oven Warm Wood-Fired Aesthetic)
+   ======================================================== */
+.event-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 16px;
+  margin-top: 14px;
+  border-top: 1px solid rgba(31, 58, 46, 0.08);
+}
+
+.event-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.event-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(31, 58, 46, 0.04);
+}
+
+.event-action-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Secondary Button (Orders / View) */
+.event-action-btn-secondary {
+  background: var(--cream);
+  border-color: rgba(31, 58, 46, 0.2);
+  color: var(--forest);
+}
+.event-action-btn-secondary:hover {
+  background: var(--cream-warm);
+  border-color: var(--forest);
+  color: var(--forest);
+  transform: translateY(-1px);
+}
+
+/* Toggle Status - Open Orders (Green Sage) */
+.event-action-btn-toggle-open {
+  background: rgba(111, 143, 114, 0.15);
+  border-color: rgba(111, 143, 114, 0.45);
+  color: #2D5832;
+}
+.event-action-btn-toggle-open:hover {
+  background: #2D5832;
+  border-color: #2D5832;
+  color: var(--white);
+  transform: translateY(-1px);
+}
+
+/* Toggle Status - Close Orders (Soft Terracotta) */
+.event-action-btn-toggle-closed {
+  background: rgba(198, 93, 59, 0.12);
+  border-color: rgba(198, 93, 59, 0.35);
+  color: var(--terracotta-deep);
+}
+.event-action-btn-toggle-closed:hover {
+  background: var(--terracotta-deep);
+  border-color: var(--terracotta-deep);
+  color: var(--white);
+  transform: translateY(-1px);
+}
+
+/* Primary Button (Edit - Forest Green) */
+.event-action-btn-primary {
+  background: var(--forest);
+  color: var(--cream);
+  border-color: var(--forest);
+}
+.event-action-btn-primary:hover {
+  background: var(--forest-deep);
+  border-color: var(--forest-deep);
+  color: var(--white);
+  transform: translateY(-1px);
+}
+
+/* Danger Button (Delete - Terracotta / Crimson) */
+.event-action-btn-danger {
+  background: transparent;
+  border-color: rgba(198, 93, 59, 0.35);
+  color: var(--terracotta);
+}
+.event-action-btn-danger:hover {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+  color: var(--white);
+  transform: translateY(-1px);
+}
+
+.event-action-btn:disabled,
+.event-action-btn.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  pointer-events: none;
+}
+
+

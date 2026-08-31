@@ -1004,6 +1004,34 @@ function doGet(e) {
       return createJsonResponse({ success: true, message: 'Event saved successfully.', eventId: eventId });
     }
 
+    // 12b. ADMIN: DELETE EVENT
+    if (action === 'adminDeleteEvent') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+      }
+      setupEventSheets();
+      var eventId = safeTrim(params.eventId || '');
+      if (!eventId) {
+        return createJsonResponse({ success: false, message: 'Event ID is required.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Events');
+      if (sheet && sheet.getLastRow() >= 2) {
+        var data = sheet.getDataRange().getValues();
+        for (var i = 1; i < data.length; i++) {
+          if (safeTrim(String(data[i][0])) === eventId) {
+            sheet.deleteRow(i + 1);
+            logAdminAction('Delete Event', 'Deleted event ID: ' + eventId);
+            SpreadsheetApp.flush();
+            return createJsonResponse({ success: true, message: 'Event deleted successfully.' });
+          }
+        }
+      }
+      return createJsonResponse({ success: true, message: 'Event not found or already deleted.' });
+    }
+
     // 13. ADMIN: GET EVENT ORDERS
     if (action === 'adminGetEventOrders') {
       var token = safeTrim(params.token || '');

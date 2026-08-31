@@ -56,9 +56,9 @@ function escapeAdminHtml(str) {
 function getStoredLocalEvents() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_LOCAL_EVENTS);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch(e) {}
   
@@ -68,7 +68,7 @@ function getStoredLocalEvents() {
 
 function saveStoredLocalEvents(events) {
   try {
-    localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(events));
+    localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(events || []));
   } catch(e) {}
 }
 
@@ -112,7 +112,7 @@ async function loadRemoteEvents() {
     
     if (response.ok) {
       const data = await response.json();
-      if (data.success && Array.isArray(data.events) && data.events.length > 0) {
+      if (data.success && Array.isArray(data.events)) {
         cachedEvents = data.events;
         saveStoredLocalEvents(cachedEvents);
         isLocalFallback = false;
@@ -128,6 +128,8 @@ async function loadRemoteEvents() {
   renderEventsList(cachedEvents);
 }
 
+let pendingDeleteEventId = null;
+
 function renderEventsList(events) {
   const container = document.getElementById("events-list-container");
   if (!container) return;
@@ -138,29 +140,35 @@ function renderEventsList(events) {
 
   let html = `
     <!-- Top Summary Stats -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-      <div style="background: var(--white, #fff); border: 1px solid rgba(31,58,46,0.1); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.5px;">Total Events</div>
-        <div style="font-size: 1.8rem; font-weight: 800; color: var(--forest, #1F3A2E); margin-top: 4px;">${totalCount}</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 24px;">
+      <div class="metric-card">
+        <span class="metric-label">Total Events</span>
+        <div class="metric-value-wrap">
+          <span class="metric-number">${totalCount}</span>
+        </div>
       </div>
-      <div style="background: var(--white, #fff); border: 1px solid rgba(31,58,46,0.1); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.5px;">Open for Orders</div>
-        <div style="font-size: 1.8rem; font-weight: 800; color: #2D5832; margin-top: 4px;">${openCount}</div>
+      <div class="metric-card">
+        <span class="metric-label">Open for Orders</span>
+        <div class="metric-value-wrap">
+          <span class="metric-number" style="color: #2D5832;">${openCount}</span>
+        </div>
       </div>
-      <div style="background: var(--white, #fff); border: 1px solid rgba(31,58,46,0.1); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.5px;">Published on Web</div>
-        <div style="font-size: 1.8rem; font-weight: 800; color: var(--terracotta, #C65D3B); margin-top: 4px;">${activeCount}</div>
+      <div class="metric-card">
+        <span class="metric-label">Published on Web</span>
+        <div class="metric-value-wrap">
+          <span class="metric-number" style="color: var(--terracotta);">${activeCount}</span>
+        </div>
       </div>
     </div>
 
     <!-- Toolbar Header -->
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--white, #fff); padding: 16px 20px; border-radius: 12px; border: 1px solid rgba(31,58,46,0.1);">
+    <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
       <div>
-        <h3 style="margin: 0; font-size: 1.15rem; color: var(--forest, #1F3A2E); font-weight: 700;">Special Events & Pop-ups</h3>
-        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary, #666);">Configure pop-up locations, dates, pickup slots and ordering status.</p>
+        <h3 style="margin: 0; font-size: 1.3rem; color: var(--forest); font-family: var(--font-display);">Special Events & Pop-ups</h3>
+        <p style="margin: 4px 0 0 0; font-size: 0.88rem; color: var(--text-soft);">Configure pop-up locations, dates, pickup slots and ordering status.</p>
       </div>
-      <button type="button" class="admin-primary-btn" onclick="openEventModal()" style="display: inline-flex; align-items: center; gap: 6px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <button type="button" class="admin-primary-btn" onclick="openEventModal()" style="display: inline-flex; align-items: center; gap: 8px; width: auto; padding: 12px 22px; font-size: 0.92rem; border-radius: 999px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         Create New Event
       </button>
     </div>
@@ -168,11 +176,11 @@ function renderEventsList(events) {
 
   if (!events || events.length === 0) {
     html += `
-      <div style="background: var(--white, #fff); border: 1px dashed rgba(31,58,46,0.2); border-radius: 12px; padding: 48px 20px; text-align: center;">
-        <div style="font-size: 2.5rem; margin-bottom: 12px;">🍕</div>
-        <h4 style="margin: 0 0 8px 0; color: var(--forest, #1F3A2E); font-size: 1.2rem;">No Events Found</h4>
-        <p style="margin: 0 0 20px 0; color: var(--text-secondary, #666);">You haven't created any special events or pop-ups yet.</p>
-        <button type="button" class="admin-primary-btn" onclick="openEventModal()">+ Create Your First Event</button>
+      <div style="background: var(--white); border: 1.5px dashed rgba(31,58,46,0.2); border-radius: var(--radius-md); padding: 52px 24px; text-align: center; box-shadow: var(--shadow-soft);">
+        <div style="font-size: 2.8rem; margin-bottom: 12px;">🍕</div>
+        <h4 style="margin: 0 0 8px 0; color: var(--forest); font-size: 1.3rem; font-family: var(--font-display);">No Special Events Scheduled</h4>
+        <p style="margin: 0 0 24px 0; color: var(--text-soft); font-size: 0.95rem;">You haven't created any special events or pop-ups yet.</p>
+        <button type="button" class="admin-primary-btn" onclick="openEventModal()" style="width: auto; display: inline-flex; padding: 12px 26px; border-radius: 999px;">+ Create Your First Event</button>
       </div>
     `;
     container.innerHTML = html;
@@ -180,61 +188,91 @@ function renderEventsList(events) {
   }
 
   // Render Event Cards Grid
-  html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">`;
+  html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 24px;">`;
 
   events.forEach(evt => {
     const isOpen = (evt.status === 'Open');
-    const statusBg = isOpen ? 'rgba(111, 143, 114, 0.15)' : 'rgba(198, 93, 59, 0.15)';
-    const statusColor = isOpen ? '#2D5832' : '#C65D3B';
+    const statusBg = isOpen ? 'rgba(111, 143, 114, 0.18)' : 'rgba(198, 93, 59, 0.15)';
+    const statusColor = isOpen ? '#2D5832' : 'var(--terracotta-deep)';
 
     html += `
-      <div style="background: var(--white, #fff); border: 1px solid rgba(31,58,46,0.12); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.03); transition: transform 0.2s, box-shadow 0.2s;">
+      <div style="background: var(--white); border: 1px solid rgba(31,58,46,0.12); border-radius: var(--radius-md); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-soft); transition: transform 0.2s, box-shadow 0.2s;">
         <div>
           <!-- Card Header -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px;">
-            <h4 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--forest, #1F3A2E); line-height: 1.3;">${escapeAdminHtml(evt.name)}</h4>
-            <span style="font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; background: ${statusBg}; color: ${statusColor}; white-space: nowrap;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px;">
+            <h4 style="margin: 0; font-size: 1.25rem; font-family: var(--font-display); font-weight: 600; color: var(--forest); line-height: 1.3;">${escapeAdminHtml(evt.name)}</h4>
+            <span style="font-size: 0.74rem; font-weight: 700; padding: 5px 12px; border-radius: 999px; letter-spacing: 0.05em; text-transform: uppercase; background: ${statusBg}; color: ${statusColor}; white-space: nowrap; border: 1px solid ${isOpen ? 'rgba(111, 143, 114, 0.4)' : 'rgba(198, 93, 59, 0.3)'};">
               ${isOpen ? '● OPEN' : '○ CLOSED'}
             </span>
           </div>
 
           <!-- Description -->
-          ${evt.description ? `<p style="margin: 0 0 14px 0; font-size: 0.88rem; color: var(--text-secondary, #555); line-height: 1.4;">${escapeAdminHtml(evt.description)}</p>` : ''}
+          ${evt.description ? `<p style="margin: 0 0 16px 0; font-size: 0.92rem; color: var(--text-soft); line-height: 1.45;">${escapeAdminHtml(evt.description)}</p>` : ''}
 
           <!-- Details List -->
-          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: var(--forest, #1F3A2E); margin-bottom: 16px; background: #F9FAFB; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.04);">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; color: var(--forest); margin-bottom: 18px; background: var(--cream); padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(31, 58, 46, 0.06);">
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta); flex-shrink: 0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               <span><strong>Date:</strong> ${escapeAdminHtml(evt.date || 'TBD')} ${evt.time ? `(${escapeAdminHtml(evt.time)})` : ''}</span>
             </div>
             ${evt.location ? `
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta);"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta); flex-shrink: 0;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
               <span><strong>Location:</strong> ${escapeAdminHtml(evt.location)}</span>
             </div>` : ''}
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta);"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-              <span><strong>Website Status:</strong> ${evt.active ? '<span style="color: #2D5832; font-weight: 700;">Published</span>' : '<span style="color: #888;">Draft / Hidden</span>'}</span>
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta); flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <span><strong>Website Status:</strong> ${evt.active ? '<span style="color: #2D5832; font-weight: 700;">Published</span>' : '<span style="color: var(--text-soft);">Draft / Hidden</span>'}</span>
             </div>
           </div>
         </div>
 
-        <!-- Action Footer -->
-        <div style="display: flex; justify-content: space-between; align-items: center; pt-12px; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 14px; margin-top: 8px;">
-          <div style="display: flex; gap: 6px;">
-            <button type="button" class="btn-small" onclick="toggleEventStatus('${escapeAdminHtml(evt.id)}')" style="background: #F3F4F6; color: #374151; font-weight: 600;">
-              ${isOpen ? 'Close Orders' : 'Open Orders'}
+        <!-- Action Footer with Design System Buttons -->
+        <div class="event-card-actions">
+          <div class="event-action-group">
+            <button 
+              type="button" 
+              class="event-action-btn ${isOpen ? 'event-action-btn-toggle-closed' : 'event-action-btn-toggle-open'}" 
+              onclick="toggleEventStatus('${escapeAdminHtml(evt.id)}')"
+              title="${isOpen ? 'Close ordering for this event' : 'Open ordering for this event'}"
+            >
+              ${isOpen ? `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Close Orders
+              ` : `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                Open Orders
+              `}
             </button>
-            <button type="button" class="btn-small" onclick="viewEventOrders('${escapeAdminHtml(evt.id)}')" style="background: rgba(31,58,46,0.08); color: var(--forest, #1F3A2E); font-weight: 600;">
+            <button 
+              type="button" 
+              class="event-action-btn event-action-btn-secondary" 
+              onclick="viewEventOrders('${escapeAdminHtml(evt.id)}')"
+              title="View all orders for this event"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
               Orders
             </button>
           </div>
-          <div style="display: flex; gap: 6px;">
-            <button type="button" class="btn-small" onclick="editEventById('${escapeAdminHtml(evt.id)}')" style="background: var(--forest, #1F3A2E); color: #fff;">
+
+          <div class="event-action-group">
+            <button 
+              type="button" 
+              class="event-action-btn event-action-btn-primary" 
+              onclick="editEventById('${escapeAdminHtml(evt.id)}')"
+              title="Edit event settings and details"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
               Edit
             </button>
-            <button type="button" class="btn-small" onclick="deleteEventById('${escapeAdminHtml(evt.id)}')" style="background: rgba(198,93,59,0.1); color: #C65D3B; border: none;" title="Delete Event">
-              🗑️
+            <button 
+              type="button" 
+              class="event-action-btn event-action-btn-danger" 
+              onclick="openDeleteEventModal('${escapeAdminHtml(evt.id)}')"
+              title="Permanently delete this event"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+              Delete
             </button>
           </div>
         </div>
@@ -260,13 +298,85 @@ window.editEventById = function(eventId) {
   if (event) openEventModal(event);
 };
 
-window.deleteEventById = function(eventId) {
+window.openDeleteEventModal = function(eventId) {
+  pendingDeleteEventId = eventId;
   const event = cachedEvents.find(e => e.id === eventId);
-  const name = event ? event.name : "this event";
-  if (confirm(`Are you sure you want to delete "${name}"?`)) {
+  const modal = document.getElementById("delete-event-modal");
+  
+  if (modal) {
+    const nameEl = document.getElementById("modal-delete-event-name");
+    const dateEl = document.getElementById("modal-delete-event-date");
+    if (nameEl) nameEl.textContent = event ? event.name : eventId;
+    if (dateEl) dateEl.textContent = event ? (event.date || "TBD") : "--";
+    modal.style.display = "flex";
+  } else {
+    // Fallback if modal not present
+    window.confirmDeleteEventFallback(eventId);
+  }
+};
+
+window.closeDeleteEventModal = function() {
+  pendingDeleteEventId = null;
+  const modal = document.getElementById("delete-event-modal");
+  if (modal) modal.style.display = "none";
+};
+
+window.confirmDeleteEvent = async function() {
+  if (!pendingDeleteEventId) return;
+  const eventId = pendingDeleteEventId;
+  const btn = document.getElementById("btn-confirm-delete-event");
+  if (btn) btn.classList.add("is-loading");
+
+  try {
     cachedEvents = cachedEvents.filter(e => e.id !== eventId);
     saveStoredLocalEvents(cachedEvents);
     renderEventsList(cachedEvents);
+    closeDeleteEventModal();
+
+    // Notify user via toast
+    if (typeof window.showToast === 'function') {
+      window.showToast("Event deleted successfully.");
+    }
+
+    // Remote sync
+    const token = sessionStorage.getItem(STORAGE_KEY_TOKEN) || (window.currentAdminToken || "");
+    const apiUrl = getApiUrl();
+    if (apiUrl && token) {
+      const url = new URL(apiUrl);
+      url.searchParams.set("action", "adminDeleteEvent");
+      url.searchParams.set("token", token);
+      url.searchParams.set("eventId", eventId);
+      await fetch(url.toString(), { method: "GET", mode: "cors" });
+    }
+  } catch (err) {
+    console.warn("Delete event completed locally:", err.message);
+  } finally {
+    if (btn) btn.classList.remove("is-loading");
+    pendingDeleteEventId = null;
+  }
+};
+
+window.confirmDeleteEventFallback = async function(eventId) {
+  const event = cachedEvents.find(e => e.id === eventId);
+  const name = event ? event.name : "this event";
+  if (!confirm(`Are you sure you want to PERMANENTLY DELETE "${name}"?`)) {
+    return;
+  }
+
+  cachedEvents = cachedEvents.filter(e => e.id !== eventId);
+  saveStoredLocalEvents(cachedEvents);
+  renderEventsList(cachedEvents);
+
+  const token = sessionStorage.getItem(STORAGE_KEY_TOKEN) || (window.currentAdminToken || "");
+  const apiUrl = getApiUrl();
+  if (apiUrl && token) {
+    try {
+      const url = new URL(apiUrl);
+      url.searchParams.set("action", "adminDeleteEvent");
+      url.searchParams.set("token", token);
+      url.searchParams.set("eventId", eventId);
+      await fetch(url.toString(), { method: "GET", mode: "cors" });
+    } catch(e) {}
   }
 };
 
