@@ -1,6 +1,6 @@
 /**
  * Artisan Oven Admin Events & Special Event Orders Management
- * Version: 2.3.0
+ * Version: 2.4.0
  */
 
 const STORAGE_KEY_TOKEN = "ao_admin_session_token";
