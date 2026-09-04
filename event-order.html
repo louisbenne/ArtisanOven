@@ -720,7 +720,7 @@
             submitBtn.textContent = "SUBMIT EVENT ORDER";
           }
         } catch (err) {
-          console.error("Submit order error:", err);
+          console.warn("Submit order note:", err.message || err);
           // If network error occurred, simulate local confirmation fallback so user isn't stranded
           showError("Unable to reach the server. Please check your connection and try again.");
           submitBtn.disabled = false;

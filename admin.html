@@ -1030,7 +1030,7 @@
           try {
             const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
             if (!apiUrl || apiUrl.indexOf('http') !== 0) {
-              console.error("Admin Login: ORDER_API_URL missing or invalid:", apiUrl);
+              console.warn("Admin Login: ORDER_API_URL missing or invalid:", apiUrl);
               throw new Error("Backend URL not configured.");
             }
             const url = new URL(apiUrl);
@@ -1053,7 +1053,7 @@
               showLoginError(data.message || "Incorrect password.");
             }
           } catch (err) {
-            console.error("Login error:", err);
+            console.warn("Login note:", err.message || err);
             showLoginError("Unable to connect to Google Apps Script. Please verify your Web App URL.");
           } finally {
             setButtonLoading(loginSubmitBtn, false);
@@ -1110,7 +1110,7 @@
               showToast(data.message || "Failed to update settings.", "error");
             }
           } catch (err) {
-            console.error("Save error:", err);
+            console.warn("Save note:", err.message || err);
             showToast("Network error while saving settings.", "error");
           } finally {
             setButtonLoading(saveBtn, false);
@@ -1157,7 +1157,7 @@
               showToast(data.message || "Failed to update website text.", "error");
             }
           } catch (err) {
-            console.error("Save error:", err);
+            console.warn("Save note:", err.message || err);
             showToast("Network error while saving website text.", "error");
           } finally {
             setButtonLoading(saveBtn, false);
@@ -1214,7 +1214,7 @@
               showToast(data.message || "Failed to start new session.", "error");
             }
           } catch (err) {
-            console.error("New session error:", err);
+            console.warn("New session note:", err.message || err);
             showToast("Network error starting new week.", "error");
           } finally {
             setButtonLoading(modalConfirmBtn, false);
@@ -1255,7 +1255,7 @@
               showToast(data.message || "Failed to change password.", "error");
             }
           } catch (err) {
-            console.error("Change pass error:", err);
+            console.warn("Change pass note:", err.message || err);
             showToast("Network error changing password.", "error");
           } finally {
             setButtonLoading(btn, false);
@@ -1338,7 +1338,9 @@
       });
 
       btnTabEvents.addEventListener('click', () => {
-        initEventsTab();
+        if (typeof window.initEventsTab === 'function') {
+          window.initEventsTab();
+        }
       });
 
       const searchInput = document.getElementById('orders-search-input');
@@ -1375,7 +1377,7 @@
 
           const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
           if (!apiUrl || apiUrl.indexOf('http') !== 0) {
-            console.error("Admin Orders: ORDER_API_URL missing or invalid:", apiUrl);
+            console.warn("Admin Orders: ORDER_API_URL missing or invalid:", apiUrl);
             throw new Error("Backend URL not configured.");
           }
           const url = new URL(apiUrl);
@@ -1403,7 +1405,7 @@
             document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;
           }
         } catch (err) {
-          console.error("Orders load error:", err);
+          console.warn("Orders load note:", err.message || err);
           if (!cachedOrders || !cachedOrders.length) {
             document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching orders.</p>';
           }
@@ -1566,7 +1568,7 @@
                 label.textContent = !isChecked ? 'PAID' : 'UNPAID';
               }
             } catch (err) {
-              console.error(err);
+              console.warn("Update status note:", err.message || err);
               showToast("Failed to update status.", "error");
               this.checked = !isChecked; // Revert
               label.textContent = !isChecked ? 'PAID' : 'UNPAID';
@@ -1599,7 +1601,7 @@
                 showToast("Error: " + data.message, "error");
               }
             } catch (err) {
-              console.error(err);
+              console.warn("Resend email note:", err.message || err);
               showToast("Failed to resend email.", "error");
             } finally {
               this.disabled = false;
@@ -1647,7 +1649,7 @@
                 this.innerHTML = originalHtml;
               }
             } catch (err) {
-              console.error(err);
+              console.warn("Delete order note:", err.message || err);
               showToast("Failed to delete order due to connection issue.", "error");
               this.disabled = false;
               this.innerHTML = originalHtml;
@@ -1697,7 +1699,7 @@
         try {
           const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
           if (!apiUrl || apiUrl.indexOf('http') !== 0) {
-            console.error("Admin: ORDER_API_URL is missing or invalid:", apiUrl);
+            console.warn("Admin: ORDER_API_URL is missing or invalid:", apiUrl);
             throw new Error("Backend URL not configured correctly.");
           }
           const url = new URL(apiUrl);
@@ -1731,7 +1733,7 @@
             showToast(data.message || "Unable to load settings.", "error");
           }
         } catch (err) {
-          console.error("Dashboard load error:", err);
+          console.warn("Dashboard load note:", err.message || err);
           if (!silent) showToast("Connection error fetching dashboard data.", "error");
           if (lastUpdatedEl) lastUpdatedEl.textContent = "Offline or connection error.";
         }

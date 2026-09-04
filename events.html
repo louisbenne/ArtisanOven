@@ -307,23 +307,43 @@
         });
       }
 
+      // Immediate display from local cache so the page is never stuck on 'Loading'
+      const initialEvents = getLocalEvents();
+      if (initialEvents && initialEvents.length > 0) {
+        renderEventsArray(initialEvents);
+      }
+
       try {
         const url = new URL(apiUrl);
         url.searchParams.set("action", "getEvents");
         url.searchParams.set("_t", Date.now().toString());
 
-        const res = await fetch(url.toString(), { mode: "cors", cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
+        let controller = null;
+        let timeoutId = null;
+        if (typeof AbortController !== 'undefined') {
+          controller = new AbortController();
+          timeoutId = setTimeout(() => {
+            try { controller.abort(); } catch (e) {}
+          }, 15000);
+        }
 
-        if (data.success && data.events && data.events.length > 0) {
-          renderEventsArray(data.events);
-        } else {
-          renderEventsArray(getLocalEvents());
+        const res = await fetch(url.toString(), {
+          method: "GET",
+          mode: "cors",
+          redirect: "follow",
+          signal: controller ? controller.signal : undefined
+        });
+        if (timeoutId) clearTimeout(timeoutId);
+
+        if (res && res.ok) {
+          const data = await res.json();
+          if (data && data.success && Array.isArray(data.events) && data.events.length > 0) {
+            localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(data.events));
+            renderEventsArray(data.events);
+          }
         }
       } catch (err) {
-        console.warn("Using local events fallback:", err);
-        renderEventsArray(getLocalEvents());
+        // Fallback already rendered, silently continue
       }
 
       function escapeHtml(str) {

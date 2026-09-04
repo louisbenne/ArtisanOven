@@ -116,22 +116,18 @@ window.switchEventsSubTab = function(subtab) {
 };
 
 // Immediate render on script execution if DOM ready
+function bootstrapEventsTab() {
+  const container = document.getElementById("events-list-container");
+  if (container) {
+    window.initEventsTab();
+  }
+  setupEventOrdersSearch();
+}
+
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  setTimeout(() => {
-    const container = document.getElementById("events-list-container");
-    if (container && container.innerHTML.includes("Loading events")) {
-      window.initEventsTab();
-    }
-    setupEventOrdersSearch();
-  }, 100);
+  bootstrapEventsTab();
 } else {
-  document.addEventListener("DOMContentLoaded", () => {
-    const container = document.getElementById("events-list-container");
-    if (container && container.innerHTML.includes("Loading events")) {
-      window.initEventsTab();
-    }
-    setupEventOrdersSearch();
-  });
+  document.addEventListener("DOMContentLoaded", bootstrapEventsTab);
 }
 
 function setupEventOrdersSearch() {
@@ -165,7 +161,21 @@ async function loadRemoteEvents() {
 
   try {
     const fetchUrl = apiUrl + (apiUrl.indexOf('?') >= 0 ? '&' : '?') + "action=adminGetEvents&token=" + encodeURIComponent(token || "demo") + "&_t=" + Date.now();
-    const response = await fetch(fetchUrl);
+    let controller = null;
+    let timeoutId = null;
+    if (typeof AbortController !== 'undefined') {
+      controller = new AbortController();
+      timeoutId = setTimeout(() => {
+        try { controller.abort(); } catch(e) {}
+      }, 20000);
+    }
+    const response = await fetch(fetchUrl, {
+      method: "GET",
+      mode: "cors",
+      redirect: "follow",
+      signal: controller ? controller.signal : undefined
+    });
+    if (timeoutId) clearTimeout(timeoutId);
     
     if (response.ok) {
       const data = await response.json();
@@ -179,7 +189,7 @@ async function loadRemoteEvents() {
       }
     }
   } catch (e) {
-    console.warn("Using stored events mode:", e.message);
+    // Stored fallback
   }
   
   isLocalFallback = true;
@@ -410,7 +420,7 @@ window.loadEventOrdersData = async function(targetEventId = '', silent = false) 
       if (container) container.innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load event orders."}</p>`;
     }
   } catch (err) {
-    console.error("Event orders load error:", err);
+    console.warn("Event orders load note:", err.message || err);
     if ((!cachedEventOrders || !cachedEventOrders.length) && container) {
       container.innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching event orders.</p>';
     }
@@ -633,7 +643,7 @@ window.renderEventOrders = function(orders) {
           label.textContent = !isChecked ? 'PAID' : 'UNPAID';
         }
       } catch (err) {
-        console.error(err);
+        console.warn("Update payment status error:", err.message || err);
         if (typeof window.showToast === 'function') window.showToast("Failed to update payment status.", "error");
         this.checked = !isChecked;
         label.textContent = !isChecked ? 'PAID' : 'UNPAID';
@@ -668,7 +678,7 @@ window.renderEventOrders = function(orders) {
           if (typeof window.showToast === 'function') window.showToast("Error: " + data.message, "error");
         }
       } catch (err) {
-        console.error(err);
+        console.warn("Resend confirmation email error:", err.message || err);
         if (typeof window.showToast === 'function') window.showToast("Failed to resend confirmation email.", "error");
       } finally {
         this.disabled = false;
@@ -714,7 +724,7 @@ window.renderEventOrders = function(orders) {
           this.innerHTML = originalHtml;
         }
       } catch (err) {
-        console.error(err);
+        console.warn("Delete event order error:", err.message || err);
         if (typeof window.showToast === 'function') window.showToast("Failed to delete event order due to connection issue.", "error");
         this.disabled = false;
         this.innerHTML = originalHtml;

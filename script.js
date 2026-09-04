@@ -30,6 +30,20 @@ function initAvailabilityTracker() {
   const closedMessage = document.getElementById("closed-message");
   const closedMessageText = document.getElementById("closed-message-text");
 
+  // Skip entirely if current page has no availability UI elements (e.g. admin or events pages)
+  if (!trackerEl && !googleFormContainer && !closedMessage && (!orderButtons || orderButtons.length === 0)) {
+    return;
+  }
+
+  function fallbackToOpen() {
+    const hasRendered = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
+    if (!hasRendered) {
+      if (trackerEl) trackerEl.style.display = "none";
+      if (googleFormContainer) googleFormContainer.style.display = "block";
+      if (closedMessage) closedMessage.style.display = "none";
+    }
+  }
+
   // Immediate render from cache if available to prevent UI flash
   try {
     const immediateCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
@@ -45,7 +59,7 @@ function initAvailabilityTracker() {
 
   // If there's no API URL, just show the form directly (assuming open)
   if (!ORDER_API_URL || ORDER_API_URL === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
-    if (googleFormContainer) googleFormContainer.style.display = "block";
+    fallbackToOpen();
     return;
   }
 
@@ -54,56 +68,52 @@ function initAvailabilityTracker() {
   async function fetchStatus(force = false) {
     if (isFetching) return;
     try {
-      // Client-side cache: if we fetched successfully in the last 20 seconds, reuse unless forced
+      // Client-side cache: if we fetched successfully in the last 30 seconds, reuse unless forced
       const cachedStatus = sessionStorage.getItem('STATUS_CACHE_DATA');
       const cachedTime = sessionStorage.getItem('STATUS_CACHE_TIME');
-      if (!force && cachedStatus && cachedTime && (Date.now() - parseInt(cachedTime, 10) < 20000)) {
-        updateTrackerUI(JSON.parse(cachedStatus));
-        return;
+      if (!force && cachedStatus && cachedTime && (Date.now() - parseInt(cachedTime, 10) < 30000)) {
+        try {
+          updateTrackerUI(JSON.parse(cachedStatus));
+          return;
+        } catch (e) {}
       }
 
       const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
-      if (!apiUrl || apiUrl.indexOf('http') !== 0) {
-        throw new Error("API URL not configured");
+      if (!apiUrl || apiUrl.indexOf('http') !== 0 || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+        fallbackToOpen();
+        return;
       }
 
       isFetching = true;
       const url = new URL(apiUrl);
       url.searchParams.set("action", "getStatus");
-      url.searchParams.set("_t", Date.now().toString()); // Cache busting
+      url.searchParams.set("_t", Date.now().toString()); // Cache busting query parameter
 
-      let signal = null;
+      let controller = null;
       let timeoutId = null;
       if (typeof AbortController !== 'undefined') {
-        const controller = new AbortController();
-        signal = controller.signal;
+        controller = new AbortController();
         timeoutId = setTimeout(() => {
           try {
-            controller.abort(new Error("Availability lookup timeout"));
-          } catch (e) {
             controller.abort();
-          }
-        }, 15000);
-      }
-
-      const fetchOptions = {
-        method: "GET",
-        mode: "cors",
-        cache: "no-store"
-      };
-      if (signal) {
-        fetchOptions.signal = signal;
+          } catch (e) {}
+        }, 25000); // 25s timeout for Google Apps Script cold starts
       }
 
       let response;
       try {
-        response = await fetch(url.toString(), fetchOptions);
+        response = await fetch(url.toString(), {
+          method: "GET",
+          mode: "cors",
+          redirect: "follow",
+          signal: controller ? controller.signal : undefined
+        });
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
       }
 
-      if (!response.ok) {
-        console.warn("Availability lookup returned non-OK status:", response.status);
+      if (!response || !response.ok) {
+        fallbackToOpen();
         return;
       }
 
@@ -117,22 +127,12 @@ function initAvailabilityTracker() {
           localStorage.setItem('STATUS_CACHE_DATA', serialized);
         } catch (e) {}
         updateTrackerUI(data);
+      } else {
+        fallbackToOpen();
       }
     } catch (err) {
-      const isAbort = err.name === 'AbortError' || 
-                      err.name === 'TimeoutError' || 
-                      (err.message && err.message.toLowerCase().includes('abort'));
-      if (isAbort) {
-        console.warn("Availability lookup timed out or aborted, using fallback state.");
-      } else {
-        console.warn("Availability lookup note:", err.message || err);
-      }
-      // If we don't already have rendered data, fallback safely
-      const hasRendered = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
-      if (!hasRendered) {
-        if (trackerEl) trackerEl.style.display = "none";
-        if (googleFormContainer) googleFormContainer.style.display = "block";
-      }
+      // Graceful fallback for network aborts, timeouts, or transient 404s
+      fallbackToOpen();
     } finally {
       isFetching = false;
     }

@@ -66,7 +66,7 @@
             document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${escapeAdminHtml(data.message) || "Failed to load orders."}</p>`;
           }
         } catch (err) {
-          console.error("Orders load error:", err);
+          console.warn("Orders load note:", err.message || err);
           document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching orders.</p>';
         }
       }
