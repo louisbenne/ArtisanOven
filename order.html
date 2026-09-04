@@ -14,6 +14,25 @@
   <link rel="preload" href="fonts/BaarSophia.ttf" as="font" type="font/ttf" crossorigin />
 
   <link rel="stylesheet" href="style.css" />
+  <style>
+    @media (max-width: 600px) {
+      .page-intro h1 { font-size: 1.8rem; }
+      .order-events-banner > div {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        text-align: center;
+      }
+      .order-events-banner > div > div:first-child {
+        flex-direction: column !important;
+        gap: 10px;
+        align-items: center !important;
+      }
+      .order-events-banner .choice-btn {
+        width: 100% !important;
+        text-align: center !important;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -27,7 +46,23 @@
     <div class="container">
       <section class="page-intro">
         <h1>Place Your Order</h1>
-        <p>Complete the form below to place your order, once complete check you email for payment details</p>
+        <p>Place your Tuesday school lunch order below or explore upcoming special events.</p>
+
+        <!-- Special Events banner stretched out to match availability-tracker UI -->
+        <a href="events.html" class="availability-tracker order-events-banner" style="text-decoration: none; display: block; margin-top: 24px; margin-bottom: 24px; transition: transform 0.2s ease, box-shadow 0.2s ease;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
+              <span style="width: 44px; height: 44px; background: rgba(31,58,46,0.1); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--forest); flex-shrink: 0;">
+                <svg viewBox="0 0 48 48" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="8" width="36" height="34" rx="4" stroke="currentColor" stroke-width="2.5"/><path d="M14 4v8M34 4v8M6 18h36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+              </span>
+              <div style="min-width: 0;">
+                <h2 style="font-family: 'Baar Sophia', serif; font-size: 1.25rem; color: var(--forest); margin: 0 0 2px 0; word-break: break-word;">Special Events & Catering</h2>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0; line-height: 1.4;">Order pizzas for upcoming special school events and catering.</p>
+              </div>
+            </div>
+            <span class="choice-btn" style="background: var(--forest); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; white-space: nowrap; display: inline-block;">VIEW SPECIAL EVENTS &rarr;</span>
+          </div>
+        </a>
       </section>
 
       <section class="page-content">

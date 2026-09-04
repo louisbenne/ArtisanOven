@@ -1009,13 +1009,21 @@
         });
       }
 
-      // Initialize session check
+      // Initialize session check & pre-warm backend
       if (currentAdminToken) {
         loadDashboardData(true);
         if (typeof window.initEventsTab === 'function') window.initEventsTab();
       } else {
         showLoginView();
       }
+
+      // Pre-warm Apps Script backend on load to eliminate cold start delay
+      try {
+        const prewarmUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+        if (prewarmUrl && prewarmUrl.indexOf('http') === 0) {
+          fetch(prewarmUrl + "?action=ping", { method: "GET", mode: "no-cors" }).catch(() => {});
+        }
+      } catch (e) {}
 
       // Form: Login
       if (loginForm) {
@@ -1027,20 +1035,51 @@
           hideLoginError();
           setButtonLoading(loginSubmitBtn, true);
 
-          try {
-            const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
-            if (!apiUrl || apiUrl.indexOf('http') !== 0) {
-              console.warn("Admin Login: ORDER_API_URL missing or invalid:", apiUrl);
-              throw new Error("Backend URL not configured.");
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+            console.warn("Admin Login: ORDER_API_URL missing or invalid:", apiUrl);
+            showLoginError("Backend URL not configured.");
+            setButtonLoading(loginSubmitBtn, false);
+            return;
+          }
+
+          let data = null;
+          let success = false;
+          let errorMsg = "Unable to connect to Google Apps Script. Please verify your Web App URL.";
+
+          // Try up to 2 times to handle cold-start hiccups seamlessly
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminLogin");
+              url.searchParams.set("password", pass);
+
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+              const res = await fetch(url.toString(), { 
+                method: "GET", 
+                mode: "cors",
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+
+              if (!res.ok) throw new Error("Network request failed (" + res.status + ")");
+              data = await res.json();
+              success = true;
+              break;
+            } catch (err) {
+              console.warn(`Login attempt ${attempt} note:`, err.message || err);
+              if (attempt === 1) {
+                // Brief pause before retry to allow backend cold start to finish waking up
+                await new Promise(r => setTimeout(r, 1000));
+              } else {
+                errorMsg = err.name === 'AbortError' ? "Connection timed out waking up Google Apps Script. Please try again." : ("Unable to connect: " + (err.message || "Network error"));
+              }
             }
-            const url = new URL(apiUrl);
-            url.searchParams.set("action", "adminLogin");
-            url.searchParams.set("password", pass);
+          }
 
-            const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
-            if (!res.ok) throw new Error("Network request failed (" + res.status + ")");
-            const data = await res.json();
-
+          if (success && data) {
             if (data.success && data.token) {
               currentAdminToken = data.token;
               sessionStorage.setItem(STORAGE_KEY_TOKEN, data.token);
@@ -1052,12 +1091,10 @@
             } else {
               showLoginError(data.message || "Incorrect password.");
             }
-          } catch (err) {
-            console.warn("Login note:", err.message || err);
-            showLoginError("Unable to connect to Google Apps Script. Please verify your Web App URL.");
-          } finally {
-            setButtonLoading(loginSubmitBtn, false);
+          } else {
+            showLoginError(errorMsg);
           }
+          setButtonLoading(loginSubmitBtn, false);
         });
       }
 
