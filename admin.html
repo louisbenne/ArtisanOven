@@ -704,60 +704,82 @@
 
           <!-- Subtab 2: Special Event Orders (SEPARATE from School Lunches) -->
           <div id="events-subtab-orders-view" class="events-subtab-view" style="display: none;">
-            <!-- Event Orders Header & Refresh -->
-            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-              <div>
-                <h3 style="margin: 0; font-size: 1.3rem; color: var(--forest); font-family: var(--font-display);">Special Event Orders</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.88rem; color: var(--text-soft);">Orders placed for pop-ups and special catering events (stored in Event Customers).</p>
+            
+            <!-- Event Orders & Interested People Sub-navigation -->
+            <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1.5px solid rgba(31,58,46,0.15); padding-bottom: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+              <div style="display: flex; gap: 8px;">
+                <button type="button" id="btn-event-orders-subview-orders" class="admin-secondary-btn active" onclick="switchEventOrdersSubView('orders')" style="font-weight: 700; border-color: var(--forest); background: var(--forest); color: #fff;">
+                  Event Orders
+                </button>
+                <button type="button" id="btn-event-orders-subview-interested" class="admin-secondary-btn" onclick="switchEventOrdersSubView('interested')" style="font-weight: 700;">
+                  Interested People <span id="badge-interested-count" class="badge-count" style="display: none; background: var(--terracotta); margin-left: 6px; padding: 2px 6px; border-radius: 10px; font-size: 0.75rem; color: #fff;">0</span>
+                </button>
               </div>
-              <button type="button" class="admin-secondary-btn" id="btn-refresh-event-orders" onclick="loadEventOrdersData('', false)" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.85rem;">
+              <button type="button" class="admin-secondary-btn" id="btn-refresh-event-orders" onclick="refreshCurrentEventOrdersSubView()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.85rem;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                Refresh Event Orders
+                Refresh Data
               </button>
             </div>
 
-            <!-- Event Orders Summary Bar -->
-            <div class="orders-summary-bar" id="event-orders-summary-bar">
-              <div class="order-summary-stat">
-                <span class="stat-label">Event Orders</span>
-                <span class="stat-value" id="stat-event-total-orders">-</span>
+            <!-- Pane 1: Event Orders -->
+            <div id="pane-event-orders" style="display: block;">
+              <!-- Event Orders Summary Bar -->
+              <div class="orders-summary-bar" id="event-orders-summary-bar">
+                <div class="order-summary-stat">
+                  <span class="stat-label">Event Orders</span>
+                  <span class="stat-value" id="stat-event-total-orders">-</span>
+                </div>
+                <div class="order-summary-stat">
+                  <span class="stat-label">Pizzas Ordered</span>
+                  <span class="stat-value" id="stat-event-total-pizzas">-</span>
+                </div>
+                <div class="order-summary-stat">
+                  <span class="stat-label">Pending Payment</span>
+                  <span class="stat-value" id="stat-event-pending">-</span>
+                </div>
+                <div class="order-summary-stat">
+                  <span class="stat-label">Paid</span>
+                  <span class="stat-value" id="stat-event-paid">-</span>
+                </div>
+                <div class="order-summary-stat">
+                  <span class="stat-label">Total Revenue</span>
+                  <span class="stat-value" id="stat-event-revenue" style="color: var(--forest);">-</span>
+                </div>
               </div>
-              <div class="order-summary-stat">
-                <span class="stat-label">Pizzas Ordered</span>
-                <span class="stat-value" id="stat-event-total-pizzas">-</span>
+
+              <!-- Filter Toolbar -->
+              <div style="display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 1; min-width: 240px;">
+                  <label for="event-orders-filter-select" style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--forest); margin-bottom: 6px;">Filter by Event:</label>
+                  <select id="event-orders-filter-select" class="admin-select" style="width: 100%; font-weight: 600;" onchange="filterEventOrdersByDropdown()">
+                    <option value="">All Special Events</option>
+                  </select>
+                </div>
+                <div style="flex: 2; min-width: 260px;">
+                  <label for="event-orders-search-input" style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--forest); margin-bottom: 6px;">Search Event Orders:</label>
+                  <input type="text" id="event-orders-search-input" class="admin-input" placeholder="Search by customer name, email, order #, or items..." style="width: 100%;" />
+                </div>
               </div>
-              <div class="order-summary-stat">
-                <span class="stat-label">Pending Payment</span>
-                <span class="stat-value" id="stat-event-pending">-</span>
-              </div>
-              <div class="order-summary-stat">
-                <span class="stat-label">Paid</span>
-                <span class="stat-value" id="stat-event-paid">-</span>
-              </div>
-              <div class="order-summary-stat">
-                <span class="stat-label">Total Revenue</span>
-                <span class="stat-value" id="stat-event-revenue" style="color: var(--forest);">-</span>
+
+              <!-- Event Orders List Container -->
+              <div id="event-orders-list-container">
+                <p style="color: var(--text-soft); text-align: center; padding: 40px 0;">Loading event orders...</p>
               </div>
             </div>
 
-            <!-- Filter Toolbar -->
-            <div style="display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;">
-              <div style="flex: 1; min-width: 240px;">
-                <label for="event-orders-filter-select" style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--forest); margin-bottom: 6px;">Filter by Event:</label>
-                <select id="event-orders-filter-select" class="admin-select" style="width: 100%; font-weight: 600;" onchange="filterEventOrdersByDropdown()">
-                  <option value="">All Special Events</option>
-                </select>
+            <!-- Pane 2: Interested People -->
+            <div id="pane-interested-people" style="display: none;">
+              <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 1.2rem; color: var(--forest); font-family: var(--font-display);">People Registered for Interest</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.88rem; color: var(--text-soft);">Customers who registered interest in upcoming events with gauge-interest mode enabled.</p>
               </div>
-              <div style="flex: 2; min-width: 260px;">
-                <label for="event-orders-search-input" style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--forest); margin-bottom: 6px;">Search Event Orders:</label>
-                <input type="text" id="event-orders-search-input" class="admin-input" placeholder="Search by customer name, email, order #, or items..." style="width: 100%;" />
+
+              <!-- Interested People List Container -->
+              <div id="interested-people-list-container">
+                <p style="color: var(--text-soft); text-align: center; padding: 40px 0;">Loading interested people...</p>
               </div>
             </div>
 
-            <!-- Event Orders List Container -->
-            <div id="event-orders-list-container">
-              <p style="color: var(--text-soft); text-align: center; padding: 40px 0;">Loading event orders...</p>
-            </div>
           </div>
         </div>
 
@@ -864,11 +886,21 @@
             <label for="event-instructions">Customer Pickup Instructions</label>
             <input type="text" id="event-instructions" name="customerInstructions" placeholder="e.g. Please arrive 5 mins before your chosen pickup slot." />
           </div>
+
+          <div class="admin-form-group" style="background: rgba(31,58,46,0.03); padding: 14px; border-radius: 8px; border: 1.5px solid rgba(31,58,46,0.12); margin-top: 16px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; color: var(--forest);">
+              <input type="checkbox" id="event-register-interest" name="registerInterest" style="width: 20px; height: 20px; accent-color: var(--forest);" />
+              Register Interest First (Gauge Interest Mode)
+            </label>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 6px 0 0 30px; line-height: 1.4;">
+              When enabled, customers can register their interest (name and notes) to gauge demand before regular ordering opens. Uncheck to disable and allow standard pizza ordering.
+            </p>
+          </div>
         </form>
       </div>
       <div class="modal-actions">
         <button type="button" class="admin-secondary-btn" onclick="closeEventModal()">Cancel</button>
-        <button type="button" class="admin-primary-btn" onclick="saveEvent()">Save Event</button>
+        <button type="button" class="admin-primary-btn" id="btn-save-event" onclick="saveEvent()">Save Event</button>
       </div>
     </div>
   </div>
@@ -917,7 +949,19 @@
 
   <!-- Admin Dashboard JavaScript Logic -->
   <script src="script.js"></script>
-  <script src="admin_events.js?v=2.3.0"></script>
+  <script src="admin_events.js?v=2.3.1"></script>
+  <script>
+    if (typeof window.switchEventOrdersSubView !== 'function') {
+      window.switchEventOrdersSubView = function(subview) {
+        console.warn("Fallback switchEventOrdersSubView called:", subview);
+      };
+    }
+    if (typeof window.refreshCurrentEventOrdersSubView !== 'function') {
+      window.refreshCurrentEventOrdersSubView = function() {
+        console.warn("Fallback refreshCurrentEventOrdersSubView called");
+      };
+    }
+  </script>
   <script>
     // ========================================================================
     // ADMIN DASHBOARD CLIENT-SIDE CONTROLLER
@@ -1927,6 +1971,7 @@
           toastEl.hidden = true;
         }, 4000);
       }
+      window.showToast = showToast;
 
       function setButtonLoading(btn, isLoading) {
         if (!btn) return;

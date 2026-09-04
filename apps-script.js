@@ -339,6 +339,17 @@ function doGet(e) {
         var row = data[i];
         var active = row[11];
         var status = safeTrim(String(row[6]));
+        var rawInstructions = safeTrim(String(row[8]));
+        var regInterest = row[12] === true || row[12] === 'TRUE' || row[12] === 1 || row[12] === '1';
+        if (!regInterest && (rawInstructions.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || rawInstructions.indexOf('[MODE:REGISTER_INTEREST]') >= 0)) {
+          regInterest = true;
+        } else if (rawInstructions.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+          regInterest = false;
+        }
+        var cleanInstructions = rawInstructions
+          .replace(/<!--AO_REG_INTEREST:[01]-->/g, '')
+          .replace(/\[MODE:REGISTER_INTEREST\]/g, '')
+          .trim();
         if (active === true || active === 'TRUE' || active === '1') {
           events.push({
             id: safeTrim(String(row[0])),
@@ -347,7 +358,9 @@ function doGet(e) {
             date: safeTrim(String(row[3])),
             time: safeTrim(String(row[4])),
             location: safeTrim(String(row[5])),
-            status: status || 'Open'
+            status: status || 'Open',
+            registerInterest: regInterest,
+            customerInstructions: cleanInstructions
           });
         }
       }
@@ -365,6 +378,17 @@ function doGet(e) {
       for (var i = 1; i < data.length; i++) {
         var row = data[i];
         if (safeTrim(String(row[0])).toLowerCase() === eventId.toLowerCase()) {
+          var rawInstructions = safeTrim(String(row[8]));
+          var regInterest = row[12] === true || row[12] === 'TRUE' || row[12] === 1 || row[12] === '1';
+          if (!regInterest && (rawInstructions.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || rawInstructions.indexOf('[MODE:REGISTER_INTEREST]') >= 0)) {
+            regInterest = true;
+          } else if (rawInstructions.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+            regInterest = false;
+          }
+          var cleanInstructions = rawInstructions
+            .replace(/<!--AO_REG_INTEREST:[01]-->/g, '')
+            .replace(/\[MODE:REGISTER_INTEREST\]/g, '')
+            .trim();
           return createJsonResponse({
             success: true,
             event: {
@@ -375,12 +399,58 @@ function doGet(e) {
               time: safeTrim(String(row[4])),
               location: safeTrim(String(row[5])),
               status: safeTrim(String(row[6])) || 'Open',
-              customerInstructions: safeTrim(String(row[8]))
+              registerInterest: regInterest,
+              customerInstructions: cleanInstructions
             }
           });
         }
       }
       return createJsonResponse({ success: false, message: 'Event not found' });
+    }
+
+    // 1d-register. PUBLIC: REGISTER INTEREST FOR EVENT
+    if (actionLower === 'registerinterest' || action === 'registerInterest') {
+      setupEventSheets();
+      var body = params;
+      var eventId = safeTrim(body.eventId || body.event || body.id || '');
+      var eventName = sanitizeForSheet(body.eventName || 'Special Event');
+      var eventDate = sanitizeForSheet(body.eventDate || '');
+      var customerName = sanitizeForSheet(body.customerName || body.name || '');
+      var customerEmail = sanitizeForSheet(body.customerEmail || body.email || '');
+      var notes = sanitizeForSheet(body.notes || body.details || '');
+
+      if (!customerName) {
+        return createJsonResponse({ success: false, message: 'Please provide your name.' });
+      }
+      if (customerEmail && !isValidEmail(customerEmail)) {
+        return createJsonResponse({ success: false, message: 'Please provide a valid email address.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var cleanName = (eventName + (eventDate ? (' - ' + eventDate) : '')).replace(/[:\/\?\*\[\]\\]/g, ' ').trim();
+      var tabTitle = 'Register Interest - ' + cleanName;
+      if (tabTitle.length > 31) {
+        tabTitle = tabTitle.substring(0, 31).trim();
+      }
+
+      var sheet = ss.getSheetByName(tabTitle);
+      if (!sheet) {
+        sheet = ss.insertSheet(tabTitle);
+        sheet.appendRow(['Timestamp', 'Customer Name', 'Customer Email', 'Notes / Details']);
+        sheet.getRange(1, 1, 1, 4)
+          .setFontWeight('bold')
+          .setFontFamily('Arial')
+          .setBackground('#1F3A2E')
+          .setFontColor('#F7F5F0')
+          .setHorizontalAlignment('center');
+        sheet.setFrozenRows(1);
+        sheet.autoResizeColumns(1, 4);
+      }
+
+      sheet.appendRow([new Date(), customerName, customerEmail || '-', notes]);
+      SpreadsheetApp.flush();
+
+      return createJsonResponse({ success: true, message: 'Interest registered successfully!' });
     }
 
     // 1d. PUBLIC: CREATE EVENT ORDER
@@ -928,27 +998,29 @@ function doGet(e) {
       }
 
       var orderId = safeTrim(params.orderId || '');
-      var source = safeTrim(params.source || 'lunch');
+      var source = safeTrim(params.source || '');
       if (!orderId) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
       }
 
       var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-      if (source === 'event' || /^E/i.test(orderId)) {
-        var sheet = ss.getSheetByName('Event Customers');
-        var foundRow = -1;
-        var evData = sheet ? sheet.getDataRange().getValues() : [];
+      var eventSheet = ss.getSheetByName('Event Customers');
+      var foundEventRow = -1;
+      if (eventSheet && eventSheet.getLastRow() >= 2) {
+        var evData = eventSheet.getDataRange().getValues();
         for (var i = 1; i < evData.length; i++) {
           if (safeTrim(String(evData[i][1])).toUpperCase() === orderId.toUpperCase()) {
-            foundRow = i + 1;
+            foundEventRow = i + 1;
             break;
           }
         }
-        if (foundRow < 2) {
+      }
+
+      if (source === 'event' || /^E/i.test(orderId) || foundEventRow >= 2) {
+        if (foundEventRow < 2) {
           return createJsonResponse({ success: false, message: 'Event order #' + orderId + ' not found.' });
         }
-        sheet.getRange(foundRow, 16).setValue('TRUE');
+        eventSheet.getRange(foundEventRow, 16).setValue('TRUE');
         SpreadsheetApp.flush();
         logAdminAction('Delete Event Order', 'Event Order #' + orderId + ' marked as deleted');
         return createJsonResponse({ success: true, message: 'Event Order #' + orderId + ' deleted successfully.' });
@@ -1007,22 +1079,42 @@ function doGet(e) {
       var sheet = ss.getSheetByName('Events');
       if (!sheet || sheet.getLastRow() < 2) return createJsonResponse({ success: true, events: [] });
       var data = sheet.getDataRange().getValues();
+      var header = data[0];
+      var colMap = {};
+      for (var c = 0; c < header.length; c++) {
+        colMap[String(header[c]).trim().toLowerCase()] = c;
+      }
+
       var events = [];
       for (var i = 1; i < data.length; i++) {
         var row = data[i];
+        var activeVal = colMap['active'] !== undefined ? row[colMap['active']] : row[11];
+        var regIntVal = colMap['register interest'] !== undefined ? row[colMap['register interest']] : row[12];
+        var rawInstructions = safeTrim(String(row[colMap['customer instructions'] || 8]));
+        var isRegInt = regIntVal === true || regIntVal === 'TRUE' || regIntVal === 1 || regIntVal === '1';
+        if (!isRegInt && (rawInstructions.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || rawInstructions.indexOf('[MODE:REGISTER_INTEREST]') >= 0)) {
+          isRegInt = true;
+        } else if (rawInstructions.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+          isRegInt = false;
+        }
+        var cleanInstructions = rawInstructions
+          .replace(/<!--AO_REG_INTEREST:[01]-->/g, '')
+          .replace(/\[MODE:REGISTER_INTEREST\]/g, '')
+          .trim();
         events.push({
-          id: safeTrim(String(row[0])),
-          name: safeTrim(String(row[1])),
-          description: safeTrim(String(row[2])),
-          date: safeTrim(String(row[3])),
-          time: safeTrim(String(row[4])),
-          location: safeTrim(String(row[5])),
-          status: safeTrim(String(row[6])),
-          deadline: safeTrim(String(row[7])),
-          customerInstructions: safeTrim(String(row[8])),
-          emailSubject: safeTrim(String(row[9])),
-          emailMessage: safeTrim(String(row[10])),
-          active: row[11] === true || row[11] === 'TRUE' || row[11] === 1
+          id: safeTrim(String(row[colMap['event id'] || 0])),
+          name: safeTrim(String(row[colMap['event name'] || 1])),
+          description: safeTrim(String(row[colMap['description'] || 2])),
+          date: safeTrim(String(row[colMap['event date'] || 3])),
+          time: safeTrim(String(row[colMap['event time'] || 4])),
+          location: safeTrim(String(row[colMap['location'] || 5])),
+          status: safeTrim(String(row[colMap['status'] || 6])),
+          deadline: safeTrim(String(row[colMap['ordering deadline'] || 7])),
+          customerInstructions: cleanInstructions,
+          emailSubject: safeTrim(String(row[colMap['email subject'] || 9])),
+          emailMessage: safeTrim(String(row[colMap['email message'] || 10])),
+          active: activeVal === true || activeVal === 'TRUE' || activeVal === '1',
+          registerInterest: isRegInt
         });
       }
       return createJsonResponse({ success: true, events: events });
@@ -1045,7 +1137,17 @@ function doGet(e) {
       var instructions = sanitizeForSheet(params.customerInstructions || '');
       var emailSub = sanitizeForSheet(params.emailSubject || '');
       var emailMsg = sanitizeForSheet(params.emailMessage || '');
-      var active = params.active === true || params.active === 'true' || params.active === '1';
+      var active = params.active === true || params.active === 'true' || params.active === '1' || params.active === 1;
+      var registerInterest = false;
+      if (params.registerInterest === true || params.registerInterest === 'true' || params.registerInterest === '1' || params.registerInterest === 1) {
+        registerInterest = true;
+      } else if (params.registerInterest === false || params.registerInterest === 'false' || params.registerInterest === '0' || params.registerInterest === 0) {
+        registerInterest = false;
+      } else if (instructions.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || instructions.indexOf('[MODE:REGISTER_INTEREST]') >= 0) {
+        registerInterest = true;
+      } else if (instructions.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+        registerInterest = false;
+      }
 
       if (!name) {
         return createJsonResponse({ success: false, message: 'Event Name is required.' });
@@ -1053,6 +1155,22 @@ function doGet(e) {
 
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var sheet = ss.getSheetByName('Events');
+      var lastCol = sheet.getLastColumn();
+      var headerRow = sheet.getRange(1, 1, 1, Math.max(lastCol, 13)).getValues()[0];
+      var colMap = {};
+      for (var c = 0; c < headerRow.length; c++) {
+        colMap[String(headerRow[c]).trim().toLowerCase()] = c + 1;
+      }
+      if (!colMap['register interest']) {
+        sheet.insertColumnAfter(12);
+        sheet.getRange(1, 13).setValue('Register Interest').setFontWeight('bold').setBackground('#E8E8E8');
+        headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        colMap = {};
+        for (var c = 0; c < headerRow.length; c++) {
+          colMap[String(headerRow[c]).trim().toLowerCase()] = c + 1;
+        }
+      }
+
       var data = sheet.getDataRange().getValues();
       var rowIndex = -1;
 
@@ -1060,25 +1178,66 @@ function doGet(e) {
         eventId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString().slice(-4);
       }
 
+      var rowIdColIndex = colMap['event id'] ? colMap['event id'] - 1 : 0;
       for (var i = 1; i < data.length; i++) {
-        if (safeTrim(String(data[i][0])) === eventId) {
+        if (safeTrim(String(data[i][rowIdColIndex])) === eventId) {
           rowIndex = i + 1;
           break;
         }
       }
 
+      var idCol = colMap['event id'] || 1;
+      var nameCol = colMap['event name'] || 2;
+      var descCol = colMap['description'] || 3;
+      var dateCol = colMap['event date'] || 4;
+      var timeCol = colMap['event time'] || 5;
+      var locCol = colMap['location'] || 6;
+      var statusCol = colMap['status'] || 7;
+      var deadlineCol = colMap['ordering deadline'] || 8;
+      var instCol = colMap['customer instructions'] || 9;
+      var subCol = colMap['email subject'] || 10;
+      var msgCol = colMap['email message'] || 11;
+      var activeCol = colMap['active'] || 12;
+      var regIntCol = colMap['register interest'] || 13;
+      var createdCol = colMap['created at'] || 14;
+
+      var maxCol = Math.max(idCol, nameCol, descCol, dateCol, timeCol, locCol, statusCol, deadlineCol, instCol, subCol, msgCol, activeCol, regIntCol, createdCol);
+
       if (rowIndex > 0) {
-        sheet.getRange(rowIndex, 2, 1, 12).setValues([[
-          name, desc, date, time, location, status, '', instructions, emailSub, emailMsg, active, new Date()
-        ]]);
+        sheet.getRange(rowIndex, nameCol).setValue(name);
+        sheet.getRange(rowIndex, descCol).setValue(desc);
+        sheet.getRange(rowIndex, dateCol).setValue(date);
+        sheet.getRange(rowIndex, timeCol).setValue(time);
+        sheet.getRange(rowIndex, locCol).setValue(location);
+        sheet.getRange(rowIndex, statusCol).setValue(status);
+        sheet.getRange(rowIndex, instCol).setValue(instructions);
+        sheet.getRange(rowIndex, subCol).setValue(emailSub);
+        sheet.getRange(rowIndex, msgCol).setValue(emailMsg);
+        sheet.getRange(rowIndex, activeCol).setValue(active);
+        sheet.getRange(rowIndex, regIntCol).setValue(registerInterest);
         logAdminAction('Update Event', 'Updated event: ' + name);
       } else {
-        sheet.appendRow([
-          eventId, name, desc, date, time, location, status, '', instructions, emailSub, emailMsg, active, new Date()
-        ]);
+        var newRow = [];
+        for (var c = 1; c <= maxCol; c++) {
+          newRow.push('');
+        }
+        newRow[idCol - 1] = eventId;
+        newRow[nameCol - 1] = name;
+        newRow[descCol - 1] = desc;
+        newRow[dateCol - 1] = date;
+        newRow[timeCol - 1] = time;
+        newRow[locCol - 1] = location;
+        newRow[statusCol - 1] = status;
+        newRow[instCol - 1] = instructions;
+        newRow[subCol - 1] = emailSub;
+        newRow[msgCol - 1] = emailMsg;
+        newRow[activeCol - 1] = active;
+        newRow[regIntCol - 1] = registerInterest;
+        newRow[createdCol - 1] = new Date();
+
+        sheet.appendRow(newRow);
         logAdminAction('Create Event', 'Created event: ' + name);
 
-        // Automatically create a dedicated tab on Google Sheets for this new event
         try {
           createOrGetEventOrdersSheet(ss, name, eventId);
         } catch (sheetErr) {
@@ -1088,6 +1247,48 @@ function doGet(e) {
       SpreadsheetApp.flush();
 
       return createJsonResponse({ success: true, message: 'Event saved successfully.', eventId: eventId });
+    }
+
+    // 12.1. ADMIN: GET REGISTER INTEREST PEOPLE
+    if (action === 'adminGetRegisterInterest' || actionLower === 'admingetregisterinterest') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+      }
+      setupEventSheets();
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheets = ss.getSheets();
+      var interestedPeople = [];
+
+      for (var s = 0; s < sheets.length; s++) {
+        var sheet = sheets[s];
+        var sName = sheet.getName();
+        if (sName.indexOf('Register Interest -') === 0) {
+          var eventName = sName.replace('Register Interest -', '').trim();
+          var lastRow = sheet.getLastRow();
+          if (lastRow >= 2) {
+            var values = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+            for (var r = 0; r < values.length; r++) {
+              var row = values[r];
+              if (row[1] || row[2]) {
+                interestedPeople.push({
+                  eventName: eventName,
+                  timestamp: row[0] instanceof Date ? row[0].toISOString() : String(row[0]),
+                  customerName: safeTrim(String(row[1])),
+                  customerEmail: safeTrim(String(row[2])),
+                  notes: safeTrim(String(row[3]))
+                });
+              }
+            }
+          }
+        }
+      }
+
+      interestedPeople.sort(function(a, b) {
+        return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
+      });
+
+      return createJsonResponse({ success: true, interestedPeople: interestedPeople });
     }
 
     // 12b. ADMIN: DELETE EVENT
@@ -2170,9 +2371,9 @@ function setupEventSheets() {
     eventsSheet.appendRow([
       'Event ID', 'Event Name', 'Description', 'Event Date', 'Event Time',
       'Location', 'Status', 'Ordering Deadline', 'Customer Instructions',
-      'Email Subject', 'Email Message', 'Active', 'Created At'
+      'Email Subject', 'Email Message', 'Active', 'Register Interest', 'Created At'
     ]);
-    eventsSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#E8E8E8');
+    eventsSheet.getRange(1, 1, 1, 14).setFontWeight('bold').setBackground('#E8E8E8');
     
     eventsSheet.appendRow([
       'summer-fair-2026',
@@ -2187,8 +2388,26 @@ function setupEventSheets() {
       'Artisan Oven — Summer Fair Order Confirmation',
       'Thank you for ordering for the Summer Fair!',
       true,
+      false,
       new Date()
     ]);
+  } else {
+    // Check if Register Interest column exists in header
+    var lastCol = eventsSheet.getLastColumn();
+    if (lastCol >= 1) {
+      var headerRow = eventsSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      var hasReg = false;
+      for (var h = 0; h < headerRow.length; h++) {
+        if (String(headerRow[h]).toLowerCase().indexOf('register interest') >= 0) {
+          hasReg = true;
+          break;
+        }
+      }
+      if (!hasReg) {
+        eventsSheet.insertColumnAfter(12);
+        eventsSheet.getRange(1, 13).setValue('Register Interest').setFontWeight('bold').setBackground('#E8E8E8');
+      }
+    }
   }
 
   var custSheet = ss.getSheetByName('Event Customers');

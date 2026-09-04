@@ -6,6 +6,7 @@
 const STORAGE_KEY_TOKEN = "ao_admin_session_token";
 const STORAGE_KEY_LOCAL_EVENTS = "AO_LOCAL_EVENTS";
 const STORAGE_KEY_EVENT_ORDERS = "AO_CACHED_EVENT_ORDERS";
+const STORAGE_KEY_REG_INTEREST_MAP = "AO_EVENT_REG_INTEREST_MAP";
 
 const DEFAULT_EVENTS = [
   {
@@ -58,17 +59,78 @@ function escapeAdminHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+function parseBoolean(val) {
+  if (val === true || val === 'true' || val === 'TRUE' || val === '1' || val === 1 || val === 'True') return true;
+  return false;
+}
+
+function getStoredRegInterestMap() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_REG_INTEREST_MAP);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {};
+}
+
+function saveStoredRegInterestMap(map) {
+  try {
+    localStorage.setItem(STORAGE_KEY_REG_INTEREST_MAP, JSON.stringify(map || {}));
+  } catch(e) {}
+}
+
+function stripRegInterestTag(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/<!--AO_REG_INTEREST:[01]-->/g, '')
+    .replace(/\[MODE:REGISTER_INTEREST\]/g, '')
+    .trim();
+}
+
+function extractRegInterestFromEvent(event) {
+  if (!event) return false;
+  // 1. Check embedded metadata tag in customerInstructions (resilient cloud sync)
+  const instructions = String(event.customerInstructions || "");
+  if (instructions.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || instructions.indexOf('[MODE:REGISTER_INTEREST]') >= 0) {
+    return true;
+  }
+  if (instructions.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+    return false;
+  }
+  // 2. Check explicit boolean property if defined and valid
+  if (event.registerInterest !== undefined && event.registerInterest !== null && event.registerInterest !== "") {
+    return parseBoolean(event.registerInterest);
+  }
+  // 3. Check persistent localStorage map by event ID
+  const map = getStoredRegInterestMap();
+  if (event.id && map[event.id] !== undefined) {
+    return !!map[event.id];
+  }
+  return false;
+}
+
 function getStoredLocalEvents() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_LOCAL_EVENTS);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(e => ({
+          ...e,
+          active: e.active !== false && e.active !== 'false' && e.active !== '0' && e.active !== 0,
+          registerInterest: extractRegInterestFromEvent(e),
+          customerInstructions: stripRegInterestTag(e.customerInstructions)
+        }));
+      }
     }
   } catch(e) {}
   
-  localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(DEFAULT_EVENTS));
-  return DEFAULT_EVENTS;
+  const initial = DEFAULT_EVENTS.map(e => ({
+    ...e,
+    registerInterest: extractRegInterestFromEvent(e),
+    customerInstructions: stripRegInterestTag(e.customerInstructions)
+  }));
+  localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(initial));
+  return initial;
 }
 
 function saveStoredLocalEvents(events) {
@@ -180,7 +242,12 @@ async function loadRemoteEvents() {
     if (response.ok) {
       const data = await response.json();
       if (data.success && Array.isArray(data.events)) {
-        cachedEvents = data.events;
+        cachedEvents = data.events.map(e => ({
+          ...e,
+          active: e.active !== false && e.active !== 'false' && e.active !== '0' && e.active !== 0,
+          registerInterest: extractRegInterestFromEvent(e),
+          customerInstructions: stripRegInterestTag(e.customerInstructions)
+        }));
         saveStoredLocalEvents(cachedEvents);
         isLocalFallback = false;
         renderEventsList(cachedEvents);
@@ -294,6 +361,25 @@ function renderEventsList(events) {
             <div style="display: flex; align-items: center; gap: 9px;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--terracotta); flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
               <span><strong>Website Status:</strong> ${evt.active ? '<span style="color: #2D5832; font-weight: 700;">Published</span>' : '<span style="color: var(--text-soft);">Draft / Hidden</span>'}</span>
+            </div>
+
+            <!-- Ordering / Register Interest Mode Box -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; background: ${evt.registerInterest ? 'rgba(31,58,46,0.06)' : 'rgba(0,0,0,0.02)'}; padding: 8px 12px; border-radius: 6px; border: 1px solid ${evt.registerInterest ? 'rgba(31,58,46,0.2)' : 'rgba(0,0,0,0.06)'};">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: ${evt.registerInterest ? 'var(--forest)' : 'var(--text-soft)'}; flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span style="font-size: 0.82rem; font-weight: 700; color: ${evt.registerInterest ? 'var(--forest)' : 'var(--text-soft)'};">
+                  ${evt.registerInterest ? 'Mode: Register Interest First' : 'Mode: Standard Orders'}
+                </span>
+              </div>
+              <button 
+                type="button" 
+                class="event-action-btn event-action-btn-secondary" 
+                style="padding: 3px 8px; font-size: 0.76rem; border-radius: 4px;"
+                onclick="toggleEventRegisterInterest('${escapeAdminHtml(evt.id)}')"
+                title="${evt.registerInterest ? 'Switch to regular pizza ordering mode' : 'Switch to register interest first mode'}"
+              >
+                ${evt.registerInterest ? 'Switch to Orders' : 'Enable Interest Mode'}
+              </button>
             </div>
           </div>
         </div>
@@ -705,6 +791,15 @@ window.renderEventOrders = function(orders) {
 
       try {
         const apiUrl = getApiUrl();
+        if (!apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+          // Local fallback deletion
+          cachedEventOrders = cachedEventOrders.filter(o => String(o.orderId) !== String(orderId));
+          sessionStorage.setItem(STORAGE_KEY_EVENT_ORDERS, JSON.stringify(cachedEventOrders));
+          renderEventOrders(cachedEventOrders);
+          if (typeof window.showToast === 'function') window.showToast(`Event Order #${orderId} deleted successfully.`, "success");
+          return;
+        }
+
         const url = new URL(apiUrl);
         url.searchParams.set("action", "adminDeleteOrder");
         url.searchParams.set("source", "event");
@@ -724,10 +819,12 @@ window.renderEventOrders = function(orders) {
           this.innerHTML = originalHtml;
         }
       } catch (err) {
-        console.warn("Delete event order error:", err.message || err);
-        if (typeof window.showToast === 'function') window.showToast("Failed to delete event order due to connection issue.", "error");
-        this.disabled = false;
-        this.innerHTML = originalHtml;
+        console.warn("Delete event order error (falling back locally):", err.message || err);
+        // Fallback local deletion on network failure
+        cachedEventOrders = cachedEventOrders.filter(o => String(o.orderId) !== String(orderId));
+        sessionStorage.setItem(STORAGE_KEY_EVENT_ORDERS, JSON.stringify(cachedEventOrders));
+        renderEventOrders(cachedEventOrders);
+        if (typeof window.showToast === 'function') window.showToast(`Event Order #${orderId} deleted locally.`, "success");
       }
     });
   });
@@ -771,6 +868,39 @@ window.toggleEventStatus = function(eventId) {
   saveStoredLocalEvents(cachedEvents);
   renderEventsList(cachedEvents);
   syncEventToRemote(event);
+};
+
+window.toggleEventRegisterInterest = async function(eventId) {
+  const event = cachedEvents.find(e => e.id === eventId);
+  if (!event) return;
+
+  const newMode = !event.registerInterest;
+  event.registerInterest = newMode;
+
+  // 1. Update persistent preferences map
+  const regMap = getStoredRegInterestMap();
+  regMap[eventId] = newMode;
+  saveStoredRegInterestMap(regMap);
+
+  // 2. Save locally and re-render immediately
+  saveStoredLocalEvents(cachedEvents);
+  renderEventsList(cachedEvents);
+  populateEventDropdown(cachedEvents);
+
+  if (typeof window.showToast === 'function') {
+    window.showToast(newMode ? "Enabled 'Register Interest First' mode" : "Switched to standard ordering mode", "info");
+  }
+
+  // 3. Prepare payload with metadata tag for remote sync
+  const cleanInstructions = stripRegInterestTag(event.customerInstructions);
+  const tag = newMode ? ' <!--AO_REG_INTEREST:1-->' : ' <!--AO_REG_INTEREST:0-->';
+  const instructionsToSave = cleanInstructions ? (cleanInstructions + tag) : tag;
+
+  await syncEventToRemote({
+    ...event,
+    registerInterest: newMode,
+    customerInstructions: instructionsToSave
+  });
 };
 
 window.editEventById = function(eventId) {
@@ -872,14 +1002,22 @@ window.openEventModal = function(event = null) {
     if (document.getElementById("event-time")) document.getElementById("event-time").value = event.time || "";
     if (document.getElementById("event-location")) document.getElementById("event-location").value = event.location || "";
     if (document.getElementById("event-description")) document.getElementById("event-description").value = event.description || "";
-    if (document.getElementById("event-instructions")) document.getElementById("event-instructions").value = event.customerInstructions || "";
+    if (document.getElementById("event-instructions")) {
+      document.getElementById("event-instructions").value = stripRegInterestTag(event.customerInstructions || "");
+    }
     document.getElementById("event-status").value = event.status || "Open";
-    document.getElementById("event-active").checked = !!event.active;
+    document.getElementById("event-active").checked = event.active !== false && event.active !== 'false';
+    if (document.getElementById("event-register-interest")) {
+      document.getElementById("event-register-interest").checked = extractRegInterestFromEvent(event);
+    }
     document.getElementById("event-modal-title").textContent = "Edit Event Details";
   } else {
     document.getElementById("event-id").value = "";
     document.getElementById("event-status").value = "Open";
     document.getElementById("event-active").checked = true;
+    if (document.getElementById("event-register-interest")) {
+      document.getElementById("event-register-interest").checked = false;
+    }
     document.getElementById("event-modal-title").textContent = "Create Special Event";
   }
   modal.style.display = "flex";
@@ -894,6 +1032,9 @@ window.saveEvent = async function() {
   const form = document.getElementById("form-save-event");
   if (!form) return;
 
+  const saveBtn = document.getElementById("btn-save-event") || form.closest('.admin-modal-card')?.querySelector('.admin-primary-btn');
+  const originalBtnText = saveBtn ? saveBtn.innerHTML : "Save Event";
+
   const formData = new FormData(form);
   const eventId = formData.get('eventId') || ('event-' + Date.now().toString(36));
   const name = (formData.get('name') || '').trim();
@@ -901,14 +1042,29 @@ window.saveEvent = async function() {
   const time = (formData.get('time') || '').trim();
   const location = (formData.get('location') || '').trim();
   const description = (formData.get('description') || '').trim();
-  const customerInstructions = (formData.get('customerInstructions') || '').trim();
+  const rawInstructions = (formData.get('customerInstructions') || '').trim();
   const status = formData.get('status') || 'Open';
   const active = form.querySelector('#event-active')?.checked ?? true;
+  const registerInterest = form.querySelector('#event-register-interest')?.checked ?? false;
 
   if (!name) {
-    alert("Please enter an event name.");
+    if (typeof window.showToast === 'function') {
+      window.showToast("Please enter an event name.", "error");
+    } else {
+      alert("Please enter an event name.");
+    }
     return;
   }
+
+  // 1. Explicitly persist to dedicated register interest preferences map
+  const regMap = getStoredRegInterestMap();
+  regMap[eventId] = !!registerInterest;
+  saveStoredRegInterestMap(regMap);
+
+  // 2. Prepare instructions with embedded metadata tag for backward compatibility with live Google Sheet
+  const cleanInstructions = stripRegInterestTag(rawInstructions);
+  const tag = registerInterest ? ' <!--AO_REG_INTEREST:1-->' : ' <!--AO_REG_INTEREST:0-->';
+  const instructionsToSave = cleanInstructions ? (cleanInstructions + tag) : tag;
 
   const newEventObj = {
     id: eventId,
@@ -917,9 +1073,10 @@ window.saveEvent = async function() {
     time: time,
     location: location,
     description: description,
-    customerInstructions: customerInstructions,
+    customerInstructions: cleanInstructions,
     status: status,
-    active: active
+    active: active,
+    registerInterest: registerInterest
   };
 
   const existingIdx = cachedEvents.findIndex(e => e.id === eventId);
@@ -929,12 +1086,33 @@ window.saveEvent = async function() {
     cachedEvents.unshift(newEventObj);
   }
   
+  // Save locally first for instant, resilient persistence
   saveStoredLocalEvents(cachedEvents);
-  closeEventModal();
   renderEventsList(cachedEvents);
   populateEventDropdown(cachedEvents);
 
-  syncEventToRemote(newEventObj);
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<span class="loading-spinner" style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; margin-right:6px; vertical-align:middle; animation:spin 0.8s linear infinite;"></span> Saving...`;
+  }
+
+  try {
+    await syncEventToRemote({
+      ...newEventObj,
+      customerInstructions: instructionsToSave
+    });
+    if (typeof window.showToast === 'function') {
+      window.showToast("Event details saved successfully!", "success");
+    }
+  } catch (err) {
+    console.warn("Background remote sync note:", err);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalBtnText;
+    }
+    closeEventModal();
+  }
 };
 
 async function syncEventToRemote(eventObj) {
@@ -942,18 +1120,24 @@ async function syncEventToRemote(eventObj) {
   const apiUrl = getApiUrl();
   if (apiUrl && token) {
     try {
+      const isReg = extractRegInterestFromEvent(eventObj);
+      const cleanInst = stripRegInterestTag(eventObj.customerInstructions);
+      const tag = isReg ? ' <!--AO_REG_INTEREST:1-->' : ' <!--AO_REG_INTEREST:0-->';
+      const instructionsToSend = cleanInst ? (cleanInst + tag) : tag;
+
       const payload = {
         token: token,
         action: 'adminSaveEvent',
         eventId: eventObj.id,
         name: eventObj.name,
-        date: eventObj.date,
-        time: eventObj.time,
-        location: eventObj.location,
-        status: eventObj.status,
+        date: eventObj.date || '',
+        time: eventObj.time || '',
+        location: eventObj.location || '',
+        status: eventObj.status || 'Open',
         active: eventObj.active ? 'true' : 'false',
+        registerInterest: isReg ? 'true' : 'false',
         description: eventObj.description || '',
-        customerInstructions: eventObj.customerInstructions || ''
+        customerInstructions: instructionsToSend
       };
 
       const url = new URL(apiUrl);
@@ -961,13 +1145,173 @@ async function syncEventToRemote(eventObj) {
         url.searchParams.set(key, payload[key]);
       }
       
-      const res = await fetch(url.toString());
-      const data = await res.json();
-      if (data.success) {
-        console.log("Remote event sync successful");
+      let controller = null;
+      let timeoutId = null;
+      if (typeof AbortController !== 'undefined') {
+        controller = new AbortController();
+        timeoutId = setTimeout(() => {
+          try { controller.abort(); } catch(e) {}
+        }, 15000);
+      }
+
+      const res = await fetch(url.toString(), {
+        method: "GET",
+        mode: "cors",
+        redirect: "follow",
+        signal: controller ? controller.signal : undefined
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          console.log("Remote event sync successful:", data);
+          return true;
+        }
       }
     } catch (e) {
       console.warn("Background remote sync skipped:", e.message);
     }
   }
+  return false;
 }
+
+let currentEventOrdersSubView = 'orders'; // 'orders' | 'interested'
+let cachedInterestedPeople = [];
+
+window.switchEventOrdersSubView = function(subview) {
+  currentEventOrdersSubView = subview;
+  const btnOrders = document.getElementById('btn-event-orders-subview-orders');
+  const btnInterested = document.getElementById('btn-event-orders-subview-interested');
+  const paneOrders = document.getElementById('pane-event-orders');
+  const paneInterested = document.getElementById('pane-interested-people');
+
+  if (btnOrders && btnInterested && paneOrders && paneInterested) {
+    if (subview === 'orders') {
+      btnOrders.classList.add('active');
+      btnOrders.style.background = 'var(--forest)';
+      btnOrders.style.color = '#fff';
+      btnOrders.style.borderColor = 'var(--forest)';
+      btnInterested.classList.remove('active');
+      btnInterested.style.background = 'transparent';
+      btnInterested.style.color = 'var(--forest)';
+      btnInterested.style.borderColor = 'rgba(31,58,46,0.2)';
+      paneOrders.style.display = 'block';
+      paneInterested.style.display = 'none';
+      loadEventOrdersData('', true);
+    } else {
+      btnInterested.classList.add('active');
+      btnInterested.style.background = 'var(--forest)';
+      btnInterested.style.color = '#fff';
+      btnInterested.style.borderColor = 'var(--forest)';
+      btnOrders.classList.remove('active');
+      btnOrders.style.background = 'transparent';
+      btnOrders.style.color = 'var(--forest)';
+      btnOrders.style.borderColor = 'rgba(31,58,46,0.2)';
+      paneInterested.style.display = 'block';
+      paneOrders.style.display = 'none';
+      loadInterestedPeopleData();
+    }
+  }
+};
+
+window.refreshCurrentEventOrdersSubView = function() {
+  if (currentEventOrdersSubView === 'orders') {
+    loadEventOrdersData('', false);
+  } else {
+    loadInterestedPeopleData(false);
+  }
+};
+
+window.loadInterestedPeopleData = async function(silent = false) {
+  const token = sessionStorage.getItem(STORAGE_KEY_TOKEN) || (window.currentAdminToken || "");
+  const container = document.getElementById('interested-people-list-container');
+  if (!token) return;
+
+  if (!silent && container) {
+    container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">Loading interested people...</p>';
+  }
+
+  try {
+    const apiUrl = getApiUrl();
+    if (!apiUrl) throw new Error("Backend URL not configured.");
+
+    const url = new URL(apiUrl);
+    url.searchParams.set("action", "adminGetRegisterInterest");
+    url.searchParams.set("token", token);
+    url.searchParams.set("_t", Date.now());
+
+    const response = await fetch(url.toString(), { method: "GET", mode: "cors" });
+    if (!response.ok) throw new Error("Network request failed (" + response.status + ")");
+    const data = await response.json();
+
+    if (data.unauthorized) {
+      sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+      if (typeof window.showLoginView === 'function') window.showLoginView();
+      return;
+    }
+
+    if (data.success && Array.isArray(data.interestedPeople)) {
+      cachedInterestedPeople = data.interestedPeople;
+      const badge = document.getElementById('badge-interested-count');
+      if (badge) {
+        badge.textContent = data.interestedPeople.length;
+        badge.style.display = data.interestedPeople.length > 0 ? 'inline-block' : 'none';
+      }
+      renderInterestedPeople(cachedInterestedPeople);
+    } else {
+      if (container) container.innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "No interested registrations found."}</p>`;
+    }
+  } catch (err) {
+    console.warn("Interested people load note:", err.message || err);
+    if (container) {
+      container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">Could not connect to backend or no interested registrations recorded yet.</p>';
+    }
+  }
+};
+
+window.renderInterestedPeople = function(people) {
+  const container = document.getElementById('interested-people-list-container');
+  if (!container) return;
+
+  if (!people || people.length === 0) {
+    container.innerHTML = `
+      <div style="background: var(--white); border: 1.5px dashed rgba(31,58,46,0.15); border-radius: var(--radius-md); padding: 44px 20px; text-align: center;">
+        <p style="color: var(--text-soft); margin: 0; font-size: 1rem;">No interest registrations yet.</p>
+        <p style="color: var(--text-soft); font-size: 0.85rem; margin-top: 6px;">When customers register their interest for events with "Register Interest First" enabled, they will appear here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(31,58,46,0.04);">
+        <thead>
+          <tr style="background: var(--forest); color: #fff; text-align: left; font-size: 0.85rem;">
+            <th style="padding: 14px 16px;">Event</th>
+            <th style="padding: 14px 16px;">Customer Name</th>
+            <th style="padding: 14px 16px;">Email</th>
+            <th style="padding: 14px 16px;">Notes / Details</th>
+            <th style="padding: 14px 16px;">Registered At</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  people.forEach(p => {
+    const timestamp = p.timestamp ? new Date(p.timestamp).toLocaleString() : 'Recent';
+    html += `
+      <tr style="border-bottom: 1px solid rgba(31,58,46,0.08); font-size: 0.9rem;">
+        <td style="padding: 14px 16px; font-weight: 600; color: var(--forest);">${escapeAdminHtml(p.eventName || 'Special Event')}</td>
+        <td style="padding: 14px 16px; font-weight: 600;">${escapeAdminHtml(p.customerName)}</td>
+        <td style="padding: 14px 16px; color: var(--text-secondary);">${escapeAdminHtml(p.customerEmail)}</td>
+        <td style="padding: 14px 16px; color: var(--text-secondary);">${escapeAdminHtml(p.notes || '—')}</td>
+        <td style="padding: 14px 16px; color: var(--text-soft); font-size: 0.85rem;">${escapeAdminHtml(timestamp)}</td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+};

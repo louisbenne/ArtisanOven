@@ -233,12 +233,59 @@
         return;
       }
 
+      const STORAGE_KEY_REG_INTEREST_MAP = "AO_EVENT_REG_INTEREST_MAP";
+
+      function getStoredRegInterestMap() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY_REG_INTEREST_MAP);
+          if (raw) return JSON.parse(raw);
+        } catch(e) {}
+        return {};
+      }
+
+      function stripRegInterestTag(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/<!--AO_REG_INTEREST:[01]-->/g, '')
+          .replace(/\[MODE:REGISTER_INTEREST\]/g, '')
+          .trim();
+      }
+
+      function isRegInterest(val) {
+        return val === true || val === 'true' || val === 'TRUE' || val === '1' || val === 1 || val === 'True';
+      }
+
+      function extractRegInterestFromEvent(ev) {
+        if (!ev) return false;
+        const inst = String(ev.customerInstructions || "");
+        if (inst.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || inst.indexOf('[MODE:REGISTER_INTEREST]') >= 0) {
+          return true;
+        }
+        if (inst.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+          return false;
+        }
+        if (ev.registerInterest !== undefined && ev.registerInterest !== null && ev.registerInterest !== "") {
+          return isRegInterest(ev.registerInterest);
+        }
+        const map = getStoredRegInterestMap();
+        if (ev.id && map[ev.id] !== undefined) {
+          return !!map[ev.id];
+        }
+        return false;
+      }
+
       function getLocalEvents() {
         try {
           const raw = localStorage.getItem("AO_LOCAL_EVENTS");
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed.map(e => ({
+                ...e,
+                registerInterest: extractRegInterestFromEvent(e),
+                customerInstructions: stripRegInterestTag(e.customerInstructions)
+              }));
+            }
           }
         } catch(e) {}
         return [
@@ -250,7 +297,8 @@
             time: "17:00 - 21:00",
             location: "Village Green, Guilden Morden",
             status: "Open",
-            active: true
+            active: true,
+            registerInterest: extractRegInterestFromEvent({ id: "summer-popup-2026" })
           },
           {
             id: "autumn-feast-2026",
@@ -260,7 +308,8 @@
             time: "18:00 - 21:30",
             location: "Town Hall Yard",
             status: "Open",
-            active: true
+            active: true,
+            registerInterest: extractRegInterestFromEvent({ id: "autumn-feast-2026" })
           }
         ];
       }
@@ -282,12 +331,16 @@
         grid.innerHTML = "";
 
         eventsList.forEach(ev => {
-          if (ev.active === false) return;
+          if (ev.active === false || ev.active === 'false') return;
+          const regInterest = extractRegInterestFromEvent(ev);
           const card = document.createElement("div");
           card.className = "event-card";
           card.innerHTML = `
             <div>
-              <h2 class="event-card-title">${escapeHtml(ev.name)}</h2>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px;">
+                <h2 class="event-card-title" style="margin-bottom: 0;">${escapeHtml(ev.name)}</h2>
+                ${regInterest ? `<span style="font-size: 0.72rem; font-weight: 700; background: rgba(31,58,46,0.1); color: var(--forest); padding: 4px 10px; border-radius: 999px; white-space: nowrap; border: 1px solid rgba(31,58,46,0.2);">Mode: Register Interest First</span>` : ''}
+              </div>
               <ul class="event-meta-list">
                 <li class="event-meta-item">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -301,7 +354,7 @@
               </ul>
               <p class="event-desc">${escapeHtml(ev.description || 'Join us for freshly baked wood-fired artisan pizza.')}</p>
             </div>
-            <a href="event-order.html?event=${encodeURIComponent(ev.id)}" class="event-card-btn">ORDER FOR THIS EVENT &rarr;</a>
+            <a href="event-order.html?event=${encodeURIComponent(ev.id)}" class="event-card-btn">${regInterest ? 'REGISTER YOUR INTEREST &rarr;' : 'ORDER FOR THIS EVENT &rarr;'}</a>
           `;
           grid.appendChild(card);
         });
@@ -338,8 +391,13 @@
         if (res && res.ok) {
           const data = await res.json();
           if (data && data.success && Array.isArray(data.events) && data.events.length > 0) {
-            localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(data.events));
-            renderEventsArray(data.events);
+            const processedEvents = data.events.map(e => ({
+              ...e,
+              registerInterest: extractRegInterestFromEvent(e),
+              customerInstructions: stripRegInterestTag(e.customerInstructions)
+            }));
+            localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(processedEvents));
+            renderEventsArray(processedEvents);
           }
         }
       } catch (err) {

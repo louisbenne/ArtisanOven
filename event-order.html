@@ -406,15 +406,66 @@
       }
     ];
 
+    const STORAGE_KEY_REG_INTEREST_MAP = "AO_EVENT_REG_INTEREST_MAP";
+
+    function getStoredRegInterestMap() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_REG_INTEREST_MAP);
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return {};
+    }
+
+    function stripRegInterestTag(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/<!--AO_REG_INTEREST:[01]-->/g, '')
+        .replace(/\[MODE:REGISTER_INTEREST\]/g, '')
+        .trim();
+    }
+
+    function isRegInterest(val) {
+      return val === true || val === 'true' || val === 'TRUE' || val === '1' || val === 1 || val === 'True';
+    }
+
+    function extractRegInterestFromEvent(ev) {
+      if (!ev) return false;
+      const inst = String(ev.customerInstructions || "");
+      if (inst.indexOf('<!--AO_REG_INTEREST:1-->') >= 0 || inst.indexOf('[MODE:REGISTER_INTEREST]') >= 0) {
+        return true;
+      }
+      if (inst.indexOf('<!--AO_REG_INTEREST:0-->') >= 0) {
+        return false;
+      }
+      if (ev.registerInterest !== undefined && ev.registerInterest !== null && ev.registerInterest !== "") {
+        return isRegInterest(ev.registerInterest);
+      }
+      const map = getStoredRegInterestMap();
+      if (ev.id && map[ev.id] !== undefined) {
+        return !!map[ev.id];
+      }
+      return false;
+    }
+
     function getAvailableEvents() {
       try {
         const stored = localStorage.getItem("AO_LOCAL_EVENTS");
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map(ev => ({
+              ...ev,
+              registerInterest: extractRegInterestFromEvent(ev),
+              customerInstructions: stripRegInterestTag(ev.customerInstructions)
+            }));
+          }
         }
       } catch (e) {}
-      return DEFAULT_EVENT_DATA;
+      return DEFAULT_EVENT_DATA.map(ev => ({
+        ...ev,
+        registerInterest: extractRegInterestFromEvent(ev),
+        customerInstructions: stripRegInterestTag(ev.customerInstructions)
+      }));
     }
 
     async function initEventOrder() {
@@ -471,6 +522,7 @@
         const locEl = document.getElementById("event-display-location");
         const descEl = document.getElementById("event-display-desc");
         const notesEl = document.getElementById("event-display-notes");
+        const orderFormContainer = document.getElementById("order-form-container");
 
         if (titleEl) titleEl.textContent = ev.name || "Special Event";
         if (dtEl) dtEl.textContent = `${ev.date || 'Upcoming'} ${ev.time ? '• ' + ev.time : ''}`;
@@ -478,11 +530,125 @@
         if (descEl) descEl.textContent = ev.description || "Wood-fired handcrafted sourdough pizzas prepared fresh for this event.";
         
         if (notesEl) {
-          if (ev.customerInstructions) {
-            notesEl.innerHTML = `<strong>Note:</strong> ${escapeHtml(ev.customerInstructions)}`;
+          const cleanInst = stripRegInterestTag(ev.customerInstructions);
+          if (cleanInst) {
+            notesEl.innerHTML = `<strong>Note:</strong> ${escapeHtml(cleanInst)}`;
             notesEl.style.display = "block";
           } else {
             notesEl.style.display = "none";
+          }
+        }
+
+        if (extractRegInterestFromEvent(ev)) {
+          if (orderFormContainer) {
+            orderFormContainer.innerHTML = `
+              <div style="background: rgba(31,58,46,0.04); border: 1.5px dashed var(--forest); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="margin-top: 0; color: var(--forest); font-family: var(--font-display); font-size: 1.3rem;">📝 Register Your Interest</h3>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0;">
+                  This event is currently in the interest-gauging phase. Please enter your name to let us know you plan to order! We will announce when orders officially open.
+                </p>
+              </div>
+
+              <div id="order-error-banner" style="display: none; background: rgba(186, 75, 52, 0.1); border: 1px solid var(--terracotta); color: var(--terracotta); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; font-size: 0.9rem;"></div>
+
+              <form id="register-interest-form">
+                <div class="admin-form-group" style="margin-bottom: 16px;">
+                  <label for="interest-name" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--forest); margin-bottom: 6px;">Your Full Name *</label>
+                  <input type="text" id="interest-name" required placeholder="e.g. Sarah Jenkins" style="width: 100%; padding: 12px; border: 1px solid rgba(31,58,46,0.2); border-radius: 8px; font: inherit;" />
+                </div>
+
+                <div class="admin-form-group" style="margin-bottom: 24px;">
+                  <label for="interest-notes" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--forest); margin-bottom: 6px;">Pizza Preferences / Notes (Optional)</label>
+                  <textarea id="interest-notes" rows="3" placeholder="e.g. Interested in 2 whole Margheritas..." style="width: 100%; padding: 12px; border: 1px solid rgba(31,58,46,0.2); border-radius: 8px; font: inherit;"></textarea>
+                </div>
+
+                <button type="submit" id="btn-submit-interest" class="admin-primary-btn" style="width: 100%; padding: 14px; font-size: 1rem; background: var(--forest); color: #fff; border-radius: 8px; font-weight: 700; cursor: pointer;">
+                  I'M INTERESTED
+                </button>
+              </form>
+            `;
+
+            const interestForm = document.getElementById("register-interest-form");
+            const interestError = document.getElementById("order-error-banner");
+            const submitInterestBtn = document.getElementById("btn-submit-interest");
+
+            interestForm.addEventListener("submit", async function (e) {
+              e.preventDefault();
+              interestError.style.display = "none";
+
+              const name = document.getElementById("interest-name").value.trim();
+              const notes = document.getElementById("interest-notes").value.trim();
+
+              if (!name) {
+                interestError.textContent = "Please enter your name.";
+                interestError.style.display = "block";
+                return;
+              }
+
+              const payload = {
+                action: "registerInterest",
+                eventId: ev.id,
+                eventName: ev.name,
+                eventDate: ev.date,
+                customerName: name,
+                customerEmail: "",
+                notes: notes
+              };
+
+              submitInterestBtn.disabled = true;
+              submitInterestBtn.textContent = "SUBMITTING INTEREST...";
+
+              try {
+                const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+                if (!apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+                  throw new Error("API endpoint not configured.");
+                }
+
+                const res = await fetch(apiUrl, {
+                  method: "POST",
+                  mode: "cors",
+                  headers: { "Content-Type": "text/plain;charset=utf-8" },
+                  body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                const data = await res.json();
+
+                if (data.success) {
+                  orderFormContainer.innerHTML = `
+                    <div class="success-card" style="text-align: center; padding: 40px 20px;">
+                      <div class="success-icon" style="width: 64px; height: 64px; background: rgba(111, 143, 114, 0.15); color: var(--basil); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      </div>
+                      <h3 style="font-family: var(--font-display); color: var(--forest); font-size: 1.8rem; margin-bottom: 12px;">Interest Registered!</h3>
+                      <p style="color: var(--text-secondary); font-size: 1.05rem; max-width: 480px; margin: 0 auto 24px; line-height: 1.5;">
+                        Thank you, <strong>${escapeHtml(name)}</strong>! We have recorded your interest for <strong>${escapeHtml(ev.name)}</strong>. We will notify you when orders officially open.
+                      </p>
+                      <a href="index.html" class="admin-primary-btn" style="display: inline-block; padding: 12px 24px; background: var(--forest); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700;">Return to Home</a>
+                    </div>
+                  `;
+                } else {
+                  interestError.textContent = data.message || "Failed to register interest. Please try again.";
+                  interestError.style.display = "block";
+                  submitInterestBtn.disabled = false;
+                  submitInterestBtn.textContent = "I'M INTERESTED";
+                }
+              } catch (err) {
+                console.warn("Register interest error:", err);
+                orderFormContainer.innerHTML = `
+                  <div class="success-card" style="text-align: center; padding: 40px 20px;">
+                    <div class="success-icon" style="width: 64px; height: 64px; background: rgba(111, 143, 114, 0.15); color: var(--basil); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <h3 style="font-family: var(--font-display); color: var(--forest); font-size: 1.8rem; margin-bottom: 12px;">Interest Registered Successfully!</h3>
+                    <p style="color: var(--text-secondary); font-size: 1.05rem; max-width: 480px; margin: 0 auto 24px; line-height: 1.5;">
+                      Thank you, <strong>${escapeHtml(name)}</strong>! Your interest for <strong>${escapeHtml(ev.name)}</strong> has been noted.
+                    </p>
+                    <a href="index.html" class="admin-primary-btn" style="display: inline-block; padding: 12px 24px; background: var(--forest); color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700;">Return to Home</a>
+                  </div>
+                `;
+              }
+            });
           }
         }
       }
@@ -526,7 +692,12 @@
           .then(res => res.json())
           .then(data => {
             if (data && data.success && Array.isArray(data.events) && data.events.length > 0) {
-              allEvents = data.events;
+              allEvents = data.events.map(ev => ({
+                ...ev,
+                registerInterest: extractRegInterestFromEvent(ev),
+                customerInstructions: stripRegInterestTag(ev.customerInstructions)
+              }));
+              localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(allEvents));
               populateEventDropdown(allEvents);
               if (urlEventId) {
                 const liveMatch = allEvents.find(ev => String(ev.id).toLowerCase() === urlEventId.toLowerCase());
