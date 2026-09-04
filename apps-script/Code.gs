@@ -1,23 +1,21 @@
 // ============================================================================
 // ARTISAN OVEN — Operational Backend, Public API & Admin System
-// Version: 2.3.0 (Build 2026.08.31)
+// Version: 2.4.0 (Build 2026.09.04)
 //
-// SUMMARY OF UPDATES IN v2.3.0:
-// 1. Separation of School Lunch Orders & Special Event Orders:
-//    - adminGetOrders specifically reads school lunch orders from 'Form Responses 1'.
-//    - adminGetEventOrders specifically reads special event orders from 'Event Customers'
-//      with optional eventId filtering, returning complete customer & pizza item details.
-// 2. Case-Insensitive Normalized Action Routing:
-//    - Action matching is normalized across all endpoints (adminGetOrders, adminGetSettings,
-//      adminGetEvents, adminGetEventOrders, adminUpdatePaidStatus, adminDeleteOrder,
-//      adminResendConfirmation, adminSaveEvent, adminDeleteEvent, adminStartNewSession,
-//      adminChangePassword, createEventOrder, getEvent, getEvents, etc.).
-// 3. Unified Paid Status & Order Deletion Handling:
-//    - adminUpdatePaidStatus & adminDeleteOrder seamlessly detect both school lunch orders
-//      (numeric row IDs) and event orders (E-prefixed IDs or source='event').
-// 4. Enhanced Event Orders Confirmation Resend:
-//    - adminResendConfirmation routes event orders to sendEventConfirmation.
+// SUMMARY OF UPDATES IN v2.4.0:
+// 1. "Register Interest First" (Gauge Demand Mode) Full Lifecycle Support:
+//    - Real-time toggle & resilient persistence via column 13 ('Register Interest')
+//      and metadata tagging for backwards compatibility with existing sheets.
+//    - Public getEvents and getEvent accurately report registerInterest flag and
+//      clean customer instructions.
+//    - adminGetEvents & adminSaveEvent support toggling and preserving state.
+// 2. Programmatic Version Identification:
+//    - Added 'getVersion' public action and version reporting in adminGetSettings.
 // ============================================================================
+
+// ====== SCRIPT VERSION INFO ======
+var SCRIPT_VERSION = '2.4.0';
+var SCRIPT_BUILD = '2026.09.04';
 
 // ====== CORE DEFAULTS & CONFIGURATION ======
 var YOUR_EMAIL = 'louis@benne.co.uk';
@@ -326,6 +324,16 @@ function doGet(e) {
     var action = safeTrim(params.action || 'getOrder');
     var actionLower = action.toLowerCase();
     var query = safeTrim(params.query || params.email || params.orderId || '');
+
+    // 1a. PUBLIC: SCRIPT VERSION CHECK
+    if (actionLower === 'getversion' || action === 'getVersion' || actionLower === 'version') {
+      return createJsonResponse({
+        success: true,
+        version: SCRIPT_VERSION,
+        build: SCRIPT_BUILD,
+        name: 'Artisan Oven Backend'
+      });
+    }
 
     // 1b. PUBLIC: GET EVENTS LIST
     if (actionLower === 'getevents' || action === 'getEvents') {
@@ -745,6 +753,8 @@ function doGet(e) {
 
       return createJsonResponse({
         success: true,
+        version: SCRIPT_VERSION,
+        build: SCRIPT_BUILD,
         settings: currentSettings,
         stats: stats,
         logs: getAdminLogs()
