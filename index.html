@@ -54,10 +54,6 @@
                 <input type="text" id="main-interest-name" required placeholder="e.g. Sarah Jenkins" />
               </div>
               <div class="main-interest-field">
-                <label for="main-interest-email">Email Address *</label>
-                <input type="email" id="main-interest-email" required placeholder="e.g. sarah@example.com" />
-              </div>
-              <div class="main-interest-field">
                 <label for="main-interest-notes">Pizza Preferences / Notes (Optional)</label>
                 <textarea id="main-interest-notes" rows="3" placeholder="e.g. Interested in two whole Margheritas..."></textarea>
               </div>
@@ -206,7 +202,7 @@
           eventName: "Main Page",
           eventDate: "",
           customerName: document.getElementById("main-interest-name").value.trim(),
-          customerEmail: document.getElementById("main-interest-email").value.trim(),
+          customerEmail: "",
           notes: document.getElementById("main-interest-notes").value.trim()
         };
 
