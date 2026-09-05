@@ -1278,7 +1278,7 @@ window.renderInterestedPeople = function(people) {
     container.innerHTML = `
       <div style="background: var(--white); border: 1.5px dashed rgba(31,58,46,0.15); border-radius: var(--radius-md); padding: 44px 20px; text-align: center;">
         <p style="color: var(--text-soft); margin: 0; font-size: 1rem;">No interest registrations yet.</p>
-        <p style="color: var(--text-soft); font-size: 0.85rem; margin-top: 6px;">When customers register their interest for events with "Register Interest First" enabled, they will appear here.</p>
+        <p style="color: var(--text-soft); font-size: 0.85rem; margin-top: 6px;">Event and main-page interest registrations will appear here.</p>
       </div>
     `;
     return;

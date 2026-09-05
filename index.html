@@ -114,6 +114,50 @@
         </div>
       </div>
     </section>
+
+    <section class="main-interest-section" aria-labelledby="main-interest-heading">
+      <div class="container">
+        <div class="main-interest-card">
+          <div class="main-interest-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M24 40s-14-8.2-14-20.2C10 13.8 14.3 9 19.8 9c3.2 0 5.4 1.7 7.2 4.2C28.8 10.7 31 9 34.2 9 39.7 9 44 13.8 44 19.8 44 31.8 24 40 24 40Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="M24 18v10M19 23h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="main-interest-copy">
+            <h2 id="main-interest-heading">Interested in Future Pizza Events?</h2>
+            <p>School lunch orders can fill up quickly, but you can still register your interest in upcoming special events.</p>
+          </div>
+          <button type="button" class="main-interest-button" id="main-interest-button">REGISTER YOUR INTEREST</button>
+        </div>
+
+        <div class="main-interest-form-card" id="main-interest-form-card" hidden>
+          <h3>Register Your Interest</h3>
+          <p>Tell us how to contact you and what you might like to order. We will use this to plan future events.</p>
+          <form id="main-interest-form">
+            <div class="main-interest-field">
+              <label for="main-interest-name">Your Full Name *</label>
+              <input type="text" id="main-interest-name" required placeholder="e.g. Sarah Jenkins" />
+            </div>
+            <div class="main-interest-field">
+              <label for="main-interest-email">Email Address *</label>
+              <input type="email" id="main-interest-email" required placeholder="e.g. sarah@example.com" />
+            </div>
+            <div class="main-interest-field">
+              <label for="main-interest-notes">Pizza Preferences / Notes (Optional)</label>
+              <textarea id="main-interest-notes" rows="3" placeholder="e.g. Interested in two whole Margheritas..."></textarea>
+            </div>
+            <p class="main-interest-error" id="main-interest-error" role="alert" hidden></p>
+            <button type="submit" class="main-interest-submit" id="main-interest-submit">I'M INTERESTED</button>
+          </form>
+        </div>
+
+        <div class="main-interest-success" id="main-interest-success" hidden>
+          <h3>Interest Registered!</h3>
+          <p>Thank you. We have recorded your interest and will be in touch when future event orders open.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -139,6 +183,67 @@
   </footer>
 
   <script src="script.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const openButton = document.getElementById("main-interest-button");
+      const formCard = document.getElementById("main-interest-form-card");
+      const form = document.getElementById("main-interest-form");
+      const error = document.getElementById("main-interest-error");
+      const success = document.getElementById("main-interest-success");
+      const submitButton = document.getElementById("main-interest-submit");
+
+      if (!openButton || !formCard || !form || !error || !success || !submitButton) return;
+
+      openButton.addEventListener("click", function () {
+        formCard.hidden = false;
+        openButton.hidden = true;
+        document.getElementById("main-interest-name").focus();
+      });
+
+      form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        error.hidden = true;
+        submitButton.disabled = true;
+        submitButton.textContent = "SUBMITTING...";
+
+        const apiUrl = (typeof ORDER_API_URL !== "undefined") ? ORDER_API_URL : (window.ORDER_API_URL || "");
+        const payload = {
+          action: "registerInterest",
+          eventId: "main-page-interest",
+          eventName: "Main Page",
+          eventDate: "",
+          customerName: document.getElementById("main-interest-name").value.trim(),
+          customerEmail: document.getElementById("main-interest-email").value.trim(),
+          notes: document.getElementById("main-interest-notes").value.trim()
+        };
+
+        try {
+          if (!apiUrl || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+            throw new Error("API endpoint not configured.");
+          }
+
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw new Error("HTTP " + response.status);
+
+          const data = await response.json();
+          if (!data.success) throw new Error(data.message || "Unable to register interest.");
+
+          formCard.hidden = true;
+          success.hidden = false;
+        } catch (requestError) {
+          error.textContent = requestError.message || "Unable to register interest. Please try again.";
+          error.hidden = false;
+          submitButton.disabled = false;
+          submitButton.textContent = "I'M INTERESTED";
+        }
+      });
+    });
+  </script>
   <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO" class="whatsapp-float" target="_blank" rel="noopener noreferrer">
     <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12.031 0C5.389 0 0 5.39 0 12.031c0 2.124.551 4.195 1.6 6.01L.226 23.511l5.602-1.468c1.745.955 3.715 1.458 5.736 1.458h.005c6.641 0 12.034-5.391 12.034-12.033S18.216 0 12.031 0zm0 21.466c-1.802 0-3.568-.485-5.114-1.402l-.367-.218-3.799.996.999-3.704-.239-.38C2.569 15.116 2.035 13.593 2.035 12.03 2.035 6.516 6.518 2.03 12.033 2.03c2.673 0 5.187 1.042 7.078 2.934 1.89 1.892 2.932 4.406 2.932 7.081 0 5.513-4.484 9.987-9.997 9.987l-.015.034zm5.485-7.513c-.301-.151-1.779-.878-2.054-.979-.275-.101-.476-.151-.676.151-.2.301-.776.979-.952 1.18-.176.201-.352.226-.653.076-.301-.151-1.271-.469-2.42-1.498-.894-.8-1.499-1.789-1.675-2.09-.176-.301-.019-.463.131-.614.135-.135.301-.351.452-.526.151-.176.201-.301.301-.502.101-.201.05-.376-.025-.526-.075-.151-.676-1.629-.926-2.231-.243-.588-.49-.508-.676-.517-.176-.008-.376-.008-.576-.008-.2 0-.526.075-.801.376-.275.301-1.052 1.028-1.052 2.507 0 1.479 1.077 2.91 1.228 3.111.151.201 2.119 3.235 5.132 4.536 2.378 1.023 2.91 1.048 3.436 1.002.585-.051 1.779-.727 2.029-1.429.25-.702.25-1.304.176-1.429-.076-.126-.276-.202-.577-.353z" /></svg>
     Join WhatsApp
