@@ -1999,17 +1999,6 @@ function sendOrderConfirmationForRow(rowNum) {
   SpreadsheetApp.flush();
 
   var data = raw.getDataRange().getValues();
-  var sessionStartRow = Math.max(1, (settings.sessionStartRow || 2) - 1);
-  var maxLimit = parseFloat(settings.maxPizzas || 20);
-  var sessionPizzasBefore = 0;
-  for (var r = sessionStartRow; r < rowNum - 1; r++) {
-    var pRow = data[r];
-    if (rowIsBlank(pRow)) continue;
-    var stats = calculateRowPizzaStats(pRow);
-    sessionPizzasBefore += stats.pizzaCapacity;
-  }
-  sessionPizzasBefore = normalizePizzaCapacity(sessionPizzasBefore);
-  var isWaitlist = (sessionPizzasBefore >= maxLimit);
   var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL);
   var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
 
@@ -2068,58 +2057,40 @@ function sendOrderConfirmationForRow(rowNum) {
     return p.childName + (p.class ? ' (' + p.class + ')' : '') + '\n' + formatSizeLabel(p.size) + ' — £' + p.price.toFixed(2);
   });
 
-  var body = '';
-  var htmlBody = '';
-  
-  if (isWaitlist) {
-    body = 
-      'Hi ' + payerName + ',\n\n' +
-      'Thank you for your pizza order request. Unfortunately, we have already reached our maximum capacity for this session (' + settings.serviceDate + ').\n\n' +
-      'Your order has been placed on the WAITLIST. We will contact you if a spot opens up.\n\n' +
-      'Please DO NOT send payment at this time.\n\n' +
-      'Kind regards,\n\nMarlow, Louis, and Quinton';
-    
-    htmlBody = '<p>Hi ' + payerName + ',</p>' +
-      '<p>Thank you for your pizza order request. Unfortunately, we have already reached our maximum capacity for this session (' + settings.serviceDate + ').</p>' +
-      '<p>Your order has been placed on the WAITLIST. We will contact you if a spot opens up.</p>' +
-      '<p>Please DO NOT send payment at this time.</p>' +
-      '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
-  } else {
-    var orderLink = 'https://artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
+  var orderLink = 'https://artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
 
-    body =
-      'Hi ' + payerName + ',\n\n' +
-      'Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:\n\n' +
-      'ORDER NUMBER: #' + formattedOrderId + '\n\n' +
-      'Click your order number or the link below to view your order:\n' + orderLink + '\n\n' +
-      'ORDER SUMMARY\n\n' +
-      lines.join('\n\n') + '\n\n' +
-      'TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '\n\n' +
-      PAYMENT_INFO_BLOCK + '\n\n' +
-      'COLLECTION\n\n' +
-      'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
-      'STAY UPDATED\n' +
-      'Join our WhatsApp group: https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO\n\n' +
-      'Thank you.\n\n' +
-      'Kind regards,\n\nMarlow, Louis, and Quinton';
+  var body =
+    'Hi ' + payerName + ',\n\n' +
+    'Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:\n\n' +
+    'ORDER NUMBER: #' + formattedOrderId + '\n\n' +
+    'Click your order number or the link below to view your order:\n' + orderLink + '\n\n' +
+    'ORDER SUMMARY\n\n' +
+    lines.join('\n\n') + '\n\n' +
+    'TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '\n\n' +
+    PAYMENT_INFO_BLOCK + '\n\n' +
+    'COLLECTION\n\n' +
+    'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
+    'STAY UPDATED\n' +
+    'Join our WhatsApp group: https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO\n\n' +
+    'Thank you.\n\n' +
+    'Kind regards,\n\nMarlow, Louis, and Quinton';
 
-    htmlBody =
-      '<p>Hi ' + payerName + ',</p>' +
-      '<p>Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:</p>' +
-      '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + formattedOrderId + '</a></strong></p>' +
-      '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
-      '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
-      '<p><strong>ORDER SUMMARY</strong></p>' +
-      '<p>' + lines.join('<br><br>') + '</p>' +
-      '<p><strong>TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '</strong></p>' +
-      '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
-      '<p><strong>COLLECTION</strong></p>' +
-      '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
-      '<p><strong>STAY UPDATED</strong></p>' +
-      '<p>Join our WhatsApp group for updates: <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO">Click here to join</a></p>' +
-      '<p>Thank you.</p>' +
-      '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
-  }
+  var htmlBody =
+    '<p>Hi ' + payerName + ',</p>' +
+    '<p>Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:</p>' +
+    '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + formattedOrderId + '</a></strong></p>' +
+    '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
+    '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
+    '<p><strong>ORDER SUMMARY</strong></p>' +
+    '<p>' + lines.join('<br><br>') + '</p>' +
+    '<p><strong>TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '</strong></p>' +
+    '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
+    '<p><strong>COLLECTION</strong></p>' +
+    '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
+    '<p><strong>STAY UPDATED</strong></p>' +
+    '<p>Join our WhatsApp group for updates: <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO">Click here to join</a></p>' +
+    '<p>Thank you.</p>' +
+    '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
 
   try {
     MailApp.sendEmail({
