@@ -1359,7 +1359,7 @@ function doGet(e) {
         var paymentMethod = mapPaymentMethod(row[7]);
         var contentsJson = safeTrim(String(row[8]) || '[]');
         var total = parseFloat(row[9]) || 0;
-        var paymentStatus = safeTrim(String(row[10])) || (paymentMethod ? 'Paid' : 'Pending Payment');
+        var paymentStatus = safeTrim(String(row[10])) || 'Pending Payment';
         var notes = safeTrim(String(row[13]));
 
         var items = [];
@@ -1575,6 +1575,7 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
   }
 
   var matchingOrders = [];
+  var headers = data.length > 0 ? data[0] : [];
   var normalizedSearchEmail = searchEmail ? searchEmail.toLowerCase() : '';
   var normalizedOrderId = searchOrderId ? searchOrderId.toUpperCase().replace(/\s+/g, '') : '';
   var sToken = searchToken ? safeTrim(searchToken) : '';
@@ -1643,7 +1644,7 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
           payerName: payerName,
           payerEmail: payerEmail,
           paymentMethod: paymentMethod,
-          paid: paymentMethod ? 'Yes' : 'No',
+          paid: resolvePaymentStatus(row, headers, row[PAYMENT_STATUS_COL]) === 'Paid' ? 'Yes' : 'No',
           total: orderTotal,
           pizzas: pizzas
         });
@@ -1715,6 +1716,7 @@ function rebuildCleanSheets() {
   });
 
   var data = raw.getDataRange().getValues();
+  var headers = data.length > 0 ? data[0] : [];
 
   var sizeCounts = {};
   var sessionPizzas = 0;
@@ -1767,7 +1769,7 @@ function rebuildCleanSheets() {
     if (isCurrentSession) {
       sessionOrders++;
       if (String(allergyYN).toLowerCase() === 'yes') allergyOrders++;
-      var paid = paymentMethod ? 'Yes' : 'No';
+      var paid = resolvePaymentStatus(row, headers, row[PAYMENT_STATUS_COL]) === 'Paid' ? 'Yes' : 'No';
       if (paid === 'Yes') paidOrders++; else unpaidOrders++;
     }
 
@@ -2170,6 +2172,28 @@ function mapPaymentMethod(raw) {
   return PAYMENT_MAP[key] || (key === '' ? '' : key);
 }
 
+function customerReportedPaid(row, headers) {
+  if (!row || !headers) return false;
+
+  for (var i = 0; i < headers.length; i++) {
+    var header = safeTrim(headers[i]).toLowerCase();
+    if (!header || !/paid|payment/.test(header)) continue;
+    if (/payment\s*method|preferred\s+payment|method\s+of\s+payment/.test(header)) continue;
+    if (!/have\s+you\s+paid|already\s+paid|paid\s+for|payment\s+(made|sent|completed)|paid\??/.test(header)) continue;
+
+    var answer = safeTrim(row[i]).toLowerCase();
+    return answer === 'yes' || answer === 'y' || answer === 'true' || answer === '1' || answer === 'paid';
+  }
+
+  return false;
+}
+
+function resolvePaymentStatus(row, headers, manualStatus) {
+  var explicitStatus = safeTrim(manualStatus);
+  if (explicitStatus) return explicitStatus;
+  return customerReportedPaid(row, headers) ? 'Paid' : 'Pending Payment';
+}
+
 function mapSize(raw) {
   if (!raw) return '';
   var text = String(raw).toLowerCase();
@@ -2238,6 +2262,7 @@ function getAllOrdersForAdmin() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
   var data = raw.getDataRange().getValues();
+  var headers = data.length > 0 ? data[0] : [];
   
   Logger.log('getAllOrdersForAdmin: Found ' + data.length + ' rows in sheet: ' + raw.getName());
   
@@ -2318,7 +2343,7 @@ function getAllOrdersForAdmin() {
         pizzaCount: normalizePizzaCapacity(orderCapacity),
         totalCapacity: normalizePizzaCapacity(orderCapacity),
         itemCount: pizzas.length,
-        paymentStatus: manualPaymentStatus || (paymentMethod ? 'Paid' : 'Pending Payment')
+        paymentStatus: resolvePaymentStatus(row, headers, manualPaymentStatus)
       });
     }
   }
@@ -2529,7 +2554,7 @@ function lookupEventOrder(searchEmail, searchOrderId, searchToken) {
         payerName: customerName,
         payerEmail: customerEmail,
         paymentMethod: paymentMethod,
-        paid: (paymentStatus === 'Paid' || paymentMethod) ? 'Yes' : 'No',
+        paid: paymentStatus === 'Paid' ? 'Yes' : 'No',
         total: total,
         pizzas: pizzas
       };
@@ -2641,4 +2666,3 @@ function sendEventConfirmation(orderId) {
     sheet.getRange(rowNum, 13).setValue('FAILED: ' + e.toString().substring(0, 50));
   }
 }
-
