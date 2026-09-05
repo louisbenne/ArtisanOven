@@ -36,6 +36,42 @@
 
         <p class="hero-sub">Welcome to Artisan Oven. Please choose an option below to get started.</p>
 
+        <section class="main-interest-section" aria-labelledby="main-interest-heading">
+          <div class="main-interest-card">
+            <div class="main-interest-copy">
+              <h2 id="main-interest-heading">Interested in Future Pizza Events?</h2>
+              <p>School lunch orders can fill up quickly, but you can still register your interest in upcoming special events.</p>
+            </div>
+            <button type="button" class="main-interest-button" id="main-interest-button">REGISTER YOUR INTEREST</button>
+          </div>
+
+          <div class="main-interest-form-card" id="main-interest-form-card" hidden>
+            <h3>Register Your Interest</h3>
+            <p>Tell us how to contact you and what you might like to order. We will use this to plan future events.</p>
+            <form id="main-interest-form">
+              <div class="main-interest-field">
+                <label for="main-interest-name">Your Full Name *</label>
+                <input type="text" id="main-interest-name" required placeholder="e.g. Sarah Jenkins" />
+              </div>
+              <div class="main-interest-field">
+                <label for="main-interest-email">Email Address *</label>
+                <input type="email" id="main-interest-email" required placeholder="e.g. sarah@example.com" />
+              </div>
+              <div class="main-interest-field">
+                <label for="main-interest-notes">Pizza Preferences / Notes (Optional)</label>
+                <textarea id="main-interest-notes" rows="3" placeholder="e.g. Interested in two whole Margheritas..."></textarea>
+              </div>
+              <p class="main-interest-error" id="main-interest-error" role="alert" hidden></p>
+              <button type="submit" class="main-interest-submit" id="main-interest-submit">I'M INTERESTED</button>
+            </form>
+          </div>
+
+          <div class="main-interest-success" id="main-interest-success" hidden>
+            <h3>Interest Registered!</h3>
+            <p>Thank you. We have recorded your interest and will be in touch when future event orders open.</p>
+          </div>
+        </section>
+
         <!-- Date of Service Notice -->
         <div class="service-notice" id="service-notice-banner" role="region" aria-label="Next Service Date">
           <div class="service-notice-header">
@@ -115,49 +151,6 @@
       </div>
     </section>
 
-    <section class="main-interest-section" aria-labelledby="main-interest-heading">
-      <div class="container">
-        <div class="main-interest-card">
-          <div class="main-interest-icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M24 40s-14-8.2-14-20.2C10 13.8 14.3 9 19.8 9c3.2 0 5.4 1.7 7.2 4.2C28.8 10.7 31 9 34.2 9 39.7 9 44 13.8 44 19.8 44 31.8 24 40 24 40Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-              <path d="M24 18v10M19 23h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="main-interest-copy">
-            <h2 id="main-interest-heading">Interested in Future Pizza Events?</h2>
-            <p>School lunch orders can fill up quickly, but you can still register your interest in upcoming special events.</p>
-          </div>
-          <button type="button" class="main-interest-button" id="main-interest-button">REGISTER YOUR INTEREST</button>
-        </div>
-
-        <div class="main-interest-form-card" id="main-interest-form-card" hidden>
-          <h3>Register Your Interest</h3>
-          <p>Tell us how to contact you and what you might like to order. We will use this to plan future events.</p>
-          <form id="main-interest-form">
-            <div class="main-interest-field">
-              <label for="main-interest-name">Your Full Name *</label>
-              <input type="text" id="main-interest-name" required placeholder="e.g. Sarah Jenkins" />
-            </div>
-            <div class="main-interest-field">
-              <label for="main-interest-email">Email Address *</label>
-              <input type="email" id="main-interest-email" required placeholder="e.g. sarah@example.com" />
-            </div>
-            <div class="main-interest-field">
-              <label for="main-interest-notes">Pizza Preferences / Notes (Optional)</label>
-              <textarea id="main-interest-notes" rows="3" placeholder="e.g. Interested in two whole Margheritas..."></textarea>
-            </div>
-            <p class="main-interest-error" id="main-interest-error" role="alert" hidden></p>
-            <button type="submit" class="main-interest-submit" id="main-interest-submit">I'M INTERESTED</button>
-          </form>
-        </div>
-
-        <div class="main-interest-success" id="main-interest-success" hidden>
-          <h3>Interest Registered!</h3>
-          <p>Thank you. We have recorded your interest and will be in touch when future event orders open.</p>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="site-footer">
