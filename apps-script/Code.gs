@@ -1706,7 +1706,8 @@ function getDiscount(rawCode, subtotal) {
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
     if (!row || row.length === 0) continue;
-    if (safeTrim(String(row[col['Code'] || -1] || '')).toUpperCase() !== code) continue;
+    var codeColumn = col['Code'];
+    if (codeColumn === undefined || safeTrim(String(row[codeColumn] || '')).toUpperCase() !== code) continue;
 
     var active = row[col['Active']] === true || row[col['Active']] === 'TRUE' || row[col['Active']] === '1' || row[col['Active']] === 1;
     var maxUses = parseFloat(row[col['MaxUses']]);
