@@ -1535,6 +1535,17 @@ function ensureDiscountCodeSheet() {
     }
   }
 
+  var codeColumn = headers.indexOf('Code');
+  if (codeColumn !== -1) {
+    var codeValues = sheet.getRange(2, codeColumn + 1, Math.max(1, sheet.getLastRow() - 1), 1).getValues();
+    var hasDefaultCode = codeValues.some(function(row) {
+      return safeTrim(row[0]).toUpperCase() === 'STMSCS';
+    });
+    if (!hasDefaultCode) {
+      sheet.appendRow(['STMSCS', 'percent', 15, '', 0, true, '']);
+    }
+  }
+
   return sheet;
 }
 
@@ -1700,19 +1711,31 @@ function getDiscount(rawCode, subtotal) {
   var headers = rows[0];
   var col = {};
   for (var i = 0; i < headers.length; i++) {
-    col[String(headers[i]).trim()] = i;
+    col[normalizeHeaderName(headers[i])] = i;
+  }
+
+  var codeCol = findHeaderIndex(headers, ['Code', 'Discount Code']);
+  var typeCol = findHeaderIndex(headers, ['Type', 'Discount Type']);
+  var valueCol = findHeaderIndex(headers, ['Value', 'Discount Value', 'Amount']);
+  var maxUsesCol = findHeaderIndex(headers, ['MaxUses', 'Max Uses', 'Maximum Uses']);
+  var timesUsedCol = findHeaderIndex(headers, ['TimesUsed', 'Times Used', 'Uses']);
+  var activeCol = findHeaderIndex(headers, ['Active', 'Enabled', 'Is Active']);
+  var expiresCol = findHeaderIndex(headers, ['ExpiresOn', 'Expires On', 'Expiry', 'Expiry Date']);
+
+  if (codeCol === -1 || typeCol === -1 || valueCol === -1 || activeCol === -1) {
+    return { valid: false, reason: 'Discount sheet headers are incomplete.' };
   }
 
   for (var i = 1; i < rows.length; i++) {
     var row = rows[i];
     if (!row || row.length === 0) continue;
-    var codeColumn = col['Code'];
-    if (codeColumn === undefined || safeTrim(String(row[codeColumn] || '')).toUpperCase() !== code) continue;
+    if (safeTrim(String(row[codeCol] || '')).toUpperCase() !== code) continue;
 
-    var active = row[col['Active']] === true || row[col['Active']] === 'TRUE' || row[col['Active']] === '1' || row[col['Active']] === 1;
-    var maxUses = parseFloat(row[col['MaxUses']]);
-    var timesUsed = parseFloat(row[col['TimesUsed']] || 0);
-    var expiresOn = row[col['ExpiresOn']];
+    var activeValue = safeTrim(row[activeCol]).toLowerCase();
+    var active = row[activeCol] === true || activeValue === 'true' || activeValue === 'yes' || activeValue === '1' || activeValue === 'active' || row[activeCol] === 1;
+    var maxUses = maxUsesCol === -1 ? NaN : parseFloat(row[maxUsesCol]);
+    var timesUsed = timesUsedCol === -1 ? 0 : parseFloat(row[timesUsedCol] || 0);
+    var expiresOn = expiresCol === -1 ? '' : row[expiresCol];
 
     if (!active) {
       return { valid: false, reason: 'This code is no longer active.' };
@@ -1724,13 +1747,13 @@ function getDiscount(rawCode, subtotal) {
       return { valid: false, reason: 'This code has expired.' };
     }
 
-    var type = safeTrim(String(row[col['Type']] || '')).toLowerCase();
-    var value = parseFloat(row[col['Value']]);
+    var type = safeTrim(String(row[typeCol] || '')).toLowerCase();
+    var value = parseFloat(row[valueCol]);
     if (isNaN(value)) {
       return { valid: false, reason: 'This code is configured incorrectly.' };
     }
 
-    var discountAmount = type === 'percent'
+    var discountAmount = (type === 'percent' || type === 'percentage' || type === '%')
       ? Math.round((Number(subtotal) || 0) * (value / 100) * 100) / 100
       : Math.min(value, Number(subtotal) || 0);
 
