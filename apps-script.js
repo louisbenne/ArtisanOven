@@ -1560,17 +1560,39 @@ function ensureDiscountColumns(sheet) {
   }
 }
 
+function normalizeHeaderName(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
+}
+
 function findHeaderIndex(headers, possibleNames) {
   if (!headers || !headers.length) return -1;
-  var lowered = [];
+
+  var normalizedHeaders = [];
   for (var i = 0; i < headers.length; i++) {
-    lowered.push(String(headers[i] || '').trim().toLowerCase());
+    normalizedHeaders.push(normalizeHeaderName(headers[i]));
   }
+
   for (var j = 0; j < possibleNames.length; j++) {
-    var name = String(possibleNames[j] || '').trim().toLowerCase();
-    var idx = lowered.indexOf(name);
+    var name = normalizeHeaderName(possibleNames[j]);
+    var idx = normalizedHeaders.indexOf(name);
     if (idx !== -1) return idx;
   }
+
+  for (var k = 0; k < normalizedHeaders.length; k++) {
+    var current = normalizedHeaders[k];
+    for (var l = 0; l < possibleNames.length; l++) {
+      var candidate = normalizeHeaderName(possibleNames[l]);
+      if (!candidate) continue;
+      if (current === candidate || current.indexOf(candidate) !== -1 || candidate.indexOf(current) !== -1) {
+        return k;
+      }
+    }
+
+    if (current.indexOf('discount code') !== -1 || current.indexOf('staff sibling discount') !== -1) {
+      return k;
+    }
+  }
+
   return -1;
 }
 
