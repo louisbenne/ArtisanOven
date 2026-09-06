@@ -1,0 +1,22 @@
+{
+  "name": "AO Admin",
+  "short_name": "AO Admin",
+  "description": "Artisan Oven administration dashboard",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ed",
+  "theme_color": "#1f3a2e",
+  "icons": [
+    {
+      "src": "admin-assets/admin-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "admin-assets/admin-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
