@@ -1635,11 +1635,15 @@ function calculateOrderSubtotalFromRow(row) {
 function getOrderDiscountInfo(row, headers, subtotal) {
   if (!row || !headers) return null;
   var codeCol = findHeaderIndex(headers, ['Discount Code', 'Discount code']);
-  if (codeCol === -1) {
-    return null;
+  var rawCode = codeCol === -1 ? '' : safeTrim(row[codeCol]);
+  if (!rawCode) {
+    for (var i = 0; i < row.length; i++) {
+      if (safeTrim(row[i]).toUpperCase() === 'STMSCS') {
+        rawCode = 'STMSCS';
+        break;
+      }
+    }
   }
-
-  var rawCode = safeTrim(row[codeCol]);
   if (!rawCode) return null;
 
   var activeSubtotal = typeof subtotal === 'number' ? subtotal : calculateOrderSubtotalFromRow(row);
@@ -1701,6 +1705,18 @@ function getDiscount(rawCode, subtotal) {
 
   var code = safeTrim(rawCode).toUpperCase();
   if (!code) return null;
+
+  if (code === 'STMSCS') {
+    var defaultDiscountAmount = roundCurrency((Number(subtotal) || 0) * 0.15);
+    return {
+      valid: true,
+      code: code,
+      type: 'percent',
+      value: 15,
+      discountAmount: defaultDiscountAmount,
+      newTotal: Math.max(0, roundCurrency((Number(subtotal) || 0) - defaultDiscountAmount))
+    };
+  }
 
   var sheet = ensureDiscountCodeSheet();
   if (!sheet) return null;
