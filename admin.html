@@ -6,7 +6,10 @@
   <title>Admin Dashboard — Artisan Oven</title>
   <meta name="description" content="Artisan Oven Operations and Administration Dashboard" />
   <link rel="apple-touch-icon" sizes="180x180" href="admin-assets/admin-apple-touch-icon.png" />
-  <meta name="apple-mobile-web-app-title" content="Artisan Oven Admin" />
+  <link rel="manifest" href="admin-manifest.json" />
+  <meta name="theme-color" content="#1f3a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="AO Admin" />
   <link rel="stylesheet" href="style.css" />
   <style>
     /* Order Card Detail Styling */
@@ -952,6 +955,16 @@
   <!-- Admin Dashboard JavaScript Logic -->
   <script src="script.js"></script>
   <script src="admin_events.js?v=2.3.1"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function() {
+        navigator.serviceWorker.register("./admin-sw.js", { scope: "./" })
+          .catch(function(error) {
+            console.error("AO Admin PWA registration failed:", error);
+          });
+      });
+    }
+  </script>
   <script>
     if (typeof window.switchEventOrdersSubView !== 'function') {
       window.switchEventOrdersSubView = function(subview) {
