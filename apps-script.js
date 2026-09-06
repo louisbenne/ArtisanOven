@@ -1535,6 +1535,17 @@ function ensureDiscountCodeSheet() {
     }
   }
 
+  var codeColumn = headers.indexOf('Code');
+  if (codeColumn !== -1) {
+    var codeValues = sheet.getRange(2, codeColumn + 1, Math.max(1, sheet.getLastRow() - 1), 1).getValues();
+    var hasDefaultCode = codeValues.some(function(row) {
+      return safeTrim(row[0]).toUpperCase() === 'STMSCS';
+    });
+    if (!hasDefaultCode) {
+      sheet.appendRow(['STMSCS', 'percent', 15, '', 0, true, '']);
+    }
+  }
+
   return sheet;
 }
 
