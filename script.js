@@ -442,9 +442,23 @@ function initOrderLookup() {
         `;
         itemsListEl.appendChild(li);
       });
+
+      if (orderData.discountCode) {
+        const discountLi = document.createElement("li");
+        discountLi.className = "order-item-row";
+        const discountAmount = Number(orderData.discountAmount || 0);
+        discountLi.innerHTML = `
+          <div class="item-main">
+            <span class="item-name">Discount code: ${escapeHtml(orderData.discountCode)}</span>
+          </div>
+          <span class="item-price">−£${discountAmount.toFixed(2)}</span>
+        `;
+        itemsListEl.appendChild(discountLi);
+      }
     }
 
-    const formattedTotal = orderData.totalFormatted || "£" + (orderData.total || 0).toFixed(2);
+    const totalForDisplay = orderData.totalAfterDiscount !== undefined ? Number(orderData.totalAfterDiscount) : Number(orderData.total || 0);
+    const formattedTotal = orderData.totalFormatted || "£" + totalForDisplay.toFixed(2);
     if (totalPriceEl) totalPriceEl.textContent = formattedTotal;
     if (paypalAmountSpan) paypalAmountSpan.textContent = formattedTotal;
 
