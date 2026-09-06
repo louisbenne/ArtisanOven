@@ -617,6 +617,7 @@ function doGet(e) {
       var searchToken = safeTrim(params.token || '');
       var result = lookupOrder(query, query, searchToken);
       if (result) {
+        var totalAfterDiscount = result.totalAfterDiscount !== undefined ? result.totalAfterDiscount : result.total;
         return createJsonResponse({
           success: true,
           orderId: result.formattedOrderId,
@@ -624,10 +625,14 @@ function doGet(e) {
           email: result.payerEmail,
           paymentMethod: result.paymentMethod,
           paid: result.paid,
-          total: result.total,
-          totalFormatted: '£' + result.total.toFixed(2),
+          total: totalAfterDiscount,
+          totalAfterDiscount: totalAfterDiscount,
+          totalFormatted: '£' + totalAfterDiscount.toFixed(2),
+          discountCode: result.discountCode || '',
+          discountAmount: result.discountAmount || 0,
+          discountReason: result.discountReason || '',
           order: result.pizzas,
-          paypalMeUrl: PAYPAL_ME_BASE + '/' + result.total.toFixed(2),
+          paypalMeUrl: PAYPAL_ME_BASE + '/' + totalAfterDiscount.toFixed(2),
           paypalNcpUrl: PAYPAL_NCP_LINK
         });
       } else {
@@ -988,6 +993,18 @@ function doGet(e) {
       ensureColumnsExist(raw, PAYMENT_STATUS_COL + 1);
       raw.getRange(rowNum, PAYMENT_STATUS_COL + 1).setValue(status);
       SpreadsheetApp.flush();
+
+      if (status && status.toLowerCase() === 'paid') {
+        var paymentRow = raw.getRange(rowNum, 1, 1, raw.getLastColumn()).getValues()[0];
+        var paymentHeaders = raw.getRange(1, 1, 1, raw.getLastColumn()).getValues()[0];
+        var paymentDiscount = getOrderDiscountInfo(paymentRow, paymentHeaders, calculateOrderSubtotalFromRow(paymentRow));
+        if (paymentDiscount && paymentDiscount.code) {
+          var paymentCodeRow = getDiscount(paymentDiscount.code, calculateOrderSubtotalFromRow(paymentRow));
+          if (paymentCodeRow && paymentCodeRow.valid && paymentCodeRow.rowIndex) {
+            incrementDiscountUsage(paymentCodeRow.rowIndex);
+          }
+        }
+      }
 
       logAdminAction('Payment Updated', 'Order #' + orderId + ' set to ' + status);
       
@@ -1484,6 +1501,265 @@ function doPost(e) {
   }
 }
 
+function ensureDiscountCodeSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return null;
+
+  var sheet = ss.getSheetByName('Discount Codes');
+  if (!sheet) {
+    sheet = ss.insertSheet('Discount Codes');
+  }
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Code', 'Type', 'Value', 'MaxUses', 'TimesUsed', 'Active', 'ExpiresOn']);
+    sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#E8E8E8');
+  }
+
+  var headers = sheet.getRange(1, 1, 1, Math.max(7, sheet.getLastColumn())).getValues()[0];
+  var required = ['Code', 'Type', 'Value', 'MaxUses', 'TimesUsed', 'Active', 'ExpiresOn'];
+  var missing = [];
+  for (var i = 0; i < required.length; i++) {
+    if (headers.indexOf(required[i]) === -1) {
+      missing.push(required[i]);
+    }
+  }
+
+  if (missing.length > 0) {
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(required);
+    } else {
+      var nextCol = sheet.getLastColumn() + 1;
+      for (var j = 0; j < missing.length; j++) {
+        sheet.getRange(1, nextCol + j).setValue(missing[j]);
+      }
+    }
+  }
+
+  return sheet;
+}
+
+function ensureDiscountColumns(sheet) {
+  if (!sheet) return;
+
+  var lastCol = Math.max(1, sheet.getLastColumn());
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var required = ['Discount Code', 'Discount Amount (£)', 'Total After Discount (£)', 'Discount Reason'];
+  var missing = [];
+
+  for (var i = 0; i < required.length; i++) {
+    if (headers.indexOf(required[i]) === -1) {
+      missing.push(required[i]);
+    }
+  }
+
+  if (missing.length > 0) {
+    var insertAt = lastCol + 1;
+    for (var j = 0; j < missing.length; j++) {
+      sheet.getRange(1, insertAt + j).setValue(missing[j]);
+    }
+  }
+}
+
+function normalizeHeaderName(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+function findHeaderIndex(headers, possibleNames) {
+  if (!headers || !headers.length) return -1;
+
+  var normalizedHeaders = [];
+  for (var i = 0; i < headers.length; i++) {
+    normalizedHeaders.push(normalizeHeaderName(headers[i]));
+  }
+
+  for (var j = 0; j < possibleNames.length; j++) {
+    var name = normalizeHeaderName(possibleNames[j]);
+    var idx = normalizedHeaders.indexOf(name);
+    if (idx !== -1) return idx;
+  }
+
+  for (var k = 0; k < normalizedHeaders.length; k++) {
+    var current = normalizedHeaders[k];
+    for (var l = 0; l < possibleNames.length; l++) {
+      var candidate = normalizeHeaderName(possibleNames[l]);
+      if (!candidate) continue;
+      if (current === candidate || current.indexOf(candidate) !== -1 || candidate.indexOf(current) !== -1) {
+        return k;
+      }
+    }
+
+    if (current.indexOf('discount code') !== -1 || current.indexOf('staff sibling discount') !== -1) {
+      return k;
+    }
+  }
+
+  return -1;
+}
+
+function roundCurrency(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function calculateOrderSubtotalFromRow(row) {
+  if (!row || !row.length) return 0;
+
+  var qtyRaw = safeTrim(row[3]);
+  var qtyDigit = extractDigit(qtyRaw) || '0';
+  var blocks = BRANCHES[qtyDigit] || [];
+  var subtotal = 0;
+
+  for (var b = 0; b < blocks.length; b++) {
+    var cols = blocks[b];
+    if (!cols) continue;
+    var sizeRaw = safeTrim(row[cols[0]]);
+    var childName = safeTrim(row[cols[1]]);
+    if (!sizeRaw && !childName) continue;
+    var size = mapSize(sizeRaw);
+    subtotal += PRICE_MAP[size] || 0;
+  }
+
+  return roundCurrency(subtotal);
+}
+
+function getOrderDiscountInfo(row, headers, subtotal) {
+  if (!row || !headers) return null;
+  var codeCol = findHeaderIndex(headers, ['Discount Code', 'Discount code']);
+  if (codeCol === -1) {
+    return null;
+  }
+
+  var rawCode = safeTrim(row[codeCol]);
+  if (!rawCode) return null;
+
+  var activeSubtotal = typeof subtotal === 'number' ? subtotal : calculateOrderSubtotalFromRow(row);
+  var discount = getDiscount(rawCode, activeSubtotal);
+  if (!discount || !discount.valid) {
+    return null;
+  }
+
+  return {
+    code: discount.code,
+    discountAmount: roundCurrency(discount.discountAmount),
+    totalAfterDiscount: roundCurrency(discount.newTotal),
+    discountReason: ''
+  };
+}
+
+function applyDiscountToResponseRow(rawSheet, rowNum) {
+  if (!rawSheet || !rowNum) return null;
+  ensureDiscountCodeSheet();
+  ensureDiscountColumns(rawSheet);
+
+  var headers = rawSheet.getRange(1, 1, 1, rawSheet.getLastColumn()).getValues()[0];
+  var row = rawSheet.getRange(rowNum, 1, 1, rawSheet.getLastColumn()).getValues()[0];
+  var codeCol = findHeaderIndex(headers, ['Discount Code', 'Discount code']);
+  var amountCol = findHeaderIndex(headers, ['Discount Amount (£)', 'Discount Amount']);
+  var totalCol = findHeaderIndex(headers, ['Total After Discount (£)', 'Total After Discount']);
+  var reasonCol = findHeaderIndex(headers, ['Discount Reason']);
+
+  if (codeCol === -1) {
+    return null;
+  }
+
+  var rawCode = safeTrim(row[codeCol]);
+  var subtotal = calculateOrderSubtotalFromRow(row);
+  var discount = rawCode ? getDiscount(rawCode, subtotal) : null;
+
+  if (amountCol !== -1) {
+    rawSheet.getRange(rowNum, amountCol + 1).setValue(discount && discount.valid ? discount.discountAmount : 0);
+  }
+  if (totalCol !== -1) {
+    rawSheet.getRange(rowNum, totalCol + 1).setValue(discount && discount.valid ? discount.newTotal : subtotal);
+  }
+  if (reasonCol !== -1) {
+    rawSheet.getRange(rowNum, reasonCol + 1).setValue(discount && discount.valid ? '' : (discount ? discount.reason : ''));
+  }
+  if (codeCol !== -1) {
+    rawSheet.getRange(rowNum, codeCol + 1).setValue(rawCode.toUpperCase());
+  }
+
+  return discount && discount.valid ? {
+    code: discount.code,
+    discountAmount: roundCurrency(discount.discountAmount),
+    totalAfterDiscount: roundCurrency(discount.newTotal)
+  } : null;
+}
+
+function getDiscount(rawCode, subtotal) {
+  if (!rawCode) return null;
+
+  var code = safeTrim(rawCode).toUpperCase();
+  if (!code) return null;
+
+  var sheet = ensureDiscountCodeSheet();
+  if (!sheet) return null;
+
+  var rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return null;
+
+  var headers = rows[0];
+  var col = {};
+  for (var i = 0; i < headers.length; i++) {
+    col[String(headers[i]).trim()] = i;
+  }
+
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row || row.length === 0) continue;
+    if (safeTrim(String(row[col['Code'] || -1] || '')).toUpperCase() !== code) continue;
+
+    var active = row[col['Active']] === true || row[col['Active']] === 'TRUE' || row[col['Active']] === '1' || row[col['Active']] === 1;
+    var maxUses = parseFloat(row[col['MaxUses']]);
+    var timesUsed = parseFloat(row[col['TimesUsed']] || 0);
+    var expiresOn = row[col['ExpiresOn']];
+
+    if (!active) {
+      return { valid: false, reason: 'This code is no longer active.' };
+    }
+    if (!isNaN(maxUses) && maxUses >= 0 && timesUsed >= maxUses) {
+      return { valid: false, reason: 'This code has reached its usage limit.' };
+    }
+    if (expiresOn && new Date() > new Date(expiresOn)) {
+      return { valid: false, reason: 'This code has expired.' };
+    }
+
+    var type = safeTrim(String(row[col['Type']] || '')).toLowerCase();
+    var value = parseFloat(row[col['Value']]);
+    if (isNaN(value)) {
+      return { valid: false, reason: 'This code is configured incorrectly.' };
+    }
+
+    var discountAmount = type === 'percent'
+      ? Math.round((Number(subtotal) || 0) * (value / 100) * 100) / 100
+      : Math.min(value, Number(subtotal) || 0);
+
+    return {
+      valid: true,
+      code: code,
+      type: type,
+      value: value,
+      discountAmount: roundCurrency(discountAmount),
+      newTotal: Math.max(0, roundCurrency((Number(subtotal) || 0) - discountAmount)),
+      rowIndex: i + 1
+    };
+  }
+
+  return { valid: false, reason: 'Code not recognized.' };
+}
+
+function incrementDiscountUsage(rowIndex) {
+  if (!rowIndex) return;
+  var sheet = ensureDiscountCodeSheet();
+  if (!sheet) return;
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var usedCol = headers.indexOf('TimesUsed');
+  if (usedCol === -1) return;
+
+  var current = Number(sheet.getRange(rowIndex, usedCol + 1).getValue() || 0);
+  sheet.getRange(rowIndex, usedCol + 1).setValue(current + 1);
+}
+
 function calculateCurrentSessionStats(settings) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1635,6 +1911,9 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
         });
       }
 
+      var discountInfo = getOrderDiscountInfo(row, headers, orderTotal);
+      var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
+
       if (pizzas.length > 0) {
         matchingOrders.push({
           orderIndex: orderNum,
@@ -1643,7 +1922,11 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
           payerEmail: payerEmail,
           paymentMethod: paymentMethod,
           paid: resolvePaymentStatus(row, headers, row[PAYMENT_STATUS_COL]) === 'Paid' ? 'Yes' : 'No',
-          total: orderTotal,
+          total: totalAfterDiscount,
+          totalAfterDiscount: totalAfterDiscount,
+          discountCode: discountInfo ? discountInfo.code : '',
+          discountAmount: discountInfo ? discountInfo.discountAmount : 0,
+          discountReason: discountInfo ? discountInfo.discountReason : '',
           pizzas: pizzas
         });
       }
@@ -1666,7 +1949,19 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
 function onFormSubmitTrigger(e) {
   // Invalidate cache immediately so public tracker updates
   try { CacheService.getScriptCache().remove('SYSTEM_STATUS_CACHE'); } catch(err) {}
-  
+
+  ensureDiscountCodeSheet();
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+    var rowNum = e && e.range ? e.range.getRow() : raw.getLastRow();
+    if (rowNum && raw) {
+      applyDiscountToResponseRow(raw, rowNum);
+    }
+  } catch (err) {
+    Logger.log('Discount processing on form submit failed: ' + err);
+  }
+
   rebuildCleanSheets();
   emailXlsxSnapshot();
   trySendOrderConfirmation(e);
@@ -2039,6 +2334,10 @@ function sendOrderConfirmationForRow(rowNum) {
     });
   }
 
+  var orderHeaders = raw.getRange(1, 1, 1, raw.getLastColumn()).getValues()[0];
+  var discountInfo = getOrderDiscountInfo(row, orderHeaders, orderTotal);
+  var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
+
   if (pizzas.length === 0) {
     Logger.log('No pizza items parsed for row ' + rowNum + ' — confirmation not sent.');
     return;
@@ -2047,6 +2346,9 @@ function sendOrderConfirmationForRow(rowNum) {
   var lines = pizzas.map(function(p) {
     return p.childName + (p.class ? ' (' + p.class + ')' : '') + '\n' + formatSizeLabel(p.size) + ' — £' + p.price.toFixed(2);
   });
+  if (discountInfo && discountInfo.code) {
+    lines.push('DISCOUNT: ' + discountInfo.code + ' (-£' + discountInfo.discountAmount.toFixed(2) + ')');
+  }
 
   var orderLink = 'https://www.artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
 
@@ -2057,7 +2359,7 @@ function sendOrderConfirmationForRow(rowNum) {
     'Click your order number or the link below to view your order:\n' + orderLink + '\n\n' +
     'ORDER SUMMARY\n\n' +
     lines.join('\n\n') + '\n\n' +
-    'TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '\n\n' +
+    'TOTAL AMOUNT DUE: £' + totalAfterDiscount.toFixed(2) + '\n\n' +
     PAYMENT_INFO_BLOCK + '\n\n' +
     'COLLECTION\n\n' +
     'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
@@ -2074,7 +2376,7 @@ function sendOrderConfirmationForRow(rowNum) {
     '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
     '<p><strong>ORDER SUMMARY</strong></p>' +
     '<p>' + lines.join('<br><br>') + '</p>' +
-    '<p><strong>TOTAL AMOUNT DUE: £' + orderTotal.toFixed(2) + '</strong></p>' +
+    '<p><strong>TOTAL AMOUNT DUE: £' + totalAfterDiscount.toFixed(2) + '</strong></p>' +
     '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
     '<p><strong>COLLECTION</strong></p>' +
     '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
@@ -2292,6 +2594,8 @@ function getAllOrdersForAdmin() {
     }
 
     if (pizzas.length > 0) {
+      var discountInfo = getOrderDiscountInfo(row, headers, orderTotal);
+      var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
       allOrders.push({
         orderId: formattedId,
         timestamp: timestampStr,
@@ -2301,7 +2605,11 @@ function getAllOrdersForAdmin() {
         },
         allergy: (String(allergyYN).toLowerCase() === 'yes' ? allergyText : ''),
         pizzas: pizzas,
-        total: orderTotal,
+        total: totalAfterDiscount,
+        totalAfterDiscount: totalAfterDiscount,
+        discountCode: discountInfo ? discountInfo.code : '',
+        discountAmount: discountInfo ? discountInfo.discountAmount : 0,
+        discountReason: discountInfo ? discountInfo.discountReason : '',
         pizzaCount: normalizePizzaCapacity(orderCapacity),
         totalCapacity: normalizePizzaCapacity(orderCapacity),
         itemCount: pizzas.length,
