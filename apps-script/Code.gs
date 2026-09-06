@@ -2048,7 +2048,7 @@ function sendOrderConfirmationForRow(rowNum) {
     return p.childName + (p.class ? ' (' + p.class + ')' : '') + '\n' + formatSizeLabel(p.size) + ' — £' + p.price.toFixed(2);
   });
 
-  var orderLink = 'https://artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
+  var orderLink = 'https://www.artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
 
   var body =
     'Hi ' + payerName + ',\n\n' +
@@ -2588,7 +2588,7 @@ function sendEventConfirmation(orderId) {
     return formatSizeLabel(item.size) + ' x ' + q + ' — £' + (up * q).toFixed(2);
   });
 
-  var orderLink = 'https://artisanoven.shop/Payment.html?order=' + orderId + '&token=' + token + '&t=' + new Date().getTime();
+  var orderLink = 'https://www.artisanoven.shop/Payment.html?order=' + orderId + '&token=' + token + '&t=' + new Date().getTime();
 
   var body =
     'Hi ' + payerName + ',\n\n' +
