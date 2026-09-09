@@ -135,7 +135,7 @@
 
   function init() {
     const $ = (id) => document.getElementById(id);
-    const screens = { gate: $('kitchen-gate'), board: $('kitchen-board') };
+    const screens = { board: $('kitchen-board') };
     let current = storageGet(DATA_KEY, null);
     let meta = storageGet(META_KEY, {});
     let completed = new Set();
@@ -271,8 +271,6 @@
       }).catch((error) => { $('kitchen-error').textContent = error.message || 'Could not parse this workbook.'; $('kitchen-error').hidden = false; });
     }
 
-    $('kitchen-login-form').addEventListener('submit', login);
-    $('kitchen-offline').addEventListener('click', () => { localStorage.setItem(TOKEN_KEY, 'offline'); show('board'); render(); });
     $('kitchen-upload').addEventListener('change', handleUpload);
     $('kitchen-upload-empty').addEventListener('click', () => $('kitchen-upload').click());
     $('kitchen-list').addEventListener('click', (event) => {
@@ -293,15 +291,9 @@
       updateTimer();
     });
 
-    if (current) {
-      loadSessionState(current.sessionTitle);
-      if (localStorage.getItem(TOKEN_KEY)) {
-        show('board');
-        render();
-      } else {
-        show('gate');
-      }
-    } else show('gate');
+    if (current) loadSessionState(current.sessionTitle);
+    show('board');
+    render();
     updateTimer();
     timerHandle = window.setInterval(updateTimer, 1000);
     window.addEventListener('beforeunload', () => window.clearInterval(timerHandle));

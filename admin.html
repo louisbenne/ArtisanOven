@@ -217,7 +217,7 @@
       </a>
       <div class="admin-header-nav">
         <a href="index.html" class="admin-nav-link" target="_blank" rel="noopener">View Public Website &rarr;</a>
-        <a href="kitchen.html" class="admin-nav-link" target="_blank" rel="noopener">Open Kitchen Board &rarr;</a>
+        <a href="kitchen.html" id="admin-kitchen-link" class="admin-nav-link" target="_blank" rel="noopener" style="display: none;">Open Kitchen Board &rarr;</a>
         <button type="button" id="btn-logout-header" class="admin-logout-btn" style="display: none;">Log Out</button>
       </div>
     </div>
@@ -1101,6 +1101,7 @@
       const loginSubmitBtn = document.getElementById("btn-login-submit");
       const headerLogoutBtn = document.getElementById("btn-logout-header");
       const bottomLogoutBtn = document.getElementById("btn-logout-bottom");
+      const kitchenLink = document.getElementById("admin-kitchen-link");
       const togglePasswordBtn = document.getElementById("btn-toggle-password");
       const refreshBtn = document.getElementById("btn-refresh-data");
       const toastEl = document.getElementById("admin-toast");
@@ -2243,6 +2244,7 @@
         if (loginSection) loginSection.style.display = "block";
         if (dashboardSection) dashboardSection.style.display = "none";
         if (headerLogoutBtn) headerLogoutBtn.style.display = "none";
+        if (kitchenLink) kitchenLink.style.display = "none";
       }
 
       function showDashboardView() {
@@ -2250,6 +2252,7 @@
         if (loginSection) loginSection.style.display = "none";
         if (dashboardSection) dashboardSection.style.display = "block";
         if (headerLogoutBtn) headerLogoutBtn.style.display = "inline-block";
+        if (kitchenLink) kitchenLink.style.display = "inline-block";
       }
 
       function handleSessionExpiry() {
