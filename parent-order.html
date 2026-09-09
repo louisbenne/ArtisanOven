@@ -250,27 +250,35 @@
       <form id="parent-order-form">
         <div class="field-row">
           <div>
-            <label class="form-label" for="parent-name">Parent name *</label>
-            <input id="parent-name" class="admin-input" type="text" required placeholder="e.g. Emma Brooks" />
+            <label class="form-label" for="parent-profile">Who is ordering? *</label>
+            <select id="parent-profile" class="admin-input" required>
+              <option value="">Select a parent</option>
+              <option value="lisa-g">Lisa G</option>
+              <option value="lorna-b">Lorna B</option>
+            </select>
           </div>
           <div>
-            <label class="form-label" for="parent-email">Parent email *</label>
-            <input id="parent-email" class="admin-input" type="email" required placeholder="e.g. emma@example.com" />
+            <label class="form-label" for="parent-name">Parent name *</label>
+            <input id="parent-name" class="admin-input" type="text" required readonly placeholder="Select a parent above" />
           </div>
         </div>
 
         <div class="field-row">
+          <div>
+            <label class="form-label" for="parent-email">Parent email *</label>
+            <input id="parent-email" class="admin-input" type="email" required readonly placeholder="Select a parent above" />
+          </div>
           <div>
             <label class="form-label" for="child-name">Child name *</label>
             <input id="child-name" class="admin-input" type="text" required placeholder="e.g. Olivia Brooks" />
           </div>
+        </div>
+
+        <div class="field-row">
           <div>
             <label class="form-label" for="child-class">Child class *</label>
             <input id="child-class" class="admin-input" type="text" required placeholder="e.g. Year 5 Blue" />
           </div>
-        </div>
-
-        <div class="field-row">
           <div>
             <label class="form-label" for="parent-payment-method">Preferred payment method</label>
             <select id="parent-payment-method" class="admin-input">
@@ -279,7 +287,6 @@
               <option value="Cash">Cash</option>
             </select>
           </div>
-          <div></div>
         </div>
 
         <div style="margin: 20px 0 12px;">
@@ -292,9 +299,9 @@
             <div>
               <label class="form-label">Pizza size</label>
               <select class="pizza-size-select admin-input">
-                <option value="12inch">Whole Margherita (12") — £8.00</option>
-                <option value="Half12inch">Half Margherita — £5.00</option>
-                <option value="Quarter12inch">Quarter Margherita — £3.00</option>
+                <option value="12inch">Whole Margherita (12")</option>
+                <option value="Half12inch">Half Margherita</option>
+                <option value="Quarter12inch">Quarter Margherita</option>
               </select>
             </div>
             <div>
@@ -314,8 +321,11 @@
         <button type="button" class="secondary-btn" id="parent-add-pizza-btn" style="margin: 8px 0 0;">+ Add another pizza</button>
 
         <div class="summary-box">
-          <span>Order total</span>
-          <span id="parent-order-total">£8.00</span>
+          <div>
+            <div>Original total: <span id="parent-order-original-total">£8.00</span></div>
+            <div>50% discount: <span id="parent-order-discount">-£4.00</span></div>
+          </div>
+          <strong>Parent total: <span id="parent-order-total">£4.00</span></strong>
         </div>
 
         <div style="margin-top: 18px;">
