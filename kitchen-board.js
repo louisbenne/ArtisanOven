@@ -6,6 +6,7 @@
   const DATA_KEY = 'AO_KITCHEN_DATA';
   const TOKEN_KEY = 'AO_KITCHEN_TOKEN';
   const META_KEY = 'AO_KITCHEN_META';
+  const SYNC_TOKEN_KEY = 'ao_admin_session_token';
 
   function text(value) {
     return value === null || value === undefined ? '' : String(value).trim();
@@ -26,6 +27,22 @@
   function classInfo(value) {
     const match = text(value).match(/^Class\s*(\d+)$/i);
     return match ? { name: `Class ${Number(match[1])}`, number: Number(match[1]) } : { name: 'Misc', number: null };
+  }
+
+  function pizzaCapacity(size) {
+    const value = text(size).toLowerCase();
+    if (value.includes('quarter') || value.includes('0.25') || value.includes('1/4') || value.includes('3"')) return 0.25;
+    if (value.includes('half') || value.includes('0.5') || value.includes('1/2') || value.includes('6"')) return 0.5;
+    return 1;
+  }
+
+  function formatPizzaAmount(value) {
+    const rounded = Math.round(value * 100) / 100;
+    if (Number.isInteger(rounded)) return String(rounded);
+    if (rounded % 1 === 0.25) return `${Math.floor(rounded) || ''}¼`;
+    if (rounded % 1 === 0.5) return `${Math.floor(rounded) || ''}½`;
+    if (rounded % 1 === 0.75) return `${Math.floor(rounded) || ''}¾`;
+    return String(rounded);
   }
 
   function isDateValue(value) {
@@ -95,6 +112,7 @@
           className: classData.name,
           classNumber: classData.number,
           size: text(row[columns.size]),
+          capacity: pizzaCapacity(row[columns.size]),
           paymentMethod,
           paymentIcon: paymentIcon(paymentMethod),
           paid: text(row[columns.paid]),
@@ -126,6 +144,15 @@
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.error('Kitchen storage write failed:', error);
+    }
+  }
+
+  function getSyncToken() {
+    try {
+      return localStorage.getItem(SYNC_TOKEN_KEY) || '';
+    } catch (error) {
+      console.warn('Kitchen sync token unavailable:', error);
+      return '';
     }
   }
 
@@ -164,6 +191,48 @@
       storageSet(COMPLETE_PREFIX + current.sessionTitle, Array.from(completed));
       storageSet(DATA_KEY, current);
       storageSet(META_KEY, meta);
+      syncRemoteState().catch((error) => {
+        console.warn('Kitchen board remote save failed; local state is preserved:', error);
+      });
+    }
+
+    async function syncRemoteState() {
+      const token = getSyncToken();
+      const url = apiUrl();
+      if (!token || !url || !current) return;
+      const endpoint = new URL(url);
+      endpoint.searchParams.set('action', 'kitchenSave');
+      endpoint.searchParams.set('token', token);
+      endpoint.searchParams.set('payload', JSON.stringify({
+        sessionTitle: current.sessionTitle,
+        data: current,
+        completed: Array.from(completed),
+        meta
+      }));
+      const response = await fetch(endpoint.toString(), { mode: 'cors' });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || 'Remote save rejected.');
+    }
+
+    async function loadRemoteState() {
+      const token = getSyncToken();
+      const url = apiUrl();
+      if (!token || !url) return;
+      const endpoint = new URL(url);
+      endpoint.searchParams.set('action', 'kitchenLoad');
+      endpoint.searchParams.set('token', token);
+      const response = await fetch(endpoint.toString(), { mode: 'cors' });
+      const result = await response.json();
+      if (!result.success || !result.state || !result.state.data) return;
+      current = result.state.data;
+      loadSessionState(current.sessionTitle);
+      completed = new Set(result.state.completed || []);
+      meta = result.state.meta || { sessionTitle: current.sessionTitle };
+      storageSet(DATA_KEY, current);
+      storageSet(COMPLETE_PREFIX + current.sessionTitle, Array.from(completed));
+      storageSet(META_KEY, meta);
+      $('kitchen-upload-button').hidden = true;
+      render();
     }
 
     function updateTimer() {
@@ -203,8 +272,9 @@
         </button>`;
       }).join('');
       $('kitchen-empty').hidden = visible.length > 0;
-      const doneCount = current.items.filter((item) => completed.has(item.pickupId)).length;
-      $('kitchen-progress').textContent = `${doneCount} / ${current.items.length} pizzas ready`;
+      const totalCapacity = current.items.reduce((sum, item) => sum + item.capacity, 0);
+      const readyCapacity = current.items.reduce((sum, item) => sum + (completed.has(item.pickupId) ? item.capacity : 0), 0);
+      $('kitchen-progress').textContent = `${formatPizzaAmount(readyCapacity)} / ${formatPizzaAmount(totalCapacity)} pizzas ready`;
       $('kitchen-session').textContent = current.sessionTitle;
       document.querySelectorAll('[data-filter]').forEach((button) => button.classList.toggle('is-active', button.dataset.filter === filter));
       document.querySelectorAll('[data-sort]').forEach((button) => button.classList.toggle('is-active', button.dataset.sort === sort));
@@ -267,6 +337,7 @@
         loadSessionState(current.sessionTitle);
         saveSessionState();
         $('kitchen-error').hidden = true;
+        $('kitchen-upload-button').hidden = true;
         render();
       }).catch((error) => { $('kitchen-error').textContent = error.message || 'Could not parse this workbook.'; $('kitchen-error').hidden = false; });
     }
@@ -291,9 +362,15 @@
       updateTimer();
     });
 
-    if (current) loadSessionState(current.sessionTitle);
+    if (current) {
+      loadSessionState(current.sessionTitle);
+      $('kitchen-upload-button').hidden = true;
+    }
     show('board');
     render();
+    loadRemoteState().catch((error) => {
+      console.warn('Kitchen board remote load failed; local state is preserved:', error);
+    });
     updateTimer();
     timerHandle = window.setInterval(updateTimer, 1000);
     window.addEventListener('beforeunload', () => window.clearInterval(timerHandle));

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <title>Order Progress — Artisan Oven</title>
   <meta name="description" content="Offline fulfilment board for Artisan Oven staff." />
   <link rel="manifest" href="kitchen-manifest.json" />
@@ -13,8 +13,9 @@
   <meta name="apple-mobile-web-app-title" content="AO Progress" />
   <link rel="stylesheet" href="style.css" />
   <style>
-    body { background: var(--cream); }
-    .kitchen-shell { max-width: 760px; margin: 0 auto; padding: 20px 18px 70px; }
+    html, body { overscroll-behavior-y: none; }
+    body { background: var(--cream); -webkit-user-select: none; user-select: none; }
+    .kitchen-shell { max-width: 760px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 18px max(70px, env(safe-area-inset-bottom)); }
     .kitchen-topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
     .kitchen-brand { color: var(--forest); font-weight: 700; letter-spacing: .05em; }
     .kitchen-card, .kitchen-item { background: var(--white); border: 1px solid rgba(31,58,46,.12); border-radius: 16px; box-shadow: var(--shadow-soft); }
@@ -27,7 +28,7 @@
     .kitchen-primary, .upload-button { border: 0; border-radius: 999px; padding: 14px 20px; background: var(--forest); color: var(--white); font: inherit; font-weight: 700; cursor: pointer; }
     .kitchen-secondary { border: 1px solid rgba(31,58,46,.2); border-radius: 999px; padding: 12px 16px; background: transparent; color: var(--forest); font: inherit; font-weight: 700; cursor: pointer; }
     .kitchen-error, .access-error { color: var(--terracotta); font-weight: 700; margin-top: 12px; }
-    .kitchen-header { position: sticky; top: 0; z-index: 2; background: var(--cream); padding: 10px 0 12px; }
+    .kitchen-header { position: sticky; top: 0; z-index: 2; background: rgba(247,243,236,.96); padding: 10px 0 12px; padding-top: max(10px, env(safe-area-inset-top)); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
     .kitchen-stats { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
     .kitchen-timer { border: 0; background: transparent; color: var(--forest); font: inherit; font-weight: 800; cursor: pointer; }
     .kitchen-timer.is-warning { color: #a26300; }
@@ -35,11 +36,10 @@
     .kitchen-session { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-soft); font-size: .9rem; }
     .kitchen-progress { color: var(--forest); font-weight: 700; white-space: nowrap; }
     .kitchen-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-    .kitchen-controls button { border: 1px solid rgba(31,58,46,.18); border-radius: 999px; padding: 8px 13px; background: var(--white); color: var(--forest); font: inherit; font-size: .9rem; cursor: pointer; }
+    .kitchen-controls button { min-height: 44px; border: 1px solid rgba(31,58,46,.18); border-radius: 999px; padding: 8px 14px; background: var(--white); color: var(--forest); font: inherit; font-size: .9rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .kitchen-controls button.is-active { background: var(--forest); color: var(--white); }
     .kitchen-list { display: grid; gap: 10px; }
-    .kitchen-item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px; text-align: left; color: var(--text); cursor: pointer; transition: opacity .15s, transform .15s; }
-    .kitchen-item:hover { transform: translateY(-1px); }
+    .kitchen-item { width: 100%; min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px; text-align: left; color: var(--text); cursor: pointer; transition: opacity .15s; -webkit-tap-highlight-color: transparent; }
     .kitchen-item.is-complete { opacity: .48; }
     .kitchen-item-main { display: grid; gap: 2px; min-width: 0; }
     .kitchen-item-main strong { color: var(--forest); font-size: 1.08rem; }
@@ -52,7 +52,7 @@
     .upload-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .kitchen-detail { position: fixed; inset: 0; z-index: 5; background: rgba(22,40,31,.45); display: grid; align-items: end; }
     .kitchen-detail-panel { background: var(--cream); border-radius: 22px 22px 0 0; padding: 26px 20px max(26px, env(safe-area-inset-bottom)); max-width: 760px; width: 100%; margin: 0 auto; }
-    .kitchen-detail-close { float: right; border: 0; background: transparent; color: var(--forest); font-size: 1.8rem; cursor: pointer; }
+    .kitchen-detail-close { float: right; width: 44px; height: 44px; border: 0; background: transparent; color: var(--forest); font-size: 1.8rem; cursor: pointer; }
     .detail-kicker { color: var(--text-soft); font-weight: 700; margin: 0; }
     .detail-size { color: var(--forest); font-size: 1.15rem; }
     .complete-btn { width: 100%; border: 0; border-radius: 14px; padding: 20px; margin: 18px 0; background: var(--terracotta); color: var(--white); font: inherit; font-weight: 800; letter-spacing: .05em; cursor: pointer; }
@@ -69,7 +69,7 @@
   <main class="kitchen-shell">
     <section id="kitchen-board">
       <header class="kitchen-header">
-        <div class="kitchen-topbar"><span class="kitchen-brand">AO PROGRESS</span><label class="upload-button">Upload data<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label></div>
+        <div class="kitchen-topbar"><span class="kitchen-brand">AO PROGRESS</span><label id="kitchen-upload-button" class="upload-button">Upload data<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label></div>
         <div class="kitchen-stats"><button id="kitchen-timer" class="kitchen-timer" type="button">⏱ Set cutoff</button><strong id="kitchen-progress" class="kitchen-progress">0 / 0 pizzas ready</strong></div>
         <div id="kitchen-session" class="kitchen-session"></div>
       </header>
