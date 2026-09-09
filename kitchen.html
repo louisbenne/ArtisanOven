@@ -67,19 +67,7 @@
 </head>
 <body>
   <main class="kitchen-shell">
-    <section id="kitchen-gate" class="kitchen-card">
-      <div class="kitchen-brand">ARTISAN OVEN · STAFF</div>
-      <h1>Order progress</h1>
-      <p>Upload the exported spreadsheet to build the live kitchen fulfilment board. The file stays on this device.</p>
-      <form id="kitchen-login-form" class="kitchen-form">
-        <label for="kitchen-password">Admin password <input id="kitchen-password" type="password" autocomplete="current-password" /></label>
-        <button id="kitchen-login" class="kitchen-primary" type="submit">Unlock board</button>
-      </form>
-      <button id="kitchen-offline" class="kitchen-secondary" type="button" style="margin-top:12px;">Continue offline</button>
-      <div id="kitchen-gate-error" class="access-error" hidden></div>
-    </section>
-
-    <section id="kitchen-board" hidden>
+    <section id="kitchen-board">
       <header class="kitchen-header">
         <div class="kitchen-topbar"><span class="kitchen-brand">AO PROGRESS</span><label class="upload-button">Upload data<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label></div>
         <div class="kitchen-stats"><button id="kitchen-timer" class="kitchen-timer" type="button">⏱ Set cutoff</button><strong id="kitchen-progress" class="kitchen-progress">0 / 0 pizzas ready</strong></div>
