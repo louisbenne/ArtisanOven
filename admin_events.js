@@ -179,10 +179,6 @@ window.switchEventsSubTab = function(subtab) {
 
 // Immediate render on script execution if DOM ready
 function bootstrapEventsTab() {
-  const container = document.getElementById("events-list-container");
-  if (container) {
-    window.initEventsTab();
-  }
   setupEventOrdersSearch();
 }
 
