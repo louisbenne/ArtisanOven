@@ -2590,6 +2590,7 @@ function rebuildCleanSheets() {
 
   sheet.autoResizeColumns(1, 11);
   appendParentOrdersToUpdateSheet(sheet);
+  SpreadsheetApp.flush();
 }
 
 function appendParentOrdersToUpdateSheet(sheet) {
@@ -2662,6 +2663,9 @@ function emailXlsxSnapshot() {
   var combinedSheet = ss.getSheetByName('Pizza Order Update');
   if (!combinedSheet) return;
 
+  // Ensure regular and internal parent rows are committed before copying the
+  // combined sheet into the emailed workbook.
+  SpreadsheetApp.flush();
   var tempSs = SpreadsheetApp.create('Pizza Order Update Export');
   var tempSheet = combinedSheet.copyTo(tempSs);
   tempSheet.setName('Pizza Order Update');
