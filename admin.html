@@ -239,17 +239,17 @@
           </svg>
         </div>
         <h1 class="admin-title">Admin Dashboard</h1>
-        <p class="admin-subtitle">Enter your administrator password to manage operations, order limits, and website settings.</p>
+        <p class="admin-subtitle">Enter the internal admin access code to manage operations, order limits, and website settings.</p>
 
         <form id="admin-login-form" class="admin-form">
           <div class="form-group">
-            <label for="admin-password-input">Admin Password</label>
+            <label for="admin-password-input">Access Code</label>
             <div class="password-input-wrapper">
               <input 
                 type="password" 
                 id="admin-password-input" 
                 class="admin-input" 
-                placeholder="Enter password" 
+                placeholder="Enter access code"
                 required 
                 autocomplete="current-password"
               />
@@ -626,8 +626,8 @@
               </svg>
             </div>
             <div>
-              <h2 class="card-title">Change Admin Password</h2>
-              <p class="card-desc">Update the master administrative password stored in Google Apps Script.</p>
+              <h2 class="card-title">Change Shared Access Code</h2>
+              <p class="card-desc">Update the internal admin access code stored in Google Apps Script.</p>
             </div>
           </div>
 
@@ -638,8 +638,8 @@
                 <input type="password" id="change-pass-current" class="admin-input" required autocomplete="current-password" />
               </div>
               <div class="form-group">
-                <label for="change-pass-new">New Password (min 6 characters)</label>
-                <input type="password" id="change-pass-new" class="admin-input" minlength="6" required autocomplete="new-password" />
+                <label for="change-pass-new">New Access Code (min 4 characters)</label>
+                <input type="password" id="change-pass-new" class="admin-input" minlength="4" required autocomplete="new-password" />
               </div>
             </div>
             <div class="form-actions">
@@ -1162,7 +1162,7 @@
             try {
               const url = new URL(apiUrl);
               url.searchParams.set("action", "adminLogin");
-              url.searchParams.set("password", pass);
+              url.searchParams.set("code", pass);
 
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -1396,7 +1396,7 @@
             }
 
             if (data.success) {
-              showToast("Admin password changed successfully!", "success");
+              showToast("Shared access code changed successfully!", "success");
               formChangePass.reset();
             } else {
               showToast(data.message || "Failed to change password.", "error");

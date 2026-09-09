@@ -22,9 +22,6 @@ var CONFIRMATION_SUBJECT = 'Your Pizza Order Confirmation & Payment Details';
 var PAYPAL_ME_BASE = 'https://paypal.me/ArtisanOven';
 var PAYPAL_NCP_LINK = 'https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA';
 
-// Default Admin Password (can be customized via Admin Dashboard or Script Properties)
-var DEFAULT_ADMIN_PASSWORD = 'ArtisanOvenAdmin2026!';
-
 // Canonical payment mappings
 var PAYMENT_MAP = {
   'Bank Transfer': 'BankTransfer',
@@ -86,6 +83,7 @@ var PAYMENT_INFO_BLOCK =
 
 var INTERNAL_PARENT_DISCOUNT_CODE = 'INTERNAL_PARENT_50';
 var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
+var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
 var PARENT_SESSION_TTL_SECONDS = 12 * 60 * 60;
 var ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
 
@@ -187,15 +185,19 @@ function syncSettingsToSheet(settings) {
 // ============================================================================
 
 function getAdminPassword() {
-  var props = PropertiesService.getScriptProperties();
-  return props.getProperty('ADMIN_PASSWORD') || DEFAULT_ADMIN_PASSWORD;
+  return safeTrim(PropertiesService.getScriptProperties().getProperty(ADMIN_ACCESS_CODE_PROP) || '');
 }
 
 function setAdminPassword(newPassword) {
-  if (!newPassword || newPassword.length < 6) {
-    throw new Error('Password must be at least 6 characters long.');
+  var code = safeTrim(newPassword || '');
+  if (!code) {
+    throw new Error('Admin access code is required.');
   }
-  PropertiesService.getScriptProperties().setProperty('ADMIN_PASSWORD', newPassword);
+  if (code.length < 4) {
+    throw new Error('Admin access code must be at least 4 characters long.');
+  }
+  PropertiesService.getScriptProperties().setProperty(ADMIN_ACCESS_CODE_PROP, code);
+  return code;
 }
 
 function generateAdminToken() {
@@ -895,7 +897,7 @@ function doGet(e) {
 
     // 3. ADMIN: LOGIN
     if (action === 'adminLogin' || actionLower === 'adminlogin') {
-      var password = safeTrim(params.password || '');
+      var password = safeTrim(params.code || params.password || '');
       if (password && password === getAdminPassword()) {
         var token = generateAdminToken();
         logAdminAction('Admin Login', 'Successful login from web interface');
@@ -1744,19 +1746,19 @@ function doGet(e) {
         });
       }
 
-      if (!newPass || newPass.length < 6) {
+      if (!newPass || newPass.length < 4) {
         return createJsonResponse({
           success: false,
-          message: 'New password must be at least 6 characters.'
+          message: 'New access code must be at least 4 characters.'
         });
       }
 
       setAdminPassword(newPass);
-      logAdminAction('Password Changed', 'Administrator password updated');
+      logAdminAction('Access Code Changed', 'Shared access code updated');
 
       return createJsonResponse({
         success: true,
-        message: 'Admin password updated successfully.'
+        message: 'Shared access code updated successfully.'
       });
     }
 
