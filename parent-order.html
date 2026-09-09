@@ -120,7 +120,7 @@
     }
     .pizza-item-row {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr auto;
+      grid-template-columns: 1.4fr 1.4fr 1fr auto;
       gap: 12px;
       align-items: end;
       margin-bottom: 16px;
@@ -268,17 +268,9 @@
             <label class="form-label" for="parent-email">Parent email *</label>
             <input id="parent-email" class="admin-input" type="email" required readonly placeholder="Select a parent above" />
           </div>
-          <div>
-            <label class="form-label" for="child-name">Child name *</label>
-            <input id="child-name" class="admin-input" type="text" required placeholder="e.g. Olivia Brooks" />
-          </div>
         </div>
 
         <div class="field-row">
-          <div>
-            <label class="form-label" for="child-class">Child class *</label>
-            <input id="child-class" class="admin-input" type="text" required placeholder="e.g. Year 5 Blue" />
-          </div>
           <div>
             <label class="form-label" for="parent-payment-method">Preferred payment method</label>
             <select id="parent-payment-method" class="admin-input">
@@ -291,22 +283,26 @@
 
         <div style="margin: 20px 0 12px;">
           <h2 style="font-size:1.3rem; margin-bottom: 8px;">Pizza selection</h2>
-          <p class="muted">Choose the size and quantity of pizzas you need for this order.</p>
+          <p class="muted">Each child can choose one pizza. Add another child if needed.</p>
         </div>
 
         <div id="parent-pizza-rows">
           <div class="pizza-item-row">
             <div>
-              <label class="form-label">Pizza size</label>
+              <label class="form-label">Child name *</label>
+              <input class="child-name-input admin-input" type="text" required placeholder="e.g. Orlando" />
+            </div>
+            <div>
+              <label class="form-label">Class *</label>
+              <input class="child-class-input admin-input" type="text" required placeholder="e.g. Class 5" />
+            </div>
+            <div>
+              <label class="form-label">Pizza size *</label>
               <select class="pizza-size-select admin-input">
                 <option value="12inch">Whole Margherita (12")</option>
                 <option value="Half12inch">Half Margherita</option>
                 <option value="Quarter12inch">Quarter Margherita</option>
               </select>
-            </div>
-            <div>
-              <label class="form-label">Quantity</label>
-              <input type="number" class="pizza-qty-input admin-input" min="1" max="20" value="1" />
             </div>
             <div>
               <label class="form-label">Subtotal</label>
@@ -318,7 +314,7 @@
           </div>
         </div>
 
-        <button type="button" class="secondary-btn" id="parent-add-pizza-btn" style="margin: 8px 0 0;">+ Add another pizza</button>
+        <button type="button" class="secondary-btn" id="parent-add-child-btn" style="margin: 8px 0 0;">+ Add child</button>
 
         <div class="summary-box">
           <div>
