@@ -914,6 +914,34 @@ function doGet(e) {
       }
     }
 
+    // 3b. KITCHEN BOARD: LOAD SAVED READ-ONLY STATE
+    if (actionLower === 'kitchenload' || action === 'kitchenLoad') {
+      var kitchenToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(kitchenToken)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Admin session expired.' });
+      }
+      return createJsonResponse({ success: true, state: loadKitchenBoardState() });
+    }
+
+    // 3c. KITCHEN BOARD: SAVE CLIENT-SIDE BOARD STATE
+    if (actionLower === 'kitchensave' || action === 'kitchenSave') {
+      var saveToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(saveToken)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Admin session expired.' });
+      }
+      var kitchenPayload = params.payload || '';
+      if (!kitchenPayload || kitchenPayload.length > 500000) {
+        return createJsonResponse({ success: false, message: 'Kitchen board state is missing or too large.' });
+      }
+      try {
+        var parsedKitchenState = JSON.parse(kitchenPayload);
+        saveKitchenBoardState(parsedKitchenState);
+        return createJsonResponse({ success: true, savedAt: new Date().toISOString() });
+      } catch (kitchenError) {
+        return createJsonResponse({ success: false, message: 'Kitchen board state could not be saved.' });
+      }
+    }
+
     // 4. ADMIN: GET ALL SETTINGS
     if (action === 'adminGetSettings' || actionLower === 'admingetsettings') {
       var token = safeTrim(params.token || '');
@@ -2188,6 +2216,52 @@ function calculateCurrentSessionStats(settings) {
       currentOrders: 0,
       orderingOpen: true
     };
+  }
+}
+
+function getKitchenBoardSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Kitchen_Board_State');
+  if (!sheet) {
+    sheet = ss.insertSheet('Kitchen_Board_State');
+    sheet.getRange(1, 1, 1, 5).setValues([['SESSION TITLE', 'BOARD DATA JSON', 'COMPLETED JSON', 'META JSON', 'UPDATED AT']]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function loadKitchenBoardState() {
+  var sheet = getKitchenBoardSheet();
+  if (sheet.getLastRow() < 2) return null;
+  var row = sheet.getRange(2, 1, 1, 5).getValues()[0];
+  if (!row[0]) return null;
+  return {
+    sessionTitle: String(row[0]),
+    data: row[1] ? JSON.parse(String(row[1])) : null,
+    completed: row[2] ? JSON.parse(String(row[2])) : [],
+    meta: row[3] ? JSON.parse(String(row[3])) : {},
+    updatedAt: row[4] instanceof Date ? row[4].toISOString() : String(row[4] || '')
+  };
+}
+
+function saveKitchenBoardState(state) {
+  if (!state || !state.sessionTitle || !state.data || !Array.isArray(state.completed)) {
+    throw new Error('Invalid kitchen board state.');
+  }
+  var sheet = getKitchenBoardSheet();
+  var row = [
+    String(state.sessionTitle).slice(0, 200),
+    JSON.stringify(state.data),
+    JSON.stringify(state.completed),
+    JSON.stringify(state.meta || {}),
+    new Date()
+  ];
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    sheet.getRange(2, 1, 1, 5).setValues([row]);
+  } finally {
+    lock.releaseLock();
   }
 }
 

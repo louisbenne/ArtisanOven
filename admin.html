@@ -1454,6 +1454,7 @@
 
             currentAdminToken = "";
             sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+            localStorage.removeItem("ao_admin_session_token");
             showToast("Logged out successfully.", "info");
             showLoginView();
           });
@@ -2252,12 +2253,16 @@
         if (loginSection) loginSection.style.display = "none";
         if (dashboardSection) dashboardSection.style.display = "block";
         if (headerLogoutBtn) headerLogoutBtn.style.display = "inline-block";
-        if (kitchenLink) kitchenLink.style.display = "inline-block";
+        if (kitchenLink) {
+          kitchenLink.style.display = "inline-block";
+          localStorage.setItem("ao_admin_session_token", currentAdminToken);
+        }
       }
 
       function handleSessionExpiry() {
         currentAdminToken = "";
         sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+        localStorage.removeItem("ao_admin_session_token");
         showToast("Session expired. Please log in again.", "error");
         showLoginView();
       }
