@@ -6,8 +6,19 @@
     'Quarter12inch': 3
   };
   const PARENT_PROFILES = {
-    'lisa-g': { name: 'Lisa G', email: 'lisa@garrettgirl.com' },
-    'lorna-b': { name: 'Lorna B', email: 'lornajbouwer@hotmail.com' }
+    'lisa-g': {
+      name: 'Lisa G',
+      email: 'lisa@garrettgirl.com',
+      children: [{ name: 'Dylan', className: 'Class 10' }]
+    },
+    'lorna-b': {
+      name: 'Lorna B',
+      email: 'lornajbouwer@hotmail.com',
+      children: [
+        { name: 'Orlando', className: 'Class 5' },
+        { name: 'Leon', className: 'Class 10' }
+      ]
+    }
   };
 
   function getScriptApiUrl() {
@@ -29,7 +40,15 @@
     errorEl.hidden = !message;
   }
 
-  function addPizzaRow() {
+  function pizzaOptions() {
+    return `
+      <option value="12inch">Whole Margherita (12")</option>
+      <option value="Half12inch">Half Margherita</option>
+      <option value="Quarter12inch">Quarter Margherita</option>
+    `;
+  }
+
+  function addChildRow(child = {}) {
     const container = document.getElementById('parent-pizza-rows');
     if (!container) return;
 
@@ -37,16 +56,16 @@
     row.className = 'pizza-item-row';
     row.innerHTML = `
       <div>
-        <label>Pizza size</label>
-        <select class="pizza-size-select admin-input">
-          <option value="12inch">Whole Margherita (12")</option>
-          <option value="Half12inch">Half Margherita</option>
-          <option value="Quarter12inch">Quarter Margherita</option>
-        </select>
+        <label>Child name *</label>
+        <input class="child-name-input admin-input" type="text" required placeholder="e.g. Orlando" value="${child.name || ''}" />
       </div>
       <div>
-        <label>Quantity</label>
-        <input type="number" class="pizza-qty-input admin-input" min="1" max="20" value="1" />
+        <label>Class *</label>
+        <input class="child-class-input admin-input" type="text" required placeholder="e.g. Class 5" value="${child.className || ''}" />
+      </div>
+      <div>
+        <label>Pizza size *</label>
+        <select class="pizza-size-select admin-input">${pizzaOptions()}</select>
       </div>
       <div>
         <label>Subtotal</label>
@@ -66,7 +85,8 @@
     });
 
     row.querySelector('.pizza-size-select').addEventListener('change', updateTotals);
-    row.querySelector('.pizza-qty-input').addEventListener('input', updateTotals);
+    row.querySelector('.child-name-input').addEventListener('input', updateTotals);
+    row.querySelector('.child-class-input').addEventListener('input', updateTotals);
     container.appendChild(row);
     updateTotals();
   }
@@ -77,9 +97,8 @@
 
     rows.forEach((row) => {
       const size = row.querySelector('.pizza-size-select')?.value || '12inch';
-      const qty = parseInt(row.querySelector('.pizza-qty-input')?.value || '1', 10) || 1;
       const unitPrice = SIZE_PRICES[size] || 0;
-      const subtotal = unitPrice * qty;
+      const subtotal = unitPrice;
       total += subtotal;
       row.querySelector('.pizza-row-subtotal').textContent = '£' + subtotal.toFixed(2);
     });
@@ -102,21 +121,27 @@
     if (!nameInput || !emailInput) return;
     nameInput.value = profile ? profile.name : '';
     emailInput.value = profile ? profile.email : '';
+    const container = document.getElementById('parent-pizza-rows');
+    if (container) {
+      container.innerHTML = '';
+      (profile?.children || [{}]).forEach((child) => addChildRow(child));
+    }
   }
 
   function initOrderForm() {
     const profileSelect = document.getElementById('parent-profile');
     if (profileSelect) profileSelect.addEventListener('change', updateParentProfile);
 
-    const addButton = document.getElementById('parent-add-pizza-btn');
+    const addButton = document.getElementById('parent-add-child-btn');
     if (addButton) {
-      addButton.addEventListener('click', addPizzaRow);
+      addButton.addEventListener('click', () => addChildRow());
     }
 
     const initialRow = document.querySelector('.pizza-item-row');
     if (initialRow) {
       initialRow.querySelector('.pizza-size-select').addEventListener('change', updateTotals);
-      initialRow.querySelector('.pizza-qty-input').addEventListener('input', updateTotals);
+      initialRow.querySelector('.child-name-input').addEventListener('input', updateTotals);
+      initialRow.querySelector('.child-class-input').addEventListener('input', updateTotals);
       initialRow.querySelector('.remove-pizza-btn').addEventListener('click', () => {
         const rows = document.querySelectorAll('.pizza-item-row');
         if (rows.length > 1) {
@@ -207,15 +232,26 @@
       return;
     }
 
-    const items = [];
+    const itemsBySize = {};
+    const childNames = [];
+    const childClasses = [];
+    let incompleteChild = false;
     document.querySelectorAll('.pizza-item-row').forEach((row) => {
       const size = row.querySelector('.pizza-size-select')?.value;
-      const qty = parseInt(row.querySelector('.pizza-qty-input')?.value || '0', 10);
-      if (size && qty > 0) items.push({ size, qty });
+      const childName = row.querySelector('.child-name-input')?.value.trim();
+      const childClass = row.querySelector('.child-class-input')?.value.trim();
+      if (size && childName && childClass) {
+        itemsBySize[size] = (itemsBySize[size] || 0) + 1;
+        childNames.push(childName);
+        childClasses.push(childClass);
+      } else {
+        incompleteChild = true;
+      }
     });
+    const items = Object.entries(itemsBySize).map(([size, qty]) => ({ size, qty }));
 
-    if (!items.length) {
-      alert('Please add at least one pizza to your order.');
+    if (incompleteChild || !items.length) {
+      alert('Please complete each child name, class and pizza selection before submitting.');
       return;
     }
 
@@ -223,8 +259,8 @@
       token,
       parentName: document.getElementById('parent-name').value.trim(),
       parentEmail: document.getElementById('parent-email').value.trim(),
-      childName: document.getElementById('child-name').value.trim(),
-      childClass: document.getElementById('child-class').value.trim(),
+      childName: childNames.join(', '),
+      childClass: childClasses.join(', '),
       paymentMethod: document.getElementById('parent-payment-method').value,
       notes: document.getElementById('parent-notes').value.trim(),
       items: JSON.stringify(items)
