@@ -1122,15 +1122,15 @@
       // Initialize session check & pre-warm backend
       if (currentAdminToken) {
         loadDashboardData(true);
-        if (typeof window.initEventsTab === 'function') window.initEventsTab();
       } else {
         showLoginView();
       }
 
-      // Pre-warm Apps Script backend on load to eliminate cold start delay
+      // Warm the backend while the login form is visible; authenticated sessions
+      // already make their data request immediately above.
       try {
         const prewarmUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
-        if (prewarmUrl && prewarmUrl.indexOf('http') === 0) {
+        if (!currentAdminToken && prewarmUrl && prewarmUrl.indexOf('http') === 0) {
           fetch(prewarmUrl + "?action=ping", { method: "GET", mode: "no-cors" }).catch(() => {});
         }
       } catch (e) {}
@@ -1196,8 +1196,6 @@
               passwordInput.value = "";
               showToast("Logged in successfully!", "success");
               loadDashboardData();
-              loadOrdersData(true); // Background load orders for instant tab switch later
-              if (typeof window.initEventsTab === 'function') window.initEventsTab();
             } else {
               showLoginError(data.message || "Incorrect password.");
             }
