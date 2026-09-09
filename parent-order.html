@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parent Ordering — Artisan Oven</title>
+  <meta name="description" content="Internal parent pizza ordering for Artisan Oven." />
+  <link rel="manifest" href="parent-manifest.json" />
+  <meta name="theme-color" content="#1f3a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="AO Parent Orders" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      background: #f7f3ec;
+    }
+    .parent-shell {
+      max-width: 760px;
+      margin: 32px auto 80px;
+      padding: 0 20px;
+    }
+    .parent-card {
+      background: var(--white);
+      border: 1px solid rgba(31, 58, 46, 0.12);
+      border-radius: 18px;
+      box-shadow: 0 12px 28px rgba(31, 58, 46, 0.08);
+      padding: 32px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(111, 143, 114, 0.12);
+      color: var(--forest);
+      border-radius: 999px;
+      padding: 6px 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .parent-card h1 {
+      font-size: clamp(2rem, 5vw, 2.6rem);
+      margin-bottom: 10px;
+    }
+    .parent-card p {
+      color: var(--text-soft);
+      margin-bottom: 20px;
+    }
+    .tagline {
+      font-weight: 600;
+      color: var(--forest);
+      border-left: 4px solid var(--terracotta);
+      background: rgba(198, 93, 59, 0.08);
+      padding: 12px 14px;
+      border-radius: 0 10px 10px 0;
+      margin: 18px 0 24px;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 640px) {
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+      .parent-card {
+        padding: 18px 18px 24px;
+      }
+    }
+    .form-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-soft);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .admin-input, .admin-select, textarea {
+      width: 100%;
+      border: 1px solid rgba(31, 58, 46, 0.2);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--forest);
+      padding: 12px 14px;
+      font: inherit;
+    }
+    .admin-input:focus, .admin-select:focus, textarea:focus {
+      outline: 2px solid rgba(198, 93, 59, 0.24);
+      border-color: rgba(198, 93, 59, 0.5);
+    }
+    .parent-submit, .primary-btn {
+      background: var(--forest);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+      min-width: 160px;
+    }
+    .parent-submit:hover, .primary-btn:hover {
+      background: var(--forest-deep);
+      transform: translateY(-1px);
+    }
+    .secondary-btn {
+      background: transparent;
+      border: 1px solid rgba(31, 58, 46, 0.2);
+      color: var(--forest);
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .muted {
+      color: var(--text-soft);
+      font-size: 0.9rem;
+    }
+    .pizza-item-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed rgba(31, 58, 46, 0.12);
+    }
+    @media (max-width: 640px) {
+      .pizza-item-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    .pizza-row-subtotal {
+      background: rgba(31, 58, 46, 0.05);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-weight: 700;
+      color: var(--forest);
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+    }
+    .remove-pizza-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      border: 1px solid rgba(198, 93, 59, 0.45);
+      background: rgba(198, 93, 59, 0.05);
+      color: var(--terracotta);
+      cursor: pointer;
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+    .summary-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: rgba(31, 58, 46, 0.04);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 18px 0 24px;
+      color: var(--forest);
+      font-weight: 800;
+    }
+    .access-error {
+      margin-top: 12px;
+      color: var(--terracotta);
+      font-weight: 700;
+      min-height: 1.3em;
+    }
+    .success-panel {
+      text-align: center;
+      padding: 16px 8px 8px;
+    }
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      background: rgba(111, 143, 114, 0.15);
+      color: var(--forest);
+      margin-bottom: 18px;
+    }
+    .success-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+      text-align: left;
+    }
+    .success-summary div {
+      background: rgba(31, 58, 46, 0.04);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .success-summary span {
+      display: block;
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .success-summary strong {
+      color: var(--forest);
+      font-size: 1.05rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
+      <a href="index.html" class="wordmark" style="text-decoration:none; color:inherit;">
+        <span class="flame-dot" aria-hidden="true"></span>
+        ARTISAN OVEN
+      </a>
+      <a href="index.html" class="back-link" aria-label="Back to homepage">&larr; Back to site</a>
+    </div>
+  </header>
+
+  <main class="parent-shell">
+    <section id="parent-access-screen" class="parent-card" aria-live="polite">
+      <div class="badge">Parent access</div>
+      <h1>Internal parent ordering</h1>
+      <p>Use the access code provided by the organiser to place a parent order for your child.</p>
+      <div class="tagline">All orders receive the 50% internal parent discount before being sent to the kitchen for confirmation.</div>
+
+      <form id="parent-access-form" novalidate>
+        <label class="form-label" for="parent-access-code">Parent access code</label>
+        <input id="parent-access-code" class="admin-input" type="text" autocomplete="off" placeholder="Enter access code" required />
+        <div style="margin-top: 18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <button type="submit" class="parent-submit" id="parent-access-submit">Continue</button>
+        </div>
+        <div id="parent-access-error" class="access-error" aria-live="polite" hidden></div>
+      </form>
+    </section>
+
+    <section id="parent-order-screen" class="parent-card" style="display:none;" aria-live="polite">
+      <div class="badge">Place order</div>
+      <h1>Parent order form</h1>
+      <p>Choose the pizzas for your child and confirm the order details below.</p>
+
+      <form id="parent-order-form">
+        <div class="field-row">
+          <div>
+            <label class="form-label" for="parent-name">Parent name *</label>
+            <input id="parent-name" class="admin-input" type="text" required placeholder="e.g. Emma Brooks" />
+          </div>
+          <div>
+            <label class="form-label" for="parent-email">Parent email *</label>
+            <input id="parent-email" class="admin-input" type="email" required placeholder="e.g. emma@example.com" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label class="form-label" for="child-name">Child name *</label>
+            <input id="child-name" class="admin-input" type="text" required placeholder="e.g. Olivia Brooks" />
+          </div>
+          <div>
+            <label class="form-label" for="child-class">Child class *</label>
+            <input id="child-class" class="admin-input" type="text" required placeholder="e.g. Year 5 Blue" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label class="form-label" for="parent-payment-method">Preferred payment method</label>
+            <select id="parent-payment-method" class="admin-input">
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="PayPal">PayPal</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </div>
+          <div></div>
+        </div>
+
+        <div style="margin: 20px 0 12px;">
+          <h2 style="font-size:1.3rem; margin-bottom: 8px;">Pizza selection</h2>
+          <p class="muted">Choose the size and quantity of pizzas you need for this order.</p>
+        </div>
+
+        <div id="parent-pizza-rows">
+          <div class="pizza-item-row">
+            <div>
+              <label class="form-label">Pizza size</label>
+              <select class="pizza-size-select admin-input">
+                <option value="12inch">Whole Margherita (12") — £8.00</option>
+                <option value="Half12inch">Half Margherita — £5.00</option>
+                <option value="Quarter12inch">Quarter Margherita — £3.00</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Quantity</label>
+              <input type="number" class="pizza-qty-input admin-input" min="1" max="20" value="1" />
+            </div>
+            <div>
+              <label class="form-label">Subtotal</label>
+              <div class="pizza-row-subtotal">£8.00</div>
+            </div>
+            <div>
+              <button type="button" class="remove-pizza-btn" aria-label="Remove pizza">×</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="secondary-btn" id="parent-add-pizza-btn" style="margin: 8px 0 0;">+ Add another pizza</button>
+
+        <div class="summary-box">
+          <span>Order total</span>
+          <span id="parent-order-total">£8.00</span>
+        </div>
+
+        <div style="margin-top: 18px;">
+          <label class="form-label" for="parent-notes">Notes (optional)</label>
+          <textarea id="parent-notes" rows="4" placeholder="Add a note for allergies, pickup details or classroom instructions."></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+          <button type="submit" class="parent-submit" id="parent-submit-order">Place parent order</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="parent-success-screen" class="parent-card" style="display:none;">
+      <div id="parent-success-content" class="success-panel"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script src="parent-order.js"></script>
+</body>
+</html>
