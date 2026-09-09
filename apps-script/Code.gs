@@ -87,6 +87,7 @@ var PAYMENT_INFO_BLOCK =
 var INTERNAL_PARENT_DISCOUNT_CODE = 'INTERNAL_PARENT_50';
 var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
 var PARENT_SESSION_TTL_SECONDS = 12 * 60 * 60;
+var ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
 
 // ============================================================================
 // SETTINGS STORAGE & RETRIEVAL (ScriptProperties + Admin_Settings Sheet)
@@ -198,24 +199,14 @@ function setAdminPassword(newPassword) {
 }
 
 function generateAdminToken() {
-  var token = 'ao_adm_' + Utilities.getUuid().replace(/-/g, '') + '_' + Date.now();
-  var expiry = Date.now() + (8 * 60 * 60 * 1000); // 8 hours validity
-  var props = PropertiesService.getScriptProperties();
-  props.setProperty('ADMIN_TOKEN', token);
-  props.setProperty('ADMIN_TOKEN_EXPIRY', String(expiry));
+  var token = Utilities.getUuid();
+  CacheService.getScriptCache().put(token, 'valid', ADMIN_SESSION_TTL_SECONDS);
   return token;
 }
 
 function verifyAdminToken(token) {
   if (!token) return false;
-  var props = PropertiesService.getScriptProperties();
-  var storedToken = props.getProperty('ADMIN_TOKEN');
-  var expiry = parseInt(props.getProperty('ADMIN_TOKEN_EXPIRY') || '0', 10);
-  
-  if (storedToken && storedToken === token && Date.now() < expiry) {
-    return true;
-  }
-  return false;
+  return CacheService.getScriptCache().get(token) === 'valid';
 }
 
 function getParentAccessCode() {
@@ -245,10 +236,10 @@ function verifyParentSessionToken(token) {
   return CacheService.getScriptCache().get(token) === 'valid';
 }
 
-function invalidateAdminToken() {
-  var props = PropertiesService.getScriptProperties();
-  props.deleteProperty('ADMIN_TOKEN');
-  props.deleteProperty('ADMIN_TOKEN_EXPIRY');
+function invalidateAdminToken(token) {
+  if (token) {
+    CacheService.getScriptCache().remove(token);
+  }
 }
 
 // Audit logger
@@ -1771,7 +1762,7 @@ function doGet(e) {
 
     // 8. ADMIN: LOGOUT
     if (action === 'adminLogout' || actionLower === 'adminlogout') {
-      invalidateAdminToken();
+      invalidateAdminToken(safeTrim(params.token || ''));
       return createJsonResponse({
         success: true,
         message: 'Logged out successfully.'
