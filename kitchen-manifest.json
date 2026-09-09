@@ -1,0 +1,18 @@
+{
+  "name": "Artisan Oven — Order Progress",
+  "short_name": "AO Progress",
+  "description": "On-site order fulfilment board for Artisan Oven staff.",
+  "start_url": "./kitchen.html",
+  "scope": "./kitchen.html",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#1f3a2e",
+  "icons": [
+    {
+      "src": "kitchen-assets/kitchen-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
