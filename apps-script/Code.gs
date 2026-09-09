@@ -83,6 +83,7 @@ var PAYMENT_INFO_BLOCK =
 
 var INTERNAL_PARENT_DISCOUNT_CODE = 'INTERNAL_PARENT_50';
 var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
+var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
 var PARENT_SESSION_TTL_SECONDS = 12 * 60 * 60;
 var ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
 
@@ -184,11 +185,19 @@ function syncSettingsToSheet(settings) {
 // ============================================================================
 
 function getAdminPassword() {
-  return getParentAccessCode();
+  return safeTrim(PropertiesService.getScriptProperties().getProperty(ADMIN_ACCESS_CODE_PROP) || '');
 }
 
 function setAdminPassword(newPassword) {
-  return setParentAccessCode(newPassword);
+  var code = safeTrim(newPassword || '');
+  if (!code) {
+    throw new Error('Admin access code is required.');
+  }
+  if (code.length < 4) {
+    throw new Error('Admin access code must be at least 4 characters long.');
+  }
+  PropertiesService.getScriptProperties().setProperty(ADMIN_ACCESS_CODE_PROP, code);
+  return code;
 }
 
 function generateAdminToken() {
