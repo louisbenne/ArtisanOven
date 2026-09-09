@@ -1,5 +1,5 @@
 (function () {
-  const PARENT_TOKEN_KEY = 'Class 2027';
+  const PARENT_TOKEN_KEY = 'AO_PARENT_SESSION_TOKEN';
   const SIZE_PRICES = {
     '12inch': 8,
     'Half12inch': 5,
