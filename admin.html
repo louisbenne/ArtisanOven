@@ -1642,7 +1642,7 @@
                 <div class="paid-toggle-wrap" onclick="event.stopPropagation()">
                   <span>${statusLabel}</span>
                   <label class="switch">
-                    <input type="checkbox" class="paid-toggle" data-order-id="${order.orderId}" ${isPaid ? 'checked' : ''}>
+                    <input type="checkbox" class="paid-toggle" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" ${isPaid ? 'checked' : ''}>
                     <span class="slider"></span>
                   </label>
                 </div>
@@ -1662,14 +1662,14 @@
                     <span>£${(order.total || 0).toFixed(2)}</span>
                   </div>
                   <div style="display: flex; gap: 8px;">
-                    <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                    <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" onclick="event.stopPropagation()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
                         <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
                       </svg>
                       RESEND EMAIL
                     </button>
-                    <button type="button" class="delete-btn-inline" data-order-id="${order.orderId}" onclick="event.stopPropagation()">
+                    <button type="button" class="delete-btn-inline" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" onclick="event.stopPropagation()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1704,6 +1704,8 @@
               url.searchParams.set("token", currentAdminToken);
               url.searchParams.set("orderId", orderId);
               url.searchParams.set("status", newStatus);
+              const source = this.getAttribute('data-order-source');
+              if (source) url.searchParams.set("source", source);
 
               const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
               const data = await res.json();
@@ -1738,6 +1740,8 @@
               url.searchParams.set("action", "adminResendConfirmation");
               url.searchParams.set("token", currentAdminToken);
               url.searchParams.set("orderId", orderId);
+              const source = this.getAttribute('data-order-source');
+              if (source) url.searchParams.set("source", source);
 
               const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
               const data = await res.json();
@@ -1777,6 +1781,7 @@
               url.searchParams.set("action", "adminDeleteOrder");
               url.searchParams.set("token", currentAdminToken);
               url.searchParams.set("orderId", orderId);
+              if (existingOrder && existingOrder.source) url.searchParams.set("source", existingOrder.source);
 
               const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
               const data = await res.json();
