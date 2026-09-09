@@ -5,6 +5,10 @@
     'Half12inch': 5,
     'Quarter12inch': 3
   };
+  const PARENT_PROFILES = {
+    'lisa-g': { name: 'Lisa G', email: 'lisa@garrettgirl.com' },
+    'lorna-b': { name: 'Lorna B', email: 'lornajbouwer@hotmail.com' }
+  };
 
   function getScriptApiUrl() {
     if (typeof window.ORDER_API_URL !== 'undefined' && window.ORDER_API_URL) return window.ORDER_API_URL;
@@ -35,9 +39,9 @@
       <div>
         <label>Pizza size</label>
         <select class="pizza-size-select admin-input">
-          <option value="12inch">Whole Margherita (12") — £8.00</option>
-          <option value="Half12inch">Half Margherita — £5.00</option>
-          <option value="Quarter12inch">Quarter Margherita — £3.00</option>
+          <option value="12inch">Whole Margherita (12")</option>
+          <option value="Half12inch">Half Margherita</option>
+          <option value="Quarter12inch">Quarter Margherita</option>
         </select>
       </div>
       <div>
@@ -80,11 +84,30 @@
       row.querySelector('.pizza-row-subtotal').textContent = '£' + subtotal.toFixed(2);
     });
 
+    const discount = total * 0.5;
+    const finalTotal = total - discount;
+    const originalTotalEl = document.getElementById('parent-order-original-total');
+    const discountEl = document.getElementById('parent-order-discount');
     const totalEl = document.getElementById('parent-order-total');
-    if (totalEl) totalEl.textContent = '£' + total.toFixed(2);
+    if (originalTotalEl) originalTotalEl.textContent = '£' + total.toFixed(2);
+    if (discountEl) discountEl.textContent = '-£' + discount.toFixed(2);
+    if (totalEl) totalEl.textContent = '£' + finalTotal.toFixed(2);
+  }
+
+  function updateParentProfile() {
+    const profileSelect = document.getElementById('parent-profile');
+    const profile = PARENT_PROFILES[profileSelect?.value];
+    const nameInput = document.getElementById('parent-name');
+    const emailInput = document.getElementById('parent-email');
+    if (!nameInput || !emailInput) return;
+    nameInput.value = profile ? profile.name : '';
+    emailInput.value = profile ? profile.email : '';
   }
 
   function initOrderForm() {
+    const profileSelect = document.getElementById('parent-profile');
+    if (profileSelect) profileSelect.addEventListener('change', updateParentProfile);
+
     const addButton = document.getElementById('parent-add-pizza-btn');
     if (addButton) {
       addButton.addEventListener('click', addPizzaRow);
