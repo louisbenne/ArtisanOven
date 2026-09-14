@@ -939,6 +939,15 @@ function doGet(e) {
       return createJsonResponse({ success: true, state: loadKitchenBoardState() });
     }
 
+    // 3b.1. KITCHEN BOARD: FAST CHANGE CHECK FOR OPEN BOARDS
+    if (actionLower === 'kitchenstatus' || action === 'kitchenStatus') {
+      var statusToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(statusToken)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Admin session expired.' });
+      }
+      return createJsonResponse({ success: true, updatedAt: getKitchenBoardUpdatedAt() });
+    }
+
     // 3c. KITCHEN BOARD: SAVE CLIENT-SIDE BOARD STATE
     if (actionLower === 'kitchensave' || action === 'kitchenSave') {
       var saveToken = safeTrim(params.token || '');
@@ -951,8 +960,8 @@ function doGet(e) {
       }
       try {
         var parsedKitchenState = JSON.parse(kitchenPayload);
-        saveKitchenBoardState(parsedKitchenState);
-        return createJsonResponse({ success: true, savedAt: new Date().toISOString() });
+        var savedAt = saveKitchenBoardState(parsedKitchenState);
+        return createJsonResponse({ success: true, savedAt: savedAt });
       } catch (kitchenError) {
         return createJsonResponse({ success: false, message: 'Kitchen board state could not be saved.' });
       }
@@ -2471,6 +2480,13 @@ function loadKitchenBoardState() {
   };
 }
 
+function getKitchenBoardUpdatedAt() {
+  var sheet = getKitchenBoardSheet();
+  if (sheet.getLastRow() < 2) return '';
+  var value = sheet.getRange(2, 5).getValue();
+  return value instanceof Date ? value.toISOString() : String(value || '');
+}
+
 function saveKitchenBoardState(state) {
   if (!state || !state.sessionTitle || !state.data || !Array.isArray(state.completed)) {
     throw new Error('Invalid kitchen board state.');
@@ -2490,6 +2506,7 @@ function saveKitchenBoardState(state) {
   } finally {
     lock.releaseLock();
   }
+  return row[4] instanceof Date ? row[4].toISOString() : String(row[4]);
 }
 
 function createJsonResponse(data) {
