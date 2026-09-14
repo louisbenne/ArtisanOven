@@ -22,8 +22,11 @@ var CONFIRMATION_SUBJECT = 'Your Pizza Order Confirmation & Payment Details';
 var PAYPAL_ME_BASE = 'https://paypal.me/ArtisanOven';
 var PAYPAL_NCP_LINK = 'https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA';
 
-// Default Admin Password (can be customized via Admin Dashboard or Script Properties)
-var DEFAULT_ADMIN_PASSWORD = 'ArtisanOvenAdmin2026!';
+// Default Admin Access Code / Password (can be customized via Admin Dashboard or Script Properties)
+var DEFAULT_ADMIN_ACCESS_CODE = 'ArtisanOvenAdmin2026!';
+var DEFAULT_ADMIN_PASSWORD = DEFAULT_ADMIN_ACCESS_CODE;
+var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
+var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
 
 // Canonical payment mappings
 var PAYMENT_MAP = {
@@ -181,16 +184,32 @@ function syncSettingsToSheet(settings) {
 // SECURITY & AUTHENTICATION
 // ============================================================================
 
-function getAdminPassword() {
+function getAdminAccessCode() {
   var props = PropertiesService.getScriptProperties();
-  return props.getProperty('ADMIN_PASSWORD') || DEFAULT_ADMIN_PASSWORD;
+  var code = props.getProperty(ADMIN_ACCESS_CODE_PROP) || props.getProperty('ADMIN_PASSWORD') || DEFAULT_ADMIN_ACCESS_CODE;
+  return safeTrim(code || '');
+}
+
+function getAdminPassword() {
+  return getAdminAccessCode();
 }
 
 function setAdminPassword(newPassword) {
-  if (!newPassword || newPassword.length < 6) {
-    throw new Error('Password must be at least 6 characters long.');
+  var code = safeTrim(newPassword || '');
+  if (!code) {
+    throw new Error('Admin access code is required.');
   }
-  PropertiesService.getScriptProperties().setProperty('ADMIN_PASSWORD', newPassword);
+  if (code.length < 4) {
+    throw new Error('Admin access code must be at least 4 characters long.');
+  }
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty(ADMIN_ACCESS_CODE_PROP, code);
+  props.setProperty('ADMIN_PASSWORD', code);
+  return code;
+}
+
+function setAdminAccessCode(newCode) {
+  return setAdminPassword(newCode);
 }
 
 function generateAdminToken() {
@@ -721,23 +740,24 @@ function doGet(e) {
       return createJsonResponse(responseData);
     }
 
-    // 3. ADMIN: LOGIN
-    if (action === 'adminLogin' || actionLower === 'adminlogin') {
-      var password = safeTrim(params.password || '');
-      if (password && password === getAdminPassword()) {
-        var token = generateAdminToken();
-        logAdminAction('Admin Login', 'Successful login from web interface');
-        return createJsonResponse({
-          success: true,
-          token: token,
-          message: 'Logged in successfully.'
-        });
-      } else {
+    // 3. ADMIN: LOGIN & AUTH
+    if (actionLower === 'adminauth' || action === 'adminAuth' || action === 'adminLogin' || actionLower === 'adminlogin') {
+      var suppliedCode = safeTrim(params.code || params.accessCode || params.password || '');
+      var expectedCode = getAdminAccessCode();
+      if (!suppliedCode || !expectedCode || suppliedCode !== expectedCode) {
         return createJsonResponse({
           success: false,
-          message: 'Incorrect password.'
+          message: 'Access denied. Please check your code and try again.'
         });
       }
+      var token = generateAdminToken();
+      logAdminAction('Admin Login', 'Successful login from web interface');
+      return createJsonResponse({
+        success: true,
+        token: token,
+        expiresInSeconds: 8 * 60 * 60,
+        message: 'Access granted.'
+      });
     }
 
     // 4. ADMIN: GET ALL SETTINGS

@@ -84,6 +84,7 @@ var PAYMENT_INFO_BLOCK =
 var INTERNAL_PARENT_DISCOUNT_CODE = 'INTERNAL_PARENT_50';
 var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
 var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
+var DEFAULT_ADMIN_ACCESS_CODE = 'ArtisanOvenAdmin2026!';
 var PARENT_SESSION_TTL_SECONDS = 12 * 60 * 60;
 var ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
 
@@ -184,8 +185,14 @@ function syncSettingsToSheet(settings) {
 // SECURITY & AUTHENTICATION
 // ============================================================================
 
+function getAdminAccessCode() {
+  var props = PropertiesService.getScriptProperties();
+  var code = props.getProperty(ADMIN_ACCESS_CODE_PROP) || props.getProperty('ADMIN_PASSWORD') || DEFAULT_ADMIN_ACCESS_CODE;
+  return safeTrim(code || '');
+}
+
 function getAdminPassword() {
-  return safeTrim(PropertiesService.getScriptProperties().getProperty(ADMIN_ACCESS_CODE_PROP) || '');
+  return getAdminAccessCode();
 }
 
 function setAdminPassword(newPassword) {
@@ -196,8 +203,14 @@ function setAdminPassword(newPassword) {
   if (code.length < 4) {
     throw new Error('Admin access code must be at least 4 characters long.');
   }
-  PropertiesService.getScriptProperties().setProperty(ADMIN_ACCESS_CODE_PROP, code);
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty(ADMIN_ACCESS_CODE_PROP, code);
+  props.setProperty('ADMIN_PASSWORD', code);
   return code;
+}
+
+function setAdminAccessCode(newCode) {
+  return setAdminPassword(newCode);
 }
 
 function generateAdminToken() {
@@ -895,23 +908,24 @@ function doGet(e) {
       return createJsonResponse(responseData);
     }
 
-    // 3. ADMIN: LOGIN
-    if (action === 'adminLogin' || actionLower === 'adminlogin') {
-      var password = safeTrim(params.code || params.password || '');
-      if (password && password === getAdminPassword()) {
-        var token = generateAdminToken();
-        logAdminAction('Admin Login', 'Successful login from web interface');
-        return createJsonResponse({
-          success: true,
-          token: token,
-          message: 'Logged in successfully.'
-        });
-      } else {
+    // 3. ADMIN: LOGIN & AUTH
+    if (actionLower === 'adminauth' || action === 'adminAuth' || action === 'adminLogin' || actionLower === 'adminlogin') {
+      var suppliedCode = safeTrim(params.code || params.accessCode || params.password || '');
+      var expectedCode = getAdminAccessCode();
+      if (!suppliedCode || !expectedCode || suppliedCode !== expectedCode) {
         return createJsonResponse({
           success: false,
-          message: 'Incorrect password.'
+          message: 'Access denied. Please check your code and try again.'
         });
       }
+      var token = generateAdminToken();
+      logAdminAction('Admin Login', 'Successful login from web interface');
+      return createJsonResponse({
+        success: true,
+        token: token,
+        expiresInSeconds: ADMIN_SESSION_TTL_SECONDS,
+        message: 'Access granted.'
+      });
     }
 
     // 3b. KITCHEN BOARD: LOAD SAVED READ-ONLY STATE
@@ -1764,13 +1778,13 @@ function doGet(e) {
         });
       }
 
-      var currentPass = safeTrim(params.currentPassword || '');
-      var newPass = safeTrim(params.newPassword || '');
+      var currentPass = safeTrim(params.currentPassword || params.currentCode || '');
+      var newPass = safeTrim(params.newPassword || params.newCode || '');
 
-      if (currentPass !== getAdminPassword()) {
+      if (currentPass !== getAdminAccessCode()) {
         return createJsonResponse({
           success: false,
-          message: 'Current password is not correct.'
+          message: 'Current access code is not correct.'
         });
       }
 
