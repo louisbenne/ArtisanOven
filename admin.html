@@ -178,8 +178,16 @@
       min-height: 720px;
       border: 1px solid rgba(31, 58, 46, 0.08);
       border-radius: 8px;
-      margin-top: 16px;
       background: var(--white);
+    }
+    .orders-checklist-preview {
+      margin-top: 16px;
+    }
+    .orders-checklist-preview summary {
+      cursor: pointer;
+      color: var(--forest);
+      font-weight: 700;
+      padding: 10px 0;
     }
 
     /* Events Subtab Styles */
@@ -849,7 +857,10 @@
               </div>
             </div>
             <div id="orders-checklist-status" style="color: var(--text-soft); font-size: 0.85rem; margin-top: 12px;" aria-live="polite">Loading live checklist...</div>
-            <iframe id="orders-checklist-frame" class="orders-checklist-frame" title="Live orders checklist"></iframe>
+            <details class="orders-checklist-preview">
+              <summary>Preview checklist</summary>
+              <iframe id="orders-checklist-frame" class="orders-checklist-frame" title="Live orders checklist"></iframe>
+            </details>
           </div>
 
           <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -1907,17 +1918,28 @@
       const printOrdersButton = document.getElementById('btn-print-orders');
       if (printOrdersButton) {
         printOrdersButton.addEventListener('click', async () => {
+          const printWindow = window.open('about:blank', '_blank');
+          if (!printWindow) {
+            showToast("Please allow pop-ups to print the checklist.", "error");
+            return;
+          }
           try {
             const data = await fetchOrdersChecklist();
-            if (!data) return;
-            const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-            if (!printWindow) throw new Error("Please allow pop-ups to print the checklist.");
-            printWindow.onload = () => setTimeout(() => printWindow.print(), 150);
-            printWindow.document.open();
-            printWindow.document.write(data.html);
-            printWindow.document.close();
-            printWindow.focus();
+            if (!data) {
+              printWindow.close();
+              return;
+            }
+            const blobUrl = URL.createObjectURL(new Blob([data.html], { type: 'text/html' }));
+            printWindow.location.href = blobUrl;
+            printWindow.onload = () => {
+              setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+                URL.revokeObjectURL(blobUrl);
+              }, 250);
+            };
           } catch (err) {
+            printWindow.close();
             showToast(err.message || "Unable to prepare the checklist for printing.", "error");
           }
         });
