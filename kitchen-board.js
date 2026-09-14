@@ -177,6 +177,9 @@
     let sort = 'class';
     let selected = null;
     let timerHandle = null;
+    let syncPollHandle = null;
+    let remoteUpdatedAt = '';
+    let remoteLoadInFlight = false;
 
     function show(id) {
       Object.values(screens).forEach((screen) => { if (screen) screen.hidden = screen !== screens[id]; });
@@ -219,27 +222,55 @@
       const response = await fetch(endpoint.toString(), { mode: 'cors' });
       const result = await response.json();
       if (!result.success) throw new Error(result.message || 'Remote save rejected.');
+      remoteUpdatedAt = result.savedAt || remoteUpdatedAt;
     }
 
-    async function loadRemoteState() {
+    async function loadRemoteState(force) {
+      if (remoteLoadInFlight) return;
       const token = getSyncToken();
       const url = apiUrl();
       if (!token || !url) return;
+      remoteLoadInFlight = true;
       const endpoint = new URL(url);
       endpoint.searchParams.set('action', 'kitchenLoad');
       endpoint.searchParams.set('token', token);
-      const response = await fetch(endpoint.toString(), { mode: 'cors' });
-      const result = await response.json();
-      if (!result.success || !result.state || !result.state.data) return;
-      current = result.state.data;
-      loadSessionState(current.sessionTitle);
-      completed = new Set(result.state.completed || []);
-      meta = result.state.meta || { sessionTitle: current.sessionTitle };
-      storageSet(DATA_KEY, current);
-      storageSet(COMPLETE_PREFIX + current.sessionTitle, Array.from(completed));
-      storageSet(META_KEY, meta);
-      $('kitchen-upload-button').hidden = true;
-      render();
+      try {
+        const response = await fetch(endpoint.toString(), { mode: 'cors', cache: 'no-store' });
+        const result = await response.json();
+        if (!result.success || !result.state || !result.state.data) return;
+        if (!force && result.state.updatedAt && result.state.updatedAt === remoteUpdatedAt) return;
+        remoteUpdatedAt = result.state.updatedAt || remoteUpdatedAt;
+        current = result.state.data;
+        loadSessionState(current.sessionTitle);
+        completed = new Set(result.state.completed || []);
+        meta = result.state.meta || { sessionTitle: current.sessionTitle };
+        storageSet(DATA_KEY, current);
+        storageSet(COMPLETE_PREFIX + current.sessionTitle, Array.from(completed));
+        storageSet(META_KEY, meta);
+        $('kitchen-upload-button').hidden = true;
+        render();
+      } finally {
+        remoteLoadInFlight = false;
+      }
+    }
+
+    async function pollRemoteState() {
+      const token = getSyncToken();
+      const url = apiUrl();
+      if (!token || !url || !current || document.hidden) return;
+      try {
+        const endpoint = new URL(url);
+        endpoint.searchParams.set('action', 'kitchenStatus');
+        endpoint.searchParams.set('token', token);
+        endpoint.searchParams.set('_t', Date.now().toString());
+        const response = await fetch(endpoint.toString(), { mode: 'cors', cache: 'no-store' });
+        const result = await response.json();
+        if (result.success && result.updatedAt && result.updatedAt !== remoteUpdatedAt) {
+          await loadRemoteState(false);
+        }
+      } catch (error) {
+        console.warn('Kitchen board remote poll failed; local state is preserved:', error);
+      }
     }
 
     function updateTimer() {
@@ -378,9 +409,18 @@
     loadRemoteState().catch((error) => {
       console.warn('Kitchen board remote load failed; local state is preserved:', error);
     });
+    syncPollHandle = window.setInterval(pollRemoteState, 2000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadRemoteState(false).catch((error) => {
+        console.warn('Kitchen board resume sync failed; local state is preserved:', error);
+      });
+    });
     updateTimer();
     timerHandle = window.setInterval(updateTimer, 1000);
-    window.addEventListener('beforeunload', () => window.clearInterval(timerHandle));
+    window.addEventListener('beforeunload', () => {
+      window.clearInterval(timerHandle);
+      window.clearInterval(syncPollHandle);
+    });
   }
 
   root.KitchenBoard = { parseWorkbook, paymentIcon, classInfo };
