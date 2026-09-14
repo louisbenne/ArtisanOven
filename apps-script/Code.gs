@@ -1280,7 +1280,23 @@ function doGet(e) {
 
         if (emailType === 'summary') {
           try {
-            sendInternalSummaryEmail(targetEmail, message);
+            var clientStats = null;
+            if (params.lunchTotalOrders !== undefined || params.lunchOrders !== undefined) {
+              clientStats = {
+                lunchOrders: params.lunchTotalOrders || params.lunchOrders,
+                lunchPizzas: params.lunchTotalPizzas || params.lunchPizzas,
+                lunchItems: params.lunchTotalItems || params.lunchItems,
+                lunchPending: params.lunchPending,
+                lunchPaid: params.lunchPaid,
+                parentOrders: params.parentTotalOrders || params.parentOrders,
+                parentPizzas: params.parentTotalPizzas || params.parentPizzas,
+                parentPending: params.parentPending,
+                parentPaid: params.parentPaid,
+                capacityMax: params.capacityMax,
+                capacityRemaining: params.capacityRemaining
+              };
+            }
+            sendInternalSummaryEmail(targetEmail, message, clientStats);
             logAdminAction('Send Automated Email', 'Dispatched operational summary to ' + targetEmail);
             return createJsonResponse({
               success: true,
@@ -2623,7 +2639,8 @@ function rebuildCleanSheets() {
     if (rowIsBlank(row)) continue;
     if (isRowDeleted(row)) continue;
 
-    var isCurrentSession = (r >= settings.sessionStartRow);
+    var startRowIndex = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
+    var isCurrentSession = (r >= startRowIndex);
 
     var stats = calculateRowPizzaStats(row);
     if (isCurrentSession) {
@@ -2884,12 +2901,13 @@ function writeSectionTitle(sheet, row, titleText, mergeAcross) {
 
 function emailXlsxSnapshot(targetEmail) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  // Ensure the live combined 'Pizza Order Update' tab is freshly rebuilt from the current session
+  rebuildCleanSheets();
+  SpreadsheetApp.flush();
+
   var combinedSheet = ss.getSheetByName('Pizza Order Update');
   if (!combinedSheet) return;
 
-  // Ensure regular and internal parent rows are committed before copying the
-  // combined sheet into the emailed workbook.
-  SpreadsheetApp.flush();
   var tempSs = SpreadsheetApp.create('Pizza Order Update Export');
   var tempSheet = combinedSheet.copyTo(tempSs);
   tempSheet.setName('Pizza Order Update');
@@ -2915,67 +2933,174 @@ function emailXlsxSnapshot(targetEmail) {
   DriveApp.getFileById(tempSs.getId()).setTrashed(true);
 }
 
-function sendInternalSummaryEmail(targetEmail, customNotes) {
+function sendInternalSummaryEmail(targetEmail, customNotes, clientStats) {
+  SpreadsheetApp.flush();
   var settings = getSettings();
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-  var parentSheet = ss.getSheetByName('Internal Parent Orders');
+  
+  // 1. Calculate school lunch orders directly from Form Responses 1 using the admin parser
+  var lunchOrders = getAllOrdersForAdmin();
+  var totalLunchOrders = lunchOrders.length;
+  var totalLunchPizzas = 0;
+  var totalLunchItems = 0;
+  var lunchPending = 0;
+  var lunchPaid = 0;
+  
+  lunchOrders.forEach(function(o) {
+    var cap = (typeof o.totalCapacity === 'number') ? o.totalCapacity : (o.pizzaCount || 0);
+    var items = (typeof o.itemCount === 'number') ? o.itemCount : (o.pizzas && o.pizzas.length ? o.pizzas.length : cap);
+    totalLunchPizzas += cap;
+    totalLunchItems += items;
+    if (o.paymentStatus === 'Paid') {
+      lunchPaid++;
+    } else {
+      lunchPending++;
+    }
+  });
+  totalLunchPizzas = Math.round(totalLunchPizzas * 100) / 100;
 
-  var lunchData = raw.getDataRange().getValues();
-  var totalLunchOrders = Math.max(0, lunchData.length - 1);
-  var lunchPizzas = 0;
-  for (var i = 1; i < lunchData.length; i++) {
-    if (!isRowDeleted(lunchData[i])) {
-      var qty = extractDigit(safeTrim(lunchData[i][3])) || 1;
-      lunchPizzas += parseInt(qty, 10);
+  // Sync / reconcile with clientStats if explicitly provided from loaded UI
+  if (clientStats) {
+    if (clientStats.lunchOrders !== undefined && !isNaN(parseInt(clientStats.lunchOrders, 10))) {
+      totalLunchOrders = parseInt(clientStats.lunchOrders, 10);
+    }
+    if (clientStats.lunchPizzas !== undefined && !isNaN(parseFloat(clientStats.lunchPizzas))) {
+      totalLunchPizzas = parseFloat(clientStats.lunchPizzas);
+    }
+    if (clientStats.lunchItems !== undefined && !isNaN(parseInt(clientStats.lunchItems, 10))) {
+      totalLunchItems = parseInt(clientStats.lunchItems, 10);
+    }
+    if (clientStats.lunchPending !== undefined && !isNaN(parseInt(clientStats.lunchPending, 10))) {
+      lunchPending = parseInt(clientStats.lunchPending, 10);
+    }
+    if (clientStats.lunchPaid !== undefined && !isNaN(parseInt(clientStats.lunchPaid, 10))) {
+      lunchPaid = parseInt(clientStats.lunchPaid, 10);
     }
   }
 
-  var parentCount = 0;
-  var parentPizzas = 0;
-  if (parentSheet && parentSheet.getLastRow() >= 2) {
-    var pRows = parentSheet.getDataRange().getValues();
-    for (var j = 1; j < pRows.length; j++) {
-      if (safeTrim(pRows[j][1])) {
-        parentCount++;
-        try {
-          var items = JSON.parse(pRows[j][6] || '[]');
-          items.forEach(function(it) { parentPizzas += (parseInt(it.qty, 10) || 1); });
-        } catch (e) {
-          parentPizzas += 1;
-        }
-      }
+  // 2. Calculate Internal Parent Orders
+  var parentOrdersList = getAllParentOrdersForAdmin();
+  var totalParentOrders = parentOrdersList.length;
+  var totalParentPizzas = 0;
+  var totalParentItems = 0;
+  var parentPending = 0;
+  var parentPaid = 0;
+
+  parentOrdersList.forEach(function(p) {
+    var pItems = p.items || [];
+    pItems.forEach(function(it) {
+      var q = parseInt(it.qty, 10) || 1;
+      totalParentPizzas += q;
+      totalParentItems += q;
+    });
+    if (p.paymentStatus === 'Paid') {
+      parentPaid++;
+    } else {
+      parentPending++;
+    }
+  });
+
+  if (clientStats) {
+    if (clientStats.parentOrders !== undefined && !isNaN(parseInt(clientStats.parentOrders, 10))) {
+      totalParentOrders = parseInt(clientStats.parentOrders, 10);
+    }
+    if (clientStats.parentPizzas !== undefined && !isNaN(parseFloat(clientStats.parentPizzas))) {
+      totalParentPizzas = parseFloat(clientStats.parentPizzas);
+    }
+    if (clientStats.parentPending !== undefined && !isNaN(parseInt(clientStats.parentPending, 10))) {
+      parentPending = parseInt(clientStats.parentPending, 10);
+    }
+    if (clientStats.parentPaid !== undefined && !isNaN(parseInt(clientStats.parentPaid, 10))) {
+      parentPaid = parseInt(clientStats.parentPaid, 10);
     }
   }
 
-  var maxLimit = settings.maxPizzas || 20;
-  var remaining = Math.max(0, maxLimit - lunchPizzas);
+  // 3. Capacity
+  var maxLimit = parseFloat(settings.maxPizzas || 20);
+  if (clientStats && clientStats.capacityMax !== undefined && !isNaN(parseFloat(clientStats.capacityMax))) {
+    maxLimit = parseFloat(clientStats.capacityMax);
+  }
+  var remaining = Math.max(0, maxLimit - totalLunchPizzas);
+  if (clientStats && clientStats.capacityRemaining !== undefined && !isNaN(parseFloat(clientStats.capacityRemaining))) {
+    remaining = parseFloat(clientStats.capacityRemaining);
+  }
+  var isPastDeadline = isPastAutoClosingDeadline(settings);
+  var orderingStatus = (settings.orderingEnabled && !isPastDeadline && remaining > 0) ? 'OPEN' : (settings.orderingEnabled ? 'OPEN (Fully Booked)' : 'CLOSED');
 
-  var body = 'ARTISAN OVEN — OPERATIONAL SUMMARY\n\n' +
-    'Session Date: ' + (settings.serviceDate || 'Upcoming Service') + '\n' +
-    'Status: ' + (settings.orderingEnabled ? 'OPEN' : 'CLOSED') + '\n\n' +
-    'School Lunch Orders: ' + totalLunchOrders + ' (' + lunchPizzas + ' pizzas)\n' +
-    'Internal Parent Orders: ' + parentCount + ' (' + parentPizzas + ' pizzas)\n' +
-    'Remaining Capacity: ' + remaining + ' / ' + maxLimit + ' pizzas\n\n' +
+  var combinedOrdersCount = totalLunchOrders + totalParentOrders;
+  var combinedPizzasCount = totalLunchPizzas + totalParentPizzas;
+
+  var sessionDateFormatted = settings.serviceDate || 'Tuesday 15th September 2026';
+
+  var body = 'ARTISAN OVEN — OPERATIONAL SUMMARY\n' +
+    'Session Date: ' + sessionDateFormatted + '\n' +
+    'Status: ' + orderingStatus + '\n\n' +
+    'via Google Forms (Form Responses 1):\n' +
+    'Total Orders: ' + totalLunchOrders + '\n' +
+    'Total Pizzas: ' + totalLunchPizzas + ' (' + totalLunchItems + ' items)\n' +
+    'Pending Payment: ' + lunchPending + '\n' +
+    'Paid: ' + lunchPaid + '\n\n' +
+    'Capacity Remaining: ' + remaining + ' of ' + maxLimit + ' pizzas\n\n' +
+    'Internal Parent Orders:\n' +
+    'Total Orders: ' + totalParentOrders + '\n' +
+    'Total Pizzas: ' + totalParentPizzas + ' pizzas\n' +
+    'Pending Payment: ' + parentPending + '\n' +
+    'Paid: ' + parentPaid + '\n\n' +
+    'Overall Combined Totals:\n' +
+    'Total Orders: ' + combinedOrdersCount + '\n' +
+    'Total Pizzas: ' + combinedPizzasCount + ' pizzas\n\n' +
     (customNotes ? 'Admin Notes:\n' + customNotes + '\n\n' : '') +
-    'Generated from the Artisan Oven Admin Dashboard at ' + new Date().toLocaleString();
+    'Generated on-demand from Artisan Oven Admin Dashboard at ' + Utilities.formatDate(new Date(), 'Europe/London', 'dd MMM yyyy HH:mm');
 
-  var htmlBody = '<div style="font-family: Arial, sans-serif; color: #1F3A2E; max-width: 600px;">' +
-    '<h2 style="color: #4F6359; border-bottom: 2px solid #C65D3B; padding-bottom: 8px;">Artisan Oven — Operational Summary</h2>' +
-    '<p><strong>Session Date:</strong> ' + (settings.serviceDate || 'Upcoming Service') + '<br>' +
-    '<strong>Status:</strong> ' + (settings.orderingEnabled ? '<span style="color:#2E6930;font-weight:bold;">OPEN</span>' : '<span style="color:#A83220;font-weight:bold;">CLOSED</span>') + '</p>' +
-    '<div style="background: #F4F6F0; padding: 14px; border-radius: 8px; margin: 16px 0;">' +
-    '<p style="margin: 4px 0;"><strong>School Lunch Orders:</strong> ' + totalLunchOrders + ' (' + lunchPizzas + ' pizzas)</p>' +
-    '<p style="margin: 4px 0;"><strong>Internal Parent Orders:</strong> ' + parentCount + ' (' + parentPizzas + ' pizzas)</p>' +
-    '<p style="margin: 4px 0;"><strong>Capacity Remaining:</strong> ' + remaining + ' of ' + maxLimit + ' pizzas</p>' +
+  var htmlBody = '<div style="font-family: Arial, sans-serif; color: #1F3A2E; max-width: 600px; margin: 0 auto; line-height: 1.5;">' +
+    '<div style="background: #4F6359; color: #fff; padding: 18px 24px; border-radius: 8px 8px 0 0; text-align: center;">' +
+    '<h2 style="margin: 0; font-size: 1.4rem; letter-spacing: 0.04em;">ARTISAN OVEN</h2>' +
+    '<p style="margin: 4px 0 0 0; font-size: 0.95rem; opacity: 0.9;">Operational Summary · ' + sessionDateFormatted + '</p>' +
     '</div>' +
-    (customNotes ? '<div style="background: #FFF8E7; border-left: 4px solid #C65D3B; padding: 12px; margin: 16px 0;"><p style="margin:0;"><strong>Admin Note:</strong> ' + customNotes.replace(/\n/g, '<br>') + '</p></div>' : '') +
-    '<p style="font-size: 0.85rem; color: #738A7C;">Automated notification from Artisan Oven Admin Dashboard.</p>' +
+    '<div style="background: #FAF8F5; border: 1px solid #DCE3DB; border-top: none; padding: 22px; border-radius: 0 0 8px 8px;">' +
+    '<div style="margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #E2E8DF;">' +
+    '<p style="margin: 3px 0; font-size: 0.95rem;"><strong>Session Date:</strong> ' + sessionDateFormatted + '</p>' +
+    '<p style="margin: 3px 0; font-size: 0.95rem;"><strong>Ordering Status:</strong> <span style="font-weight: bold; color: ' + (orderingStatus.indexOf('OPEN') >= 0 ? '#2E6930' : '#A83220') + ';">' + orderingStatus + '</span></p>' +
+    '<p style="margin: 3px 0; font-size: 0.95rem;"><strong>Capacity Remaining:</strong> <span style="font-weight: bold; color: #C65D3B;">' + remaining + ' of ' + maxLimit + ' pizzas</span></p>' +
+    '</div>' +
+
+    // School Lunch Orders Box
+    '<div style="background: #FFFFFF; border: 1px solid #DCE3DB; border-radius: 8px; padding: 16px; margin-bottom: 16px;">' +
+    '<h3 style="margin: 0 0 12px 0; color: #1F3A2E; font-size: 1.05rem; border-bottom: 1px solid #F0F4EE; padding-bottom: 6px;">School Lunch Orders <span style="font-size: 0.8rem; font-weight: normal; color: #738A7C;">(Form Responses 1)</span></h3>' +
+    '<table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">' +
+    '<tr><td style="padding: 5px 0; color: #555;">Total Orders:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #1F3A2E;">' + totalLunchOrders + '</td></tr>' +
+    '<tr><td style="padding: 5px 0; color: #555;">Total Pizzas:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #1F3A2E;">' + totalLunchPizzas + ' <span style="font-weight: normal; color: #777;">(' + totalLunchItems + ' items)</span></td></tr>' +
+    '<tr><td style="padding: 5px 0; color: #555;">Pending Payment:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #C65D3B;">' + lunchPending + '</td></tr>' +
+    '<tr><td style="padding: 5px 0; color: #555;">Paid:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #2E6930;">' + lunchPaid + '</td></tr>' +
+    '</table>' +
+    '</div>' +
+
+    // Internal Parent Orders Box
+    '<div style="background: #FFFFFF; border: 1px solid #DCE3DB; border-radius: 8px; padding: 16px; margin-bottom: 16px;">' +
+    '<h3 style="margin: 0 0 12px 0; color: #1F3A2E; font-size: 1.05rem; border-bottom: 1px solid #F0F4EE; padding-bottom: 6px;">Internal Parent Orders</h3>' +
+    '<table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">' +
+    '<tr><td style="padding: 5px 0; color: #555;">Total Orders:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #1F3A2E;">' + totalParentOrders + '</td></tr>' +
+    '<tr><td style="padding: 5px 0; color: #555;">Total Pizzas:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #1F3A2E;">' + totalParentPizzas + ' pizzas</td></tr>' +
+    '<tr><td style="padding: 5px 0; color: #555;">Pending Payment:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #C65D3B;">' + parentPending + '</td></tr>' +
+    '<tr><td style="padding: 5px 0; color: #555;">Paid:</td><td style="padding: 5px 0; font-weight: bold; text-align: right; color: #2E6930;">' + parentPaid + '</td></tr>' +
+    '</table>' +
+    '</div>' +
+
+    // Combined Totals Box
+    '<div style="background: #EEF3ED; border: 1px solid #D0DDD0; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;">' +
+    '<table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">' +
+    '<tr><td style="padding: 4px 0; color: #2E5A44; font-weight: bold;">Combined Orders:</td><td style="padding: 4px 0; font-weight: bold; text-align: right; color: #1F3A2E;">' + combinedOrdersCount + ' orders</td></tr>' +
+    '<tr><td style="padding: 4px 0; color: #2E5A44; font-weight: bold;">Combined Pizzas:</td><td style="padding: 4px 0; font-weight: bold; text-align: right; color: #1F3A2E;">' + combinedPizzasCount + ' pizzas</td></tr>' +
+    '</table>' +
+    '</div>' +
+
+    (customNotes ? '<div style="background: #FFF8E7; border-left: 4px solid #C65D3B; padding: 12px; margin-bottom: 16px; border-radius: 0 4px 4px 0;"><p style="margin: 0; font-size: 0.9rem;"><strong>Admin Notes:</strong><br>' + customNotes.replace(/\n/g, '<br>') + '</p></div>' : '') +
+    '<p style="font-size: 0.8rem; color: #738A7C; margin: 16px 0 0 0; text-align: center;">Dispatched on-demand from Artisan Oven Admin Dashboard.</p>' +
+    '</div>' +
     '</div>';
 
   MailApp.sendEmail({
     to: targetEmail,
-    subject: 'Artisan Oven — Operational Summary (' + (settings.serviceDate || 'Live') + ')',
+    subject: 'Artisan Oven — Operational Summary (' + sessionDateFormatted + ')',
     body: body,
     htmlBody: htmlBody
   });

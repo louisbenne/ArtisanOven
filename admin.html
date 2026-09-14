@@ -2892,6 +2892,53 @@
           if (subject) url.searchParams.set("subject", subject);
           if (message) url.searchParams.set("message", message);
 
+          if (emailType === "summary") {
+            let lunchOrdersCount = (cachedOrders || []).length;
+            let lunchFullPizzas = 0;
+            let lunchItemsCount = 0;
+            let lunchPendingCount = 0;
+            let lunchPaidCount = 0;
+
+            (cachedOrders || []).forEach(o => {
+              const calc = calculateOrderPizzas(o);
+              lunchFullPizzas += calc.fullPizzas;
+              lunchItemsCount += calc.itemsCount;
+              if (o.paymentStatus === 'Paid') lunchPaidCount++;
+              else lunchPendingCount++;
+            });
+            lunchFullPizzas = Math.round(lunchFullPizzas * 100) / 100;
+
+            url.searchParams.set("lunchTotalOrders", lunchOrdersCount);
+            url.searchParams.set("lunchTotalPizzas", lunchFullPizzas);
+            url.searchParams.set("lunchTotalItems", lunchItemsCount);
+            url.searchParams.set("lunchPending", lunchPendingCount);
+            url.searchParams.set("lunchPaid", lunchPaidCount);
+
+            let parentOrdersCount = (cachedParentOrders || []).length;
+            let parentPizzasCount = 0;
+            let parentPendingCount = 0;
+            let parentPaidCount = 0;
+            (cachedParentOrders || []).forEach(p => {
+              (p.items || []).forEach(it => {
+                parentPizzasCount += (parseInt(it.qty, 10) || 1);
+              });
+              if (p.paymentStatus === 'Paid') parentPaidCount++;
+              else parentPendingCount++;
+            });
+
+            url.searchParams.set("parentTotalOrders", parentOrdersCount);
+            url.searchParams.set("parentTotalPizzas", parentPizzasCount);
+            url.searchParams.set("parentPending", parentPendingCount);
+            url.searchParams.set("parentPaid", parentPaidCount);
+
+            if (cachedSettings) {
+              const maxPizzas = parseFloat(cachedSettings.maxPizzas || 20);
+              const remaining = Math.max(0, maxPizzas - lunchFullPizzas);
+              url.searchParams.set("capacityMax", maxPizzas);
+              url.searchParams.set("capacityRemaining", remaining);
+            }
+          }
+
           const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
           const data = await res.json();
 
