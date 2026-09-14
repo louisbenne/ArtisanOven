@@ -389,6 +389,13 @@
             <p class="dashboard-subheading" id="dashboard-last-updated">Connecting to backend...</p>
           </div>
           <div class="dashboard-actions">
+            <button type="button" id="btn-open-email-modal" class="admin-primary-btn" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--forest); color: #fff; padding: 9px 18px; font-size: 0.86rem; box-shadow: 0 2px 8px rgba(31,58,46,0.15);" title="Send automated customer or internal team emails">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              <span>Send Automated Email</span>
+            </button>
             <a class="admin-secondary-btn" href="parent-order.html" target="_blank" rel="noopener">Open Parent Ordering</a>
             <button type="button" id="btn-refresh-data" class="admin-secondary-btn" title="Refresh latest data">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
@@ -750,6 +757,54 @@
           </form>
         </div>
 
+        <!-- 7. AUTOMATED EMAIL COMMUNICATIONS -->
+        <div class="admin-card">
+          <div class="card-header">
+            <div class="card-header-icon" style="background: rgba(79, 99, 89, 0.12); color: var(--forest);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+            </div>
+            <div style="flex: 1;">
+              <h2 class="card-title">Automated Email Communications</h2>
+              <p class="card-desc">Send automated emails on demand: dispatch the latest live spreadsheet snapshot to organisers or send status updates to specific customers.</p>
+            </div>
+            <button type="button" class="admin-primary-btn" id="btn-card-open-email" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--forest); color: #fff; padding: 8px 16px; font-size: 0.85rem;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              <span>Open Email Dispatcher</span>
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 16px;">
+            <div style="background: var(--cream); border: 1px solid rgba(31,58,46,0.1); border-radius: 10px; padding: 16px 18px;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--forest); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Internal Team Snapshot (.xlsx)
+              </div>
+              <p style="font-size: 0.84rem; color: var(--text-soft); margin: 0 0 14px 0; line-height: 1.45;">
+                Rebuilds the latest orders spreadsheet and emails the live <strong>.xlsx Excel file</strong> directly to <code>louis@benne.co.uk</code> or <code>marlowb11@icloud.com</code>.
+              </p>
+              <button type="button" class="admin-secondary-btn" id="btn-quick-internal-email" style="padding: 7px 14px; font-size: 0.82rem; font-weight: 700; width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                <span>Email Live Spreadsheet to Team</span>
+                <span aria-hidden="true">&rarr;</span>
+              </button>
+            </div>
+            <div style="background: var(--cream); border: 1px solid rgba(31,58,46,0.1); border-radius: 10px; padding: 16px 18px;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--forest); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Customer Notifications
+              </div>
+              <p style="font-size: 0.84rem; color: var(--text-soft); margin: 0 0 14px 0; line-height: 1.45;">
+                Select any loaded customer from School Lunches, Parents, or Special Events to trigger automated order receipts, collection ready notices, or custom messages.
+              </p>
+              <button type="button" class="admin-secondary-btn" id="btn-quick-customer-email" style="padding: 7px 14px; font-size: 0.82rem; font-weight: 700; width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                <span>Select Customer &amp; Send</span>
+                <span aria-hidden="true">&rarr;</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         </div> <!-- End tab-dashboard -->
 
         <div id="tab-orders" class="tab-content">
@@ -1087,6 +1142,174 @@
         <button type="button" id="btn-cancel-delete-event" class="admin-secondary-btn" onclick="closeDeleteEventModal()">Cancel</button>
         <button type="button" id="btn-confirm-delete-event" class="admin-danger-btn" onclick="confirmDeleteEvent()">
           <span class="btn-text">DELETE EVENT</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: AUTOMATED EMAIL DISPATCHER (CUSTOMERS & INTERNAL TEAM)
+       ======================================================== -->
+  <div id="email-dispatcher-modal" class="admin-modal-backdrop" style="display: none;">
+    <div class="admin-modal-card email-modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-email-title">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(79, 99, 89, 0.12); color: var(--forest); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </div>
+          <div>
+            <h3 id="modal-email-title" class="modal-title" style="margin: 0; font-size: 1.25rem;">Automated Email Dispatcher</h3>
+            <p style="margin: 2px 0 0 0; font-size: 0.84rem; color: var(--text-soft);">Send automated updates to customers or dispatch the live spreadsheet to the team.</p>
+          </div>
+        </div>
+        <button type="button" id="btn-email-modal-close" style="background: none; border: none; font-size: 1.5rem; color: var(--text-soft); cursor: pointer; padding: 4px 8px; line-height: 1;" title="Close modal">&times;</button>
+      </div>
+
+      <!-- Mode Toggle: Customer vs Internal -->
+      <div class="email-toggle-group">
+        <button type="button" class="email-toggle-btn active" id="btn-email-mode-customer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Specific Customer</span>
+        </button>
+        <button type="button" class="email-toggle-btn" id="btn-email-mode-internal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          <span>Internal Team &amp; Organisers</span>
+        </button>
+      </div>
+
+      <!-- PANEL 1: CUSTOMER EMAILS -->
+      <div id="email-panel-customer" style="display: block;">
+        <p class="email-section-desc">Select an active customer from loaded orders or choose a manual email recipient to send automated order notifications.</p>
+        
+        <div class="email-form-grid">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="email-field">
+              <label for="email-customer-source-filter">Filter Source</label>
+              <select id="email-customer-source-filter" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px;">
+                <option value="all">All Orders (Lunches, Parents &amp; Events)</option>
+                <option value="lunch">School Lunch Orders Only</option>
+                <option value="parent">Internal Parent Orders Only</option>
+                <option value="event">Special Event Orders Only</option>
+                <option value="manual">Manual / Unlisted Recipient</option>
+              </select>
+            </div>
+
+            <div class="email-field">
+              <label for="email-customer-template">Automated Email Type</label>
+              <select id="email-customer-template" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px;">
+                <option value="confirmation">Order Confirmation &amp; Receipt</option>
+                <option value="ready">Order Ready for Collection</option>
+                <option value="reminder">Payment Reminder Notice</option>
+                <option value="custom">Custom Update Message</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Select Customer from Dropdown -->
+          <div class="email-field" id="email-customer-select-wrap">
+            <label for="email-customer-select">Select Customer</label>
+            <select id="email-customer-select" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px; width: 100%;">
+              <option value="">-- Choose a Customer / Order --</option>
+            </select>
+          </div>
+
+          <!-- Manual / Selected Customer Details Row -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;" id="email-customer-details-row">
+            <div class="email-field">
+              <label for="email-customer-target-email">Recipient Email Address *</label>
+              <input type="email" id="email-customer-target-email" class="admin-input" placeholder="e.g. parent@example.com" style="font-size: 0.88rem;" required />
+            </div>
+            <div class="email-field">
+              <label for="email-customer-target-order-id">Associated Order #</label>
+              <input type="text" id="email-customer-target-order-id" class="admin-input" placeholder="e.g. 14 or P-003" style="font-size: 0.88rem;" />
+            </div>
+          </div>
+
+          <div class="email-field">
+            <label for="email-customer-subject">Email Subject</label>
+            <input type="text" id="email-customer-subject" class="admin-input" value="Artisan Oven — Pizza Order Update" style="font-size: 0.88rem;" />
+          </div>
+
+          <div class="email-field">
+            <label for="email-customer-notes">Custom Message / Personal Note (Optional)</label>
+            <textarea id="email-customer-notes" class="admin-input" rows="3" placeholder="Add an optional note to include in the automated email..." style="font-size: 0.85rem; resize: vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: INTERNAL TEAM EMAILS -->
+      <div id="email-panel-internal" style="display: none;">
+        <p class="email-section-desc">Generate and dispatch the live, up-to-date spreadsheet snapshot or operational status summary directly to organisers.</p>
+        
+        <div class="email-form-grid">
+          <div class="email-field">
+            <label for="email-internal-recipient-select">Select Organiser / Recipient *</label>
+            <select id="email-internal-recipient-select" class="admin-select" style="font-size: 0.88rem; padding: 8px 10px;">
+              <option value="louis@benne.co.uk">louis@benne.co.uk (Louis Benne)</option>
+              <option value="marlowb11@icloud.com">marlowb11@icloud.com (Marlow)</option>
+              <option value="louis@benne.co.uk, marlowb11@icloud.com">Both Organisers (louis@benne.co.uk &amp; marlowb11@icloud.com)</option>
+              <option value="custom">Other / Custom Email Address...</option>
+            </select>
+          </div>
+
+          <div class="email-field" id="email-internal-custom-wrap" style="display: none;">
+            <label for="email-internal-custom-email">Custom Recipient Email</label>
+            <input type="email" id="email-internal-custom-email" class="admin-input" placeholder="e.g. organiser@example.com" style="font-size: 0.88rem;" />
+          </div>
+
+          <div class="email-field">
+            <label for="email-internal-type-select">Email Content / Report Type</label>
+            <select id="email-internal-type-select" class="admin-select" style="font-size: 0.88rem; padding: 8px 10px;">
+              <option value="spreadsheet">Live Orders Spreadsheet (.xlsx Excel Snapshot)</option>
+              <option value="summary">Operational Summary &amp; Capacity Report</option>
+            </select>
+          </div>
+
+          <div class="email-field">
+            <label for="email-internal-notes">Internal Notes for Team (Optional)</label>
+            <textarea id="email-internal-notes" class="admin-input" rows="2" placeholder="e.g. Service begins at 12:30. Note dough preparation..." style="font-size: 0.85rem; resize: vertical;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Dispatch Summary & Safe Notice -->
+      <div class="email-preview-card" id="email-dispatch-preview-card">
+        <div class="email-preview-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span>Dispatch Preview</span>
+        </div>
+        <div class="email-preview-row">
+          <span class="email-preview-label">To:</span>
+          <span class="email-preview-value" id="preview-recipient-text">Select recipient</span>
+        </div>
+        <div class="email-preview-row">
+          <span class="email-preview-label">Subject:</span>
+          <span class="email-preview-value" id="preview-subject-text">Artisan Oven — Pizza Order Update</span>
+        </div>
+        <div class="email-preview-row">
+          <span class="email-preview-label">Payload:</span>
+          <span class="email-preview-value" id="preview-payload-text">Order confirmation notice</span>
+        </div>
+      </div>
+
+      <div class="email-security-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <span>Manual dispatch control: Emails are sent strictly when you click the button below. No automated emails are ever dispatched in the background.</span>
+      </div>
+
+      <!-- Alert Banners -->
+      <div id="email-modal-error" style="display: none; background: #fff5f2; border: 1px solid rgba(198,93,59,0.3); color: var(--terracotta-deep); padding: 10px 14px; border-radius: 8px; margin-top: 14px; font-size: 0.85rem; font-weight: 600;"></div>
+      <div id="email-modal-success" style="display: none; background: #f0f7f2; border: 1px solid rgba(46,105,48,0.3); color: #2e6930; padding: 10px 14px; border-radius: 8px; margin-top: 14px; font-size: 0.85rem; font-weight: 600;"></div>
+
+      <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" id="btn-email-modal-cancel" class="admin-secondary-btn">Cancel</button>
+        <button type="button" id="btn-dispatch-email-submit" class="admin-primary-btn" style="display: inline-flex; align-items: center; gap: 8px; background: var(--forest); color: #fff; padding: 10px 20px; font-weight: 700;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          <span class="btn-text">Send Email Now</span>
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
       </div>
@@ -1774,6 +1997,10 @@
                     <span>£${(order.total || 0).toFixed(2)}</span>
                   </div>
                   <div style="display: flex; gap: 8px;">
+                    <button type="button" class="admin-secondary-btn" onclick="event.stopPropagation(); window.openEmailDispatcher('customer', { orderId: '${order.orderId}', customerEmail: '${escapeHtml(customerEmail)}', customerName: '${escapeHtml(customerName)}', source: 'lunch' });" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 6px 12px; font-weight: 700; color: var(--forest); background: #fff;" title="Send automated email to this customer">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                      EMAIL
+                    </button>
                     <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" onclick="event.stopPropagation()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
@@ -2089,6 +2316,10 @@
                   </div>
                 </div>
                 <div style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+                  <button type="button" class="admin-secondary-btn" onclick="event.stopPropagation(); window.openEmailDispatcher('customer', { orderId: '${escapeHtml(order.orderId || '')}', customerEmail: '${escapeHtml(order.parentEmail || '')}', customerName: '${escapeHtml(order.parentName || '')}', source: 'parent' });" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 7px 14px; font-weight: 700; color: var(--forest); background: #fff;" title="Send automated email to this parent">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    EMAIL
+                  </button>
                   <button type="button" class="admin-secondary-btn" data-parent-order-id="${escapeHtml(order.orderId || '')}" data-parent-status="${isPaid ? 'Paid' : 'Pending Payment'}" onclick="event.stopPropagation(); window.updateParentPaymentStatus(this)">
                     ${isPaid ? 'Mark Pending' : 'Mark Paid'}
                   </button>
@@ -2348,6 +2579,423 @@
             <td class="log-details">${escapeHtml(log.details)}</td>
           `;
           tbody.appendChild(tr);
+        });
+      }
+
+      // ========================================================
+      // AUTOMATED EMAIL DISPATCHER CONTROLLER
+      // ========================================================
+      const emailModal = document.getElementById("email-dispatcher-modal");
+      const btnOpenEmailModal = document.getElementById("btn-open-email-modal");
+      const btnCardOpenEmail = document.getElementById("btn-card-open-email");
+      const btnQuickInternalEmail = document.getElementById("btn-quick-internal-email");
+      const btnQuickCustomerEmail = document.getElementById("btn-quick-customer-email");
+      const btnEmailModalClose = document.getElementById("btn-email-modal-close");
+      const btnEmailModalCancel = document.getElementById("btn-email-modal-cancel");
+      const btnEmailModeCustomer = document.getElementById("btn-email-mode-customer");
+      const btnEmailModeInternal = document.getElementById("btn-email-mode-internal");
+      const emailPanelCustomer = document.getElementById("email-panel-customer");
+      const emailPanelInternal = document.getElementById("email-panel-internal");
+      const emailCustomerSourceFilter = document.getElementById("email-customer-source-filter");
+      const emailCustomerTemplate = document.getElementById("email-customer-template");
+      const emailCustomerSelect = document.getElementById("email-customer-select");
+      const emailCustomerSelectWrap = document.getElementById("email-customer-select-wrap");
+      const emailCustomerTargetEmail = document.getElementById("email-customer-target-email");
+      const emailCustomerTargetOrderId = document.getElementById("email-customer-target-order-id");
+      const emailCustomerSubject = document.getElementById("email-customer-subject");
+      const emailCustomerNotes = document.getElementById("email-customer-notes");
+      const emailInternalRecipientSelect = document.getElementById("email-internal-recipient-select");
+      const emailInternalCustomWrap = document.getElementById("email-internal-custom-wrap");
+      const emailInternalCustomEmail = document.getElementById("email-internal-custom-email");
+      const emailInternalTypeSelect = document.getElementById("email-internal-type-select");
+      const emailInternalNotes = document.getElementById("email-internal-notes");
+      const previewRecipientText = document.getElementById("preview-recipient-text");
+      const previewSubjectText = document.getElementById("preview-subject-text");
+      const previewPayloadText = document.getElementById("preview-payload-text");
+      const emailModalError = document.getElementById("email-modal-error");
+      const emailModalSuccess = document.getElementById("email-modal-success");
+      const btnDispatchEmailSubmit = document.getElementById("btn-dispatch-email-submit");
+
+      let currentEmailMode = "customer";
+      let selectedCustomerSource = "lunch";
+
+      function openEmailDispatcher(mode = "customer", preselected = null) {
+        setEmailModalMode(mode);
+        if (emailModalError) emailModalError.style.display = "none";
+        if (emailModalSuccess) emailModalSuccess.style.display = "none";
+        
+        populateCustomerDropdown(preselected);
+        updateEmailPreview();
+        
+        if (emailModal) {
+          emailModal.style.display = "flex";
+          document.body.style.overflow = "hidden";
+        }
+      }
+      window.openEmailDispatcher = openEmailDispatcher;
+
+      function closeEmailDispatcher() {
+        if (emailModal) {
+          emailModal.style.display = "none";
+          document.body.style.overflow = "";
+        }
+      }
+
+      function setEmailModalMode(mode) {
+        currentEmailMode = mode;
+        if (mode === "customer") {
+          if (btnEmailModeCustomer) btnEmailModeCustomer.classList.add("active");
+          if (btnEmailModeInternal) btnEmailModeInternal.classList.remove("active");
+          if (emailPanelCustomer) emailPanelCustomer.style.display = "block";
+          if (emailPanelInternal) emailPanelInternal.style.display = "none";
+        } else {
+          if (btnEmailModeInternal) btnEmailModeInternal.classList.add("active");
+          if (btnEmailModeCustomer) btnEmailModeCustomer.classList.remove("active");
+          if (emailPanelInternal) emailPanelInternal.style.display = "block";
+          if (emailPanelCustomer) emailPanelCustomer.style.display = "none";
+        }
+        updateEmailPreview();
+      }
+
+      function populateCustomerDropdown(preselected = null) {
+        if (!emailCustomerSelect) return;
+        const currentFilter = (emailCustomerSourceFilter && emailCustomerSourceFilter.value) || "all";
+
+        const allList = [];
+
+        // 1. School Lunch Orders
+        if (currentFilter === "all" || currentFilter === "lunch") {
+          (cachedOrders || []).forEach(o => {
+            const cEmail = (o.customer && o.customer.email) || "";
+            const cName = (o.customer && o.customer.name) || "Customer";
+            allList.push({
+              source: "lunch",
+              sourceLabel: "School Lunch",
+              orderId: String(o.orderId || ""),
+              email: cEmail,
+              name: cName,
+              total: o.total || 0,
+              status: o.paymentStatus || "Unpaid"
+            });
+          });
+        }
+
+        // 2. Parent Orders
+        if (currentFilter === "all" || currentFilter === "parent") {
+          (cachedParentOrders || []).forEach(o => {
+            allList.push({
+              source: "parent",
+              sourceLabel: "Parent",
+              orderId: String(o.orderId || ""),
+              email: o.parentEmail || "",
+              name: o.parentName || "Parent",
+              total: o.finalTotal || o.total || 0,
+              status: o.status || "Pending"
+            });
+          });
+        }
+
+        // 3. Event Orders
+        if (currentFilter === "all" || currentFilter === "event") {
+          try {
+            const rawEventOrders = sessionStorage.getItem("AO_CACHED_EVENT_ORDERS");
+            if (rawEventOrders) {
+              const eventOrders = JSON.parse(rawEventOrders);
+              (eventOrders || []).forEach(o => {
+                allList.push({
+                  source: "event",
+                  sourceLabel: "Event",
+                  orderId: String(o.orderId || ""),
+                  email: o.customerEmail || "",
+                  name: o.customerName || "Event Guest",
+                  total: o.total || 0,
+                  status: o.status || "Confirmed"
+                });
+              });
+            }
+          } catch (e) {
+            console.warn("Could not parse event orders cache:", e);
+          }
+        }
+
+        // If manual is chosen
+        if (currentFilter === "manual") {
+          if (emailCustomerSelectWrap) emailCustomerSelectWrap.style.display = "none";
+          if (preselected && preselected.customerEmail) {
+            if (emailCustomerTargetEmail) emailCustomerTargetEmail.value = preselected.customerEmail;
+            if (emailCustomerTargetOrderId) emailCustomerTargetOrderId.value = preselected.orderId || "";
+          }
+          return;
+        } else {
+          if (emailCustomerSelectWrap) emailCustomerSelectWrap.style.display = "block";
+        }
+
+        emailCustomerSelect.innerHTML = '<option value="">-- Choose a Customer / Order (' + allList.length + ' found) --</option>';
+        allList.forEach((item, idx) => {
+          const opt = document.createElement("option");
+          opt.value = idx;
+          opt.dataset.source = item.source;
+          opt.dataset.orderId = item.orderId;
+          opt.dataset.email = item.email;
+          opt.dataset.name = item.name;
+          opt.textContent = `[${item.sourceLabel}] #${item.orderId} - ${item.name} (${item.email || "No email"}) · £${Number(item.total).toFixed(2)}`;
+          emailCustomerSelect.appendChild(opt);
+        });
+
+        if (preselected) {
+          selectedCustomerSource = preselected.source || "lunch";
+          if (emailCustomerTargetEmail) emailCustomerTargetEmail.value = preselected.customerEmail || "";
+          if (emailCustomerTargetOrderId) emailCustomerTargetOrderId.value = preselected.orderId || "";
+          
+          for (let i = 0; i < emailCustomerSelect.options.length; i++) {
+            const opt = emailCustomerSelect.options[i];
+            if (preselected.orderId && opt.dataset.orderId === String(preselected.orderId)) {
+              emailCustomerSelect.selectedIndex = i;
+              break;
+            } else if (preselected.customerEmail && opt.dataset.email && opt.dataset.email.toLowerCase() === preselected.customerEmail.toLowerCase()) {
+              emailCustomerSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+      }
+
+      function handleCustomerSelectionChange() {
+        if (!emailCustomerSelect) return;
+        const selectedOpt = emailCustomerSelect.options[emailCustomerSelect.selectedIndex];
+        if (selectedOpt && selectedOpt.value !== "") {
+          const email = selectedOpt.dataset.email || "";
+          const orderId = selectedOpt.dataset.orderId || "";
+          const source = selectedOpt.dataset.source || "lunch";
+          const name = selectedOpt.dataset.name || "Customer";
+
+          selectedCustomerSource = source;
+          if (emailCustomerTargetEmail) emailCustomerTargetEmail.value = email;
+          if (emailCustomerTargetOrderId) emailCustomerTargetOrderId.value = orderId;
+
+          updateCustomerSubjectTemplate(name, orderId);
+        }
+        updateEmailPreview();
+      }
+
+      function updateCustomerSubjectTemplate(name = "", orderId = "") {
+        if (!emailCustomerSubject) return;
+        const templateType = (emailCustomerTemplate && emailCustomerTemplate.value) || "confirmation";
+        const currentOrderId = orderId || (emailCustomerTargetOrderId ? emailCustomerTargetOrderId.value.trim() : "");
+        const idSuffix = currentOrderId ? ` (Order #${currentOrderId})` : "";
+
+        if (templateType === "confirmation") {
+          emailCustomerSubject.value = `Artisan Oven — Pizza Order Confirmation${idSuffix}`;
+        } else if (templateType === "ready") {
+          emailCustomerSubject.value = `Artisan Oven — Your Pizza Order is Ready for Collection!${idSuffix}`;
+        } else if (templateType === "reminder") {
+          emailCustomerSubject.value = `Artisan Oven — Friendly Payment Reminder${idSuffix}`;
+        } else {
+          emailCustomerSubject.value = `Artisan Oven — Important Update Regarding Your Pizza Order${idSuffix}`;
+        }
+      }
+
+      function updateEmailPreview() {
+        if (currentEmailMode === "customer") {
+          const targetEmail = (emailCustomerTargetEmail && emailCustomerTargetEmail.value.trim()) || "No recipient entered";
+          const subject = (emailCustomerSubject && emailCustomerSubject.value.trim()) || "Artisan Oven — Pizza Order Update";
+          const templateType = (emailCustomerTemplate && emailCustomerTemplate.value) || "confirmation";
+          const orderId = (emailCustomerTargetOrderId && emailCustomerTargetOrderId.value.trim()) || "";
+
+          if (previewRecipientText) previewRecipientText.textContent = targetEmail;
+          if (previewSubjectText) previewSubjectText.textContent = subject;
+          if (previewPayloadText) {
+            let label = "Automated email";
+            if (templateType === "confirmation") label = `Order confirmation & itemised receipt${orderId ? ` (#${orderId})` : ""}`;
+            else if (templateType === "ready") label = `Ready for collection notification${orderId ? ` (#${orderId})` : ""}`;
+            else if (templateType === "reminder") label = `Payment reminder notification${orderId ? ` (#${orderId})` : ""}`;
+            else label = "Custom message / customer update";
+            previewPayloadText.textContent = label;
+          }
+        } else {
+          const selectedRecip = (emailInternalRecipientSelect && emailInternalRecipientSelect.value) || "louis@benne.co.uk";
+          let actualRecip = selectedRecip;
+          if (selectedRecip === "custom") {
+            actualRecip = (emailInternalCustomEmail && emailInternalCustomEmail.value.trim()) || "No custom email entered";
+          }
+          const repType = (emailInternalTypeSelect && emailInternalTypeSelect.value) || "spreadsheet";
+          const subject = repType === "spreadsheet" ? "Artisan Oven — Live Pizza Orders Spreadsheet (.xlsx)" : "Artisan Oven — Operational Capacity & Summary Report";
+
+          if (previewRecipientText) previewRecipientText.textContent = actualRecip;
+          if (previewSubjectText) previewSubjectText.textContent = subject;
+          if (previewPayloadText) {
+            previewPayloadText.textContent = repType === "spreadsheet" 
+              ? "Live Orders Spreadsheet (.xlsx Excel Snapshot) attached with current order records"
+              : "Operational breakdown (Lunch, Parent & Event order totals & capacity)";
+          }
+        }
+      }
+
+      async function handleDispatchEmailSubmit() {
+        if (emailModalError) emailModalError.style.display = "none";
+        if (emailModalSuccess) emailModalSuccess.style.display = "none";
+
+        let recipient = "";
+        let subject = "";
+        let emailType = "";
+        let orderId = "";
+        let message = "";
+        let source = selectedCustomerSource || "lunch";
+
+        if (currentEmailMode === "customer") {
+          recipient = (emailCustomerTargetEmail && emailCustomerTargetEmail.value.trim()) || "";
+          orderId = (emailCustomerTargetOrderId && emailCustomerTargetOrderId.value.trim()) || "";
+          emailType = (emailCustomerTemplate && emailCustomerTemplate.value) || "confirmation";
+          subject = (emailCustomerSubject && emailCustomerSubject.value.trim()) || "Artisan Oven — Pizza Order Update";
+          message = (emailCustomerNotes && emailCustomerNotes.value.trim()) || "";
+
+          if (!recipient) {
+            if (emailModalError) {
+              emailModalError.textContent = "Please enter a valid customer recipient email address.";
+              emailModalError.style.display = "block";
+            }
+            if (emailCustomerTargetEmail) emailCustomerTargetEmail.focus();
+            return;
+          }
+        } else {
+          const selVal = (emailInternalRecipientSelect && emailInternalRecipientSelect.value) || "louis@benne.co.uk";
+          if (selVal === "custom") {
+            recipient = (emailInternalCustomEmail && emailInternalCustomEmail.value.trim()) || "";
+          } else {
+            recipient = selVal;
+          }
+          emailType = (emailInternalTypeSelect && emailInternalTypeSelect.value) || "spreadsheet";
+          subject = emailType === "spreadsheet" ? "Artisan Oven — Live Pizza Orders Spreadsheet (.xlsx)" : "Artisan Oven — Operational Capacity & Summary Report";
+          message = (emailInternalNotes && emailInternalNotes.value.trim()) || "";
+
+          if (!recipient) {
+            if (emailModalError) {
+              emailModalError.textContent = "Please choose or enter a valid internal recipient email.";
+              emailModalError.style.display = "block";
+            }
+            return;
+          }
+        }
+
+        setButtonLoading(btnDispatchEmailSubmit, true);
+
+        try {
+          const apiUrl = (typeof ORDER_API_URL !== "undefined") ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          const url = new URL(apiUrl);
+          url.searchParams.set("action", "adminSendAutomatedEmail");
+          url.searchParams.set("token", currentAdminToken);
+          url.searchParams.set("category", currentEmailMode);
+          url.searchParams.set("type", emailType);
+          url.searchParams.set("recipient", recipient);
+          if (orderId) url.searchParams.set("orderId", orderId);
+          if (source) url.searchParams.set("source", source);
+          if (subject) url.searchParams.set("subject", subject);
+          if (message) url.searchParams.set("message", message);
+
+          const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+          const data = await res.json();
+
+          if (data && data.success) {
+            if (emailModalSuccess) {
+              emailModalSuccess.textContent = "✓ " + (data.message || "Email sent successfully!");
+              emailModalSuccess.style.display = "block";
+            }
+            showToast(data.message || "Email dispatched successfully!", "success");
+            loadDashboardData(true);
+            setTimeout(() => {
+              closeEmailDispatcher();
+            }, 2500);
+          } else if (data && data.unauthorized) {
+            handleSessionExpiry();
+            closeEmailDispatcher();
+          } else {
+            const errText = (data && data.message) || "Failed to dispatch email. Please check server logs.";
+            if (emailModalError) {
+              emailModalError.textContent = "Error: " + errText;
+              emailModalError.style.display = "block";
+            }
+            showToast("Dispatch error: " + errText, "error");
+          }
+        } catch (err) {
+          console.error("Email dispatch failed:", err);
+          if (emailModalError) {
+            emailModalError.textContent = "Network or server connection failed: " + (err.message || err);
+            emailModalError.style.display = "block";
+          }
+          showToast("Network error dispatching email.", "error");
+        } finally {
+          setButtonLoading(btnDispatchEmailSubmit, false);
+        }
+      }
+
+      if (btnOpenEmailModal) {
+        btnOpenEmailModal.addEventListener("click", () => openEmailDispatcher("customer"));
+      }
+      if (btnCardOpenEmail) {
+        btnCardOpenEmail.addEventListener("click", () => openEmailDispatcher("customer"));
+      }
+      if (btnQuickInternalEmail) {
+        btnQuickInternalEmail.addEventListener("click", () => openEmailDispatcher("internal"));
+      }
+      if (btnQuickCustomerEmail) {
+        btnQuickCustomerEmail.addEventListener("click", () => openEmailDispatcher("customer"));
+      }
+      if (btnEmailModalClose) {
+        btnEmailModalClose.addEventListener("click", closeEmailDispatcher);
+      }
+      if (btnEmailModalCancel) {
+        btnEmailModalCancel.addEventListener("click", closeEmailDispatcher);
+      }
+      if (btnEmailModeCustomer) {
+        btnEmailModeCustomer.addEventListener("click", () => setEmailModalMode("customer"));
+      }
+      if (btnEmailModeInternal) {
+        btnEmailModeInternal.addEventListener("click", () => setEmailModalMode("internal"));
+      }
+      if (emailCustomerSourceFilter) {
+        emailCustomerSourceFilter.addEventListener("change", () => populateCustomerDropdown());
+      }
+      if (emailCustomerSelect) {
+        emailCustomerSelect.addEventListener("change", handleCustomerSelectionChange);
+      }
+      if (emailCustomerTemplate) {
+        emailCustomerTemplate.addEventListener("change", () => {
+          updateCustomerSubjectTemplate();
+          updateEmailPreview();
+        });
+      }
+      if (emailCustomerTargetEmail) {
+        emailCustomerTargetEmail.addEventListener("input", updateEmailPreview);
+      }
+      if (emailCustomerTargetOrderId) {
+        emailCustomerTargetOrderId.addEventListener("input", () => {
+          updateCustomerSubjectTemplate();
+          updateEmailPreview();
+        });
+      }
+      if (emailCustomerSubject) {
+        emailCustomerSubject.addEventListener("input", updateEmailPreview);
+      }
+      if (emailInternalRecipientSelect) {
+        emailInternalRecipientSelect.addEventListener("change", function() {
+          if (emailInternalCustomWrap) {
+            emailInternalCustomWrap.style.display = this.value === "custom" ? "block" : "none";
+          }
+          updateEmailPreview();
+        });
+      }
+      if (emailInternalCustomEmail) {
+        emailInternalCustomEmail.addEventListener("input", updateEmailPreview);
+      }
+      if (emailInternalTypeSelect) {
+        emailInternalTypeSelect.addEventListener("change", updateEmailPreview);
+      }
+      if (btnDispatchEmailSubmit) {
+        btnDispatchEmailSubmit.addEventListener("click", handleDispatchEmailSubmit);
+      }
+      if (emailModal) {
+        emailModal.addEventListener("click", function(e) {
+          if (e.target === emailModal) closeEmailDispatcher();
         });
       }
 

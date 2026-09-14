@@ -667,6 +667,10 @@ window.renderEventOrders = function(orders) {
               <span style="font-size: 1.15rem; color: var(--forest);">£${(order.total || 0).toFixed(2)}</span>
             </div>
             <div style="display: flex; gap: 8px;">
+              <button type="button" class="email-event-btn-inline" data-order-id="${escapeAdminHtml(order.orderId)}" onclick="event.stopPropagation(); if (typeof window.openEmailDispatcher === 'function') window.openEmailDispatcher('customer', { orderId: '${escapeAdminHtml(order.orderId)}', customerEmail: '${escapeAdminHtml(customerEmail)}', customerName: '${escapeAdminHtml(customerName)}', source: 'event' });" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 0.8rem; font-weight: 700; border: 1px solid rgba(31,58,46,0.15); border-radius: 6px; background: var(--white); color: var(--forest); cursor: pointer;" title="Send automated email to this customer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                EMAIL
+              </button>
               <button type="button" class="resend-event-btn-inline" data-order-id="${escapeAdminHtml(order.orderId)}" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 0.8rem; font-weight: 700; border: 1px solid rgba(31,58,46,0.15); border-radius: 6px; background: var(--white); color: var(--forest); cursor: pointer;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                   <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>

@@ -1254,6 +1254,142 @@ function doGet(e) {
       }
     }
 
+    // 7b. ADMIN: SEND AUTOMATED EMAIL (Customer & Internal Team)
+    if (action === 'adminSendAutomatedEmail' || actionLower === 'adminsendautomatedemail') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var category = safeTrim(params.category || params.emailCategory || 'customer');
+      var emailType = safeTrim(params.type || params.emailType || 'confirmation');
+      var recipient = safeTrim(params.recipient || '');
+      var orderId = safeTrim(params.orderId || '');
+      var source = safeTrim(params.source || '');
+      var subject = safeTrim(params.subject || '');
+      var message = safeTrim(params.message || params.notes || '');
+
+      // Internal email dispatch
+      if (category === 'internal' || emailType === 'spreadsheet' || emailType === 'summary') {
+        var targetEmail = recipient || 'louis@benne.co.uk';
+        if (!targetEmail) targetEmail = 'louis@benne.co.uk';
+
+        if (emailType === 'summary') {
+          try {
+            sendInternalSummaryEmail(targetEmail, message);
+            logAdminAction('Send Automated Email', 'Dispatched operational summary to ' + targetEmail);
+            return createJsonResponse({
+              success: true,
+              message: 'Operational summary report emailed successfully to ' + targetEmail
+            });
+          } catch (sumErr) {
+            return createJsonResponse({
+              success: false,
+              message: 'Failed to send summary email: ' + sumErr.toString()
+            });
+          }
+        } else {
+          // Default internal: Live spreadsheet .xlsx export
+          try {
+            rebuildCleanSheets();
+            emailXlsxSnapshot(targetEmail);
+            logAdminAction('Send Automated Email', 'Dispatched live spreadsheet snapshot (.xlsx) to ' + targetEmail);
+            return createJsonResponse({
+              success: true,
+              message: 'Live spreadsheet snapshot (.xlsx) emailed successfully to ' + targetEmail
+            });
+          } catch (sheetErr) {
+            return createJsonResponse({
+              success: false,
+              message: 'Failed to send live spreadsheet: ' + sheetErr.toString()
+            });
+          }
+        }
+      }
+
+      // Customer email dispatch
+      if (category === 'customer') {
+        if (!recipient && !orderId) {
+          return createJsonResponse({ success: false, message: 'Please provide either a Customer Email or Order ID.' });
+        }
+
+        if (emailType === 'confirmation') {
+          if (!orderId) {
+            return createJsonResponse({ success: false, message: 'Order ID is required to send confirmation email.' });
+          }
+
+          if (source === 'parent' || /^P/i.test(orderId)) {
+            try {
+              sendParentOrderConfirmation(orderId);
+              logAdminAction('Send Automated Email', 'Sent confirmation for Parent Order #' + orderId);
+              return createJsonResponse({ success: true, message: 'Confirmation sent for Parent Order #' + orderId });
+            } catch (errP) {
+              return createJsonResponse({ success: false, message: 'Error sending parent confirmation: ' + errP.toString() });
+            }
+          } else if (source === 'event' || /^E/i.test(orderId)) {
+            try {
+              sendEventConfirmation(orderId);
+              logAdminAction('Send Automated Email', 'Sent confirmation for Event Order #' + orderId);
+              return createJsonResponse({ success: true, message: 'Confirmation sent for Event Order #' + orderId });
+            } catch (errE) {
+              return createJsonResponse({ success: false, message: 'Error sending event confirmation: ' + errE.toString() });
+            }
+          } else {
+            var parsedId = parseInt(orderId, 10);
+            if (isNaN(parsedId) || parsedId < 1) {
+              return createJsonResponse({ success: false, message: 'Invalid Order ID #' + orderId });
+            }
+            var rowNum = parsedId + 1;
+            var ss = SpreadsheetApp.getActiveSpreadsheet();
+            var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+            if (rowNum < 2 || rowNum > raw.getLastRow()) {
+              return createJsonResponse({ success: false, message: 'Order ID #' + orderId + ' not found.' });
+            }
+            ensureColumnsExist(raw, CONFIRMATION_SENT_COL);
+            raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('');
+            SpreadsheetApp.flush();
+            try {
+              sendOrderConfirmationForRow(rowNum);
+              logAdminAction('Send Automated Email', 'Sent confirmation for School Lunch Order #' + orderId);
+              return createJsonResponse({ success: true, message: 'Confirmation sent successfully for Order #' + orderId });
+            } catch (errL) {
+              return createJsonResponse({ success: false, message: 'Error sending confirmation: ' + errL.toString() });
+            }
+          }
+        } else if (emailType === 'ready') {
+          if (!recipient) {
+            return createJsonResponse({ success: false, message: 'Recipient email is required.' });
+          }
+          try {
+            sendCustomerOrderReadyEmail(recipient, orderId, message);
+            logAdminAction('Send Automated Email', 'Sent collection ready notice for Order #' + orderId + ' to ' + recipient);
+            return createJsonResponse({ success: true, message: 'Collection ready email sent to ' + recipient });
+          } catch (readyErr) {
+            return createJsonResponse({ success: false, message: 'Error sending ready notice: ' + readyErr.toString() });
+          }
+        } else {
+          // Custom / payment reminder
+          if (!recipient) {
+            return createJsonResponse({ success: false, message: 'Recipient email is required.' });
+          }
+          try {
+            var finalSubject = subject || ('Artisan Oven — Update regarding your pizza order' + (orderId ? ' #' + orderId : ''));
+            sendCustomerCustomEmail(recipient, finalSubject, message);
+            logAdminAction('Send Automated Email', 'Sent customer update email to ' + recipient);
+            return createJsonResponse({ success: true, message: 'Email sent successfully to ' + recipient });
+          } catch (custErr) {
+            return createJsonResponse({ success: false, message: 'Error sending customer email: ' + custErr.toString() });
+          }
+        }
+      }
+
+      return createJsonResponse({ success: false, message: 'Invalid email request parameters.' });
+    }
+
     // 8. ADMIN: UPDATE PAYMENT STATUS
     if (action === 'adminUpdatePaidStatus' || actionLower === 'adminupdatepaidstatus') {
       var token = safeTrim(params.token || '');
@@ -2746,7 +2882,7 @@ function writeSectionTitle(sheet, row, titleText, mergeAcross) {
   sheet.setRowHeight(row, 30);
 }
 
-function emailXlsxSnapshot() {
+function emailXlsxSnapshot(targetEmail) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var combinedSheet = ss.getSheetByName('Pizza Order Update');
   if (!combinedSheet) return;
@@ -2768,14 +2904,138 @@ function emailXlsxSnapshot() {
   });
   var blob = response.getBlob().setName('Pizza_Orders_Live.xlsx');
 
+  var recipient = targetEmail || YOUR_EMAIL;
   MailApp.sendEmail({
-    to: YOUR_EMAIL,
-    subject: EMAIL_SUBJECT,
-    body: '',
+    to: recipient,
+    subject: (EMAIL_SUBJECT || 'Pizza Order Update') + ' - Live Spreadsheet',
+    body: 'Please find attached the latest updated live spreadsheet for Artisan Oven pizza orders.\n\nSent from Artisan Oven Admin Dashboard.',
     attachments: [blob]
   });
 
   DriveApp.getFileById(tempSs.getId()).setTrashed(true);
+}
+
+function sendInternalSummaryEmail(targetEmail, customNotes) {
+  var settings = getSettings();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+  var parentSheet = ss.getSheetByName('Internal Parent Orders');
+
+  var lunchData = raw.getDataRange().getValues();
+  var totalLunchOrders = Math.max(0, lunchData.length - 1);
+  var lunchPizzas = 0;
+  for (var i = 1; i < lunchData.length; i++) {
+    if (!isRowDeleted(lunchData[i])) {
+      var qty = extractDigit(safeTrim(lunchData[i][3])) || 1;
+      lunchPizzas += parseInt(qty, 10);
+    }
+  }
+
+  var parentCount = 0;
+  var parentPizzas = 0;
+  if (parentSheet && parentSheet.getLastRow() >= 2) {
+    var pRows = parentSheet.getDataRange().getValues();
+    for (var j = 1; j < pRows.length; j++) {
+      if (safeTrim(pRows[j][1])) {
+        parentCount++;
+        try {
+          var items = JSON.parse(pRows[j][6] || '[]');
+          items.forEach(function(it) { parentPizzas += (parseInt(it.qty, 10) || 1); });
+        } catch (e) {
+          parentPizzas += 1;
+        }
+      }
+    }
+  }
+
+  var maxLimit = settings.maxPizzas || 20;
+  var remaining = Math.max(0, maxLimit - lunchPizzas);
+
+  var body = 'ARTISAN OVEN — OPERATIONAL SUMMARY\n\n' +
+    'Session Date: ' + (settings.serviceDate || 'Upcoming Service') + '\n' +
+    'Status: ' + (settings.orderingEnabled ? 'OPEN' : 'CLOSED') + '\n\n' +
+    'School Lunch Orders: ' + totalLunchOrders + ' (' + lunchPizzas + ' pizzas)\n' +
+    'Internal Parent Orders: ' + parentCount + ' (' + parentPizzas + ' pizzas)\n' +
+    'Remaining Capacity: ' + remaining + ' / ' + maxLimit + ' pizzas\n\n' +
+    (customNotes ? 'Admin Notes:\n' + customNotes + '\n\n' : '') +
+    'Generated from the Artisan Oven Admin Dashboard at ' + new Date().toLocaleString();
+
+  var htmlBody = '<div style="font-family: Arial, sans-serif; color: #1F3A2E; max-width: 600px;">' +
+    '<h2 style="color: #4F6359; border-bottom: 2px solid #C65D3B; padding-bottom: 8px;">Artisan Oven — Operational Summary</h2>' +
+    '<p><strong>Session Date:</strong> ' + (settings.serviceDate || 'Upcoming Service') + '<br>' +
+    '<strong>Status:</strong> ' + (settings.orderingEnabled ? '<span style="color:#2E6930;font-weight:bold;">OPEN</span>' : '<span style="color:#A83220;font-weight:bold;">CLOSED</span>') + '</p>' +
+    '<div style="background: #F4F6F0; padding: 14px; border-radius: 8px; margin: 16px 0;">' +
+    '<p style="margin: 4px 0;"><strong>School Lunch Orders:</strong> ' + totalLunchOrders + ' (' + lunchPizzas + ' pizzas)</p>' +
+    '<p style="margin: 4px 0;"><strong>Internal Parent Orders:</strong> ' + parentCount + ' (' + parentPizzas + ' pizzas)</p>' +
+    '<p style="margin: 4px 0;"><strong>Capacity Remaining:</strong> ' + remaining + ' of ' + maxLimit + ' pizzas</p>' +
+    '</div>' +
+    (customNotes ? '<div style="background: #FFF8E7; border-left: 4px solid #C65D3B; padding: 12px; margin: 16px 0;"><p style="margin:0;"><strong>Admin Note:</strong> ' + customNotes.replace(/\n/g, '<br>') + '</p></div>' : '') +
+    '<p style="font-size: 0.85rem; color: #738A7C;">Automated notification from Artisan Oven Admin Dashboard.</p>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: targetEmail,
+    subject: 'Artisan Oven — Operational Summary (' + (settings.serviceDate || 'Live') + ')',
+    body: body,
+    htmlBody: htmlBody
+  });
+}
+
+function sendCustomerOrderReadyEmail(recipientEmail, orderId, customMessage) {
+  var subject = 'Artisan Oven — Your Pizza Order #' + orderId + ' is Ready for Collection!';
+  var body = 'Hello,\n\n' +
+    'Great news! Your pizza order #' + orderId + ' has been freshly baked and is ready for collection at the courtyard.\n\n' +
+    (customMessage ? customMessage + '\n\n' : '') +
+    'Please collect your order promptly.\n\n' +
+    'Thank you for ordering with Artisan Oven!\n' +
+    'Marlow, Louis, and Quinton';
+
+  var htmlBody = '<div style="font-family: Arial, sans-serif; color: #1F3A2E; max-width: 600px;">' +
+    '<div style="background: #4F6359; color: #fff; padding: 16px; border-radius: 8px 8px 0 0; text-align: center;">' +
+    '<h2 style="margin: 0; font-size: 1.5rem; letter-spacing: 0.05em;">ARTISAN OVEN</h2>' +
+    '<p style="margin: 4px 0 0 0; font-size: 0.9rem; opacity: 0.9;">Order Ready for Collection</p>' +
+    '</div>' +
+    '<div style="border: 1px solid rgba(31,58,46,0.15); border-top: none; padding: 20px; border-radius: 0 0 8px 8px; background: #fff;">' +
+    '<p>Hello,</p>' +
+    '<p>Great news! Your pizza order <strong>#' + orderId + '</strong> is freshly prepared and ready for collection at the courtyard.</p>' +
+    (customMessage ? '<div style="background: #F4F6F0; border-left: 4px solid #C65D3B; padding: 12px; margin: 16px 0;"><p style="margin:0;">' + customMessage.replace(/\n/g, '<br>') + '</p></div>' : '') +
+    '<p>Please collect your order promptly so you can enjoy it while it is hot and crisp.</p>' +
+    '<p>Thank you for supporting Artisan Oven!</p>' +
+    '<p>Kind regards,<br><strong>Marlow, Louis, and Quinton</strong></p>' +
+    '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: recipientEmail,
+    subject: subject,
+    body: body,
+    htmlBody: htmlBody
+  });
+}
+
+function sendCustomerCustomEmail(recipientEmail, subject, messageBody) {
+  var cleanSubject = subject || 'Artisan Oven — Pizza Order Update';
+  var body = (messageBody || 'Thank you for your order with Artisan Oven.') + '\n\nKind regards,\nMarlow, Louis, and Quinton\nArtisan Oven';
+
+  var htmlBody = '<div style="font-family: Arial, sans-serif; color: #1F3A2E; max-width: 600px;">' +
+    '<div style="background: #4F6359; color: #fff; padding: 16px; border-radius: 8px 8px 0 0; text-align: center;">' +
+    '<h2 style="margin: 0; font-size: 1.5rem; letter-spacing: 0.05em;">ARTISAN OVEN</h2>' +
+    '</div>' +
+    '<div style="border: 1px solid rgba(31,58,46,0.15); border-top: none; padding: 20px; border-radius: 0 0 8px 8px; background: #fff;">' +
+    '<div style="font-size: 1rem; line-height: 1.6; color: #1F3A2E;">' +
+    (messageBody ? messageBody.replace(/\n/g, '<br>') : 'Thank you for choosing Artisan Oven.') +
+    '</div>' +
+    '<hr style="border: none; border-top: 1px solid rgba(31,58,46,0.1); margin: 24px 0 16px 0;" />' +
+    '<p style="font-size: 0.9rem; color: #738A7C; margin: 0;">Kind regards,<br><strong style="color:#1F3A2E;">Marlow, Louis, and Quinton</strong><br>Artisan Oven</p>' +
+    '</div>' +
+    '</div>';
+
+  MailApp.sendEmail({
+    to: recipientEmail,
+    subject: cleanSubject,
+    body: body,
+    htmlBody: htmlBody
+  });
 }
 
 function trySendOrderConfirmation(e) {

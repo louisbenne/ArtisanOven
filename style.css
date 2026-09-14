@@ -2500,3 +2500,137 @@ button:focus-visible,
   vertical-align: middle;
 }
 
+/* ========================================================
+   AUTOMATED EMAIL DISPATCHER MODAL
+   ======================================================== */
+.email-modal-card {
+  max-width: 680px !important;
+  width: 100%;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 28px !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.email-toggle-group {
+  display: flex;
+  background: var(--cream);
+  border: 1px solid rgba(31, 58, 46, 0.12);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.email-toggle-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.email-toggle-btn.active {
+  background: var(--white);
+  color: var(--forest);
+  box-shadow: 0 2px 8px rgba(31, 58, 46, 0.08);
+}
+
+.email-toggle-btn:hover:not(.active) {
+  color: var(--forest);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.email-section-desc {
+  font-size: 0.86rem;
+  color: var(--text-soft);
+  margin-bottom: 16px;
+  line-height: 1.45;
+}
+
+.email-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.email-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.email-field label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--forest);
+}
+
+.email-preview-card {
+  background: var(--cream);
+  border: 1px solid rgba(31, 58, 46, 0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+
+.email-preview-header {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--terracotta);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.email-preview-row {
+  display: flex;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.email-preview-label {
+  font-weight: 700;
+  color: var(--forest);
+  min-width: 60px;
+}
+
+.email-preview-value {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.email-security-banner {
+  background: #f0f7f2;
+  border: 1px solid rgba(46, 105, 48, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #1f4224;
+}
+
+.email-security-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #2e6930;
+}
+
+
