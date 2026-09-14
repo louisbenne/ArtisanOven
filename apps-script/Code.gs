@@ -105,6 +105,7 @@ function getDefaultSettings() {
     capacityMessage: 'We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.',
     deadlineMessage: 'Orders will close at 9:00 PM on Sunday evenings, giving us time to prepare for Tuesday.',
     fullyBookedMessage: "We're fully booked for this session. Please check back next time.",
+    ordersTeamEmail: 'louis@benne.co.uk,marlowb11@icloud.com',
     sessionStartRow: 2,
     sessionId: 'session_init',
     sessionStartDate: new Date().toISOString()
@@ -168,6 +169,7 @@ function syncSettingsToSheet(settings) {
       ['Capacity Disclaimer', settings.capacityMessage, new Date()],
       ['Deadline Message', settings.deadlineMessage, new Date()],
       ['Fully Booked Message', settings.fullyBookedMessage, new Date()],
+      ['Orders Team Email', settings.ordersTeamEmail, new Date()],
       ['Current Session ID', settings.sessionId, new Date()],
       ['Session Start Row', settings.sessionStartRow, new Date()],
       ['Session Start Timestamp', settings.sessionStartDate, new Date()]
@@ -1109,6 +1111,7 @@ function doGet(e) {
       if (payload.capacityMessage !== undefined) updated.capacityMessage = safeTrim(payload.capacityMessage);
       if (payload.deadlineMessage !== undefined) updated.deadlineMessage = safeTrim(payload.deadlineMessage);
       if (payload.fullyBookedMessage !== undefined) updated.fullyBookedMessage = safeTrim(payload.fullyBookedMessage);
+      if (payload.ordersTeamEmail !== undefined) updated.ordersTeamEmail = safeTrim(payload.ordersTeamEmail);
 
       var newSettings = saveSettings(updated);
       logAdminAction('Settings Updated', JSON.stringify(updated));
@@ -1118,6 +1121,64 @@ function doGet(e) {
         message: 'Settings saved successfully.',
         settings: newSettings,
         stats: calculateCurrentSessionStats(newSettings)
+      });
+    }
+
+    // 5c. ADMIN: LIVE ORDERS CHECKLIST
+    if (action === 'adminGetOrdersChecklist' || actionLower === 'admingetorderschecklist') {
+      var checklistToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(checklistToken)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var checklist = getCurrentSessionOrderChecklist();
+      return createJsonResponse({
+        success: true,
+        html: renderOrdersChecklistHtml(checklist, false),
+        sessionLabel: checklist.sessionLabel,
+        itemCount: checklist.items.length,
+        totalCapacity: checklist.totalCapacity
+      });
+    }
+
+    // 5d. ADMIN: EMAIL LIVE ORDERS CHECKLIST AS PDF
+    if (action === 'emailOrdersPdf' || actionLower === 'emailorderspdf') {
+      var ordersEmailToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(ordersEmailToken)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Session expired or unauthorized. Please log in again.'
+        });
+      }
+
+      var ordersChecklist = getCurrentSessionOrderChecklist();
+      var ordersSettings = getSettings();
+      var recipients = safeTrim(ordersSettings.ordersTeamEmail || YOUR_EMAIL);
+      if (!recipients) {
+        return createJsonResponse({ success: false, message: 'No team email recipients are configured.' });
+      }
+
+      var pdfHtml = HtmlService.createTemplate(renderOrdersChecklistHtml(ordersChecklist, true))
+        .evaluate()
+        .getContent();
+      var pdfBlob = Utilities.newBlob(pdfHtml, 'text/html', 'orders.html')
+        .getAs('application/pdf')
+        .setName('Orders - ' + ordersChecklist.sessionLabel + '.pdf');
+      MailApp.sendEmail({
+        to: recipients,
+        subject: 'Orders - ' + ordersChecklist.sessionLabel,
+        body: 'Attached is the live orders checklist for ' + ordersChecklist.sessionLabel + '.',
+        attachments: [pdfBlob]
+      });
+      logAdminAction('Email Orders Checklist', 'Sent live PDF to ' + recipients + ' (' + ordersChecklist.items.length + ' items)');
+      return createJsonResponse({
+        success: true,
+        message: 'Orders PDF emailed to ' + recipients + '.'
       });
     }
 
@@ -3421,6 +3482,137 @@ function calculateRowPizzaStats(row) {
 // ============================================================================
 // ADMIN ORDERS
 // ============================================================================
+function getCurrentSessionOrderChecklist() {
+  var settings = getSettings();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+  var data = raw.getDataRange().getValues();
+  var headers = data.length > 0 ? data[0] : [];
+  var startRow = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
+  var items = [];
+
+  for (var r = startRow; r < data.length; r++) {
+    var row = data[r];
+    if (rowIsBlank(row) || isRowDeleted(row)) continue;
+
+    var paymentStatus = resolvePaymentStatus(row, headers, row[PAYMENT_STATUS_COL]);
+    var normalizedPaymentStatus = safeTrim(paymentStatus).toLowerCase();
+    if (/^(failed|declined|rejected|cancelled|canceled|refunded|void)$/.test(normalizedPaymentStatus)) continue;
+
+    var orderNum = r;
+    var qtyDigit = extractDigit(safeTrim(row[3])) || '0';
+    var allergyFlag = safeTrim(row[1]).toLowerCase() === 'yes';
+    var allergyDetails = stripHtml(safeTrim(row[2]));
+    var blocks = BRANCHES[qtyDigit] || [];
+
+    for (var b = 0; b < blocks.length; b++) {
+      var cols = blocks[b];
+      var sizeRaw = safeTrim(row[cols[0]]);
+      var childName = safeTrim(row[cols[1]]);
+      var className = safeTrim(row[cols[2]]);
+      if (!sizeRaw && !childName) continue;
+
+      var size = mapSize(sizeRaw);
+      var classMatch = className.match(/class\s*(\d+)/i);
+      var classNumber = classMatch ? parseInt(classMatch[1], 10) : 999;
+      items.push({
+        pickupId: String(orderNum) + '-' + (items.filter(function(item) {
+          return item.orderId === String(orderNum);
+        }).length + 1),
+        orderId: String(orderNum),
+        childName: childName || 'Student',
+        className: className || 'Unassigned',
+        classNumber: classNumber,
+        size: formatSizeLabel(size) || sizeRaw,
+        capacity: getPizzaCapacityValue(sizeRaw),
+        allergy: allergyFlag ? (allergyDetails || 'Flagged - confirm with parent') : ''
+      });
+    }
+  }
+
+  items.sort(function(a, b) {
+    return a.classNumber - b.classNumber ||
+      a.className.localeCompare(b.className) ||
+      a.childName.localeCompare(b.childName);
+  });
+
+  var totalCapacity = items.reduce(function(total, item) {
+    return total + item.capacity;
+  }, 0);
+  var classCount = items.reduce(function(classes, item) {
+    classes[item.className] = true;
+    return classes;
+  }, {});
+
+  return {
+    sessionLabel: safeTrim(settings.serviceDate) || 'Current session',
+    items: items,
+    totalCapacity: normalizePizzaCapacity(totalCapacity),
+    classCount: Object.keys(classCount).length
+  };
+}
+
+function escapeOrdersHtml(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderOrdersChecklistHtml(checklist, forPdf) {
+  var grouped = {};
+  checklist.items.forEach(function(item) {
+    if (!grouped[item.className]) grouped[item.className] = [];
+    grouped[item.className].push(item);
+  });
+
+  var groups = Object.keys(grouped).sort(function(a, b) {
+    var aNumber = grouped[a][0].classNumber;
+    var bNumber = grouped[b][0].classNumber;
+    return aNumber - bNumber || a.localeCompare(b);
+  });
+  var classMarkup = groups.map(function(className) {
+    var rows = grouped[className].map(function(item) {
+      return '<div class="order-row">' +
+        '<div class="check"></div>' +
+        '<div class="who"><div class="name">' + escapeOrdersHtml(item.childName) + '</div>' +
+        '<div class="sub">' + escapeOrdersHtml(item.size) + '</div>' +
+        (item.allergy ? '<div class="allergy">Allergy - ' + escapeOrdersHtml(item.allergy) + '</div>' : '') +
+        '</div><div class="ref">' + escapeOrdersHtml(item.pickupId) + '</div></div>';
+    }).join('');
+    return '<div class="class-row"><span>' + escapeOrdersHtml(className.toUpperCase()) +
+      '</span><span class="count">' + grouped[className].length + ' ' +
+      (grouped[className].length === 1 ? 'order' : 'orders') + '</span></div>' + rows;
+  }).join('');
+
+  var meta = checklist.items.length
+    ? normalizePizzaCapacity(checklist.totalCapacity) + ' pizzas across ' + checklist.classCount +
+      ' classes - tick each one off as it is handed out.'
+    : 'No orders for this session yet.';
+  var titleFont = forPdf ? 'Georgia, serif' : "'Fraunces', Georgia, serif";
+  var emptyMarkup = checklist.items.length ? classMarkup : '<p class="empty">No orders for this session yet.</p>';
+
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Orders</title>' +
+    '<link rel="preconnect" href="https://fonts.googleapis.com">' +
+    '<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">' +
+    '<style>' +
+    ':root{--ink:#1D1D1F;--subtle:#86868B;--hairline:#E5E5EA;--accent:#D9480F;--ring:#C7C7CC}' +
+    '*{box-sizing:border-box}body{font-family:"Work Sans",Arial,sans-serif;color:var(--ink);margin:0;padding:40px 48px;max-width:760px}' +
+    '.kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}' +
+    'h1.title{font-family:' + titleFont + ';font-weight:600;font-size:42px;margin:4px 0 0}' +
+    '.meta{color:var(--subtle);font-size:15px;margin:8px 0 32px}.class-row{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 8px;border-bottom:1px solid var(--hairline);font-weight:600;font-size:13px;letter-spacing:.02em}' +
+    '.count{color:var(--subtle);font-weight:400}.order-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--hairline);break-inside:avoid}' +
+    '.check{width:15px;height:15px;min-width:15px;border-radius:50%;border:1.3px solid var(--ring)}.who{flex:1}.name{font-weight:600;font-size:15px}.sub{color:var(--subtle);font-size:12.5px;margin-top:2px}.allergy{color:var(--accent);font-weight:600;font-size:11.5px;margin-top:3px}.ref{color:var(--subtle);font-size:12.5px}.footer{margin-top:36px;color:var(--subtle);font-size:11px}.empty{color:var(--subtle);padding:12px 0}.class-row{break-after:avoid}' +
+    '@media print{body{padding:0;max-width:none}.order-row{break-inside:avoid}}' +
+    '</style></head><body><div class="kicker">' + escapeOrdersHtml(checklist.sessionLabel.toUpperCase()) +
+    '</div><h1 class="title">Orders</h1><div class="meta">' + escapeOrdersHtml(meta) + '</div>' +
+    emptyMarkup + '<div class="footer">Generated ' + escapeOrdersHtml(
+      Utilities.formatDate(new Date(), 'Europe/London', 'dd MMM yyyy HH:mm')) +
+    ' from the live order sheet.</div></body></html>';
+}
+
 function getAllOrdersForAdmin() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
