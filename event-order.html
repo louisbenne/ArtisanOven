@@ -305,28 +305,7 @@
 
     let orderInitialized = false;
 
-    const DEFAULT_EVENT_DATA = [
-      {
-        id: "summer-popup-2026",
-        name: "Summer Pizza Pop-Up",
-        description: "Wood-fired sourdough pizza pop-up event with seasonal local toppings.",
-        date: "12 July 2026",
-        time: "17:00 - 21:00",
-        location: "Village Green, Guilden Morden",
-        status: "Open",
-        customerInstructions: "Please arrive 5 mins before your chosen pickup slot."
-      },
-      {
-        id: "autumn-feast-2026",
-        name: "Autumn Harvest Feast",
-        description: "Seasonal sourdough specials and wood-fired appetizers.",
-        date: "18 September 2026",
-        time: "18:00 - 21:30",
-        location: "Town Hall Yard",
-        status: "Open",
-        customerInstructions: "Bring your order confirmation email on arrival."
-      }
-    ];
+    const DEFAULT_EVENT_DATA = [];
 
     const STORAGE_KEY_REG_INTEREST_MAP = "AO_EVENT_REG_INTEREST_MAP";
 
@@ -374,20 +353,27 @@
         const stored = localStorage.getItem("AO_LOCAL_EVENTS");
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map(ev => ({
-              ...ev,
-              registerInterest: extractRegInterestFromEvent(ev),
-              customerInstructions: stripRegInterestTag(ev.customerInstructions)
-            }));
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(ev => ev && 
+              ev.id !== 'summer-popup-2026' && 
+              ev.id !== 'autumn-feast-2026' && 
+              ev.name !== 'Autumn Harvest Feast' && 
+              ev.name !== 'Summer Pizza Pop-Up'
+            );
+            if (filtered.length !== parsed.length) {
+              localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(filtered));
+            }
+            if (filtered.length > 0) {
+              return filtered.map(ev => ({
+                ...ev,
+                registerInterest: extractRegInterestFromEvent(ev),
+                customerInstructions: stripRegInterestTag(ev.customerInstructions)
+              }));
+            }
           }
         }
       } catch (e) {}
-      return DEFAULT_EVENT_DATA.map(ev => ({
-        ...ev,
-        registerInterest: extractRegInterestFromEvent(ev),
-        customerInstructions: stripRegInterestTag(ev.customerInstructions)
-      }));
+      return [];
     }
 
     async function initEventOrder() {
@@ -613,12 +599,19 @@
         fetch(`${apiUrl}?action=getEvents&_t=${Date.now()}`, { mode: "cors", cache: "no-store" })
           .then(res => res.json())
           .then(data => {
-            if (data && data.success && Array.isArray(data.events) && data.events.length > 0) {
-              allEvents = data.events.map(ev => ({
-                ...ev,
-                registerInterest: extractRegInterestFromEvent(ev),
-                customerInstructions: stripRegInterestTag(ev.customerInstructions)
-              }));
+            if (data && data.success && Array.isArray(data.events)) {
+              allEvents = data.events
+                .filter(ev => ev && 
+                  ev.id !== 'summer-popup-2026' && 
+                  ev.id !== 'autumn-feast-2026' && 
+                  ev.name !== 'Autumn Harvest Feast' && 
+                  ev.name !== 'Summer Pizza Pop-Up'
+                )
+                .map(ev => ({
+                  ...ev,
+                  registerInterest: extractRegInterestFromEvent(ev),
+                  customerInstructions: stripRegInterestTag(ev.customerInstructions)
+                }));
               localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(allEvents));
               populateEventDropdown(allEvents);
               if (urlEventId) {

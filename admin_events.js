@@ -8,34 +8,7 @@ const STORAGE_KEY_LOCAL_EVENTS = "AO_LOCAL_EVENTS";
 const STORAGE_KEY_EVENT_ORDERS = "AO_CACHED_EVENT_ORDERS";
 const STORAGE_KEY_REG_INTEREST_MAP = "AO_EVENT_REG_INTEREST_MAP";
 
-const DEFAULT_EVENTS = [
-  {
-    id: "summer-popup-2026",
-    name: "Summer Pizza Pop-Up",
-    description: "Wood-fired sourdough pizza pop-up event with seasonal local toppings.",
-    date: "12 July 2026",
-    time: "17:00 - 21:00",
-    location: "Village Green, Guilden Morden",
-    status: "Open",
-    customerInstructions: "Please arrive 5 mins before your chosen pickup slot.",
-    emailSubject: "Your Summer Pop-Up Pizza Order Confirmation",
-    emailMessage: "Thank you for ordering for our Summer Pop-Up!",
-    active: true
-  },
-  {
-    id: "autumn-feast-2026",
-    name: "Autumn Harvest Feast",
-    description: "Seasonal sourdough specials and wood-fired appetizers.",
-    date: "18 September 2026",
-    time: "18:00 - 21:30",
-    location: "Town Hall Yard",
-    status: "Open",
-    customerInstructions: "Bring your order confirmation email on arrival.",
-    emailSubject: "Autumn Feast Order Confirmation",
-    emailMessage: "We look forward to serving you!",
-    active: true
-  }
-];
+const DEFAULT_EVENTS = [];
 
 let cachedEvents = [];
 let cachedEventOrders = [];
@@ -113,8 +86,17 @@ function getStoredLocalEvents() {
     const raw = localStorage.getItem(STORAGE_KEY_LOCAL_EVENTS);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(e => ({
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter(e => e && 
+          e.id !== 'summer-popup-2026' && 
+          e.id !== 'autumn-feast-2026' && 
+          e.name !== 'Autumn Harvest Feast' && 
+          e.name !== 'Summer Pizza Pop-Up'
+        );
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(filtered));
+        }
+        return filtered.map(e => ({
           ...e,
           active: e.active !== false && e.active !== 'false' && e.active !== '0' && e.active !== 0,
           registerInterest: extractRegInterestFromEvent(e),
@@ -123,19 +105,18 @@ function getStoredLocalEvents() {
       }
     }
   } catch(e) {}
-  
-  const initial = DEFAULT_EVENTS.map(e => ({
-    ...e,
-    registerInterest: extractRegInterestFromEvent(e),
-    customerInstructions: stripRegInterestTag(e.customerInstructions)
-  }));
-  localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(initial));
-  return initial;
+  return [];
 }
 
 function saveStoredLocalEvents(events) {
   try {
-    localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(events || []));
+    const cleanEvents = (events || []).filter(e => e && 
+      e.id !== 'summer-popup-2026' && 
+      e.id !== 'autumn-feast-2026' && 
+      e.name !== 'Autumn Harvest Feast' && 
+      e.name !== 'Summer Pizza Pop-Up'
+    );
+    localStorage.setItem(STORAGE_KEY_LOCAL_EVENTS, JSON.stringify(cleanEvents));
   } catch(e) {}
 }
 
@@ -146,8 +127,21 @@ function saveStoredLocalEvents(events) {
 window.initEventsTab = function() {
   console.log("Admin: Initializing Events Tab");
   cachedEvents = getStoredLocalEvents();
-  renderEventsList(cachedEvents);
-  populateEventDropdown(cachedEvents);
+  if (cachedEvents.length > 0) {
+    renderEventsList(cachedEvents);
+    populateEventDropdown(cachedEvents);
+  } else {
+    const container = document.getElementById("events-list-container");
+    if (container) {
+      container.innerHTML = `
+        <div style="background: var(--white); border: 1.5px dashed rgba(31,58,46,0.15); border-radius: var(--radius-md); padding: 52px 24px; text-align: center; box-shadow: var(--shadow-soft);">
+          <div style="font-size: 2.2rem; margin-bottom: 12px; display: inline-block;">⏳</div>
+          <h4 style="margin: 0 0 8px 0; color: var(--forest); font-size: 1.2rem; font-family: var(--font-display);">Loading Events...</h4>
+          <p style="margin: 0; color: var(--text-soft); font-size: 0.92rem;">Retrieving latest event details...</p>
+        </div>
+      `;
+    }
+  }
   loadRemoteEvents();
   loadEventOrdersData('', true); // background load
 };
@@ -238,12 +232,19 @@ async function loadRemoteEvents() {
     if (response.ok) {
       const data = await response.json();
       if (data.success && Array.isArray(data.events)) {
-        cachedEvents = data.events.map(e => ({
-          ...e,
-          active: e.active !== false && e.active !== 'false' && e.active !== '0' && e.active !== 0,
-          registerInterest: extractRegInterestFromEvent(e),
-          customerInstructions: stripRegInterestTag(e.customerInstructions)
-        }));
+        cachedEvents = data.events
+          .filter(e => e && 
+            e.id !== 'summer-popup-2026' && 
+            e.id !== 'autumn-feast-2026' && 
+            e.name !== 'Autumn Harvest Feast' && 
+            e.name !== 'Summer Pizza Pop-Up'
+          )
+          .map(e => ({
+            ...e,
+            active: e.active !== false && e.active !== 'false' && e.active !== '0' && e.active !== 0,
+            registerInterest: extractRegInterestFromEvent(e),
+            customerInstructions: stripRegInterestTag(e.customerInstructions)
+          }));
         saveStoredLocalEvents(cachedEvents);
         isLocalFallback = false;
         renderEventsList(cachedEvents);

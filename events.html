@@ -198,39 +198,27 @@
           const raw = localStorage.getItem("AO_LOCAL_EVENTS");
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              return parsed.map(e => ({
-                ...e,
-                registerInterest: extractRegInterestFromEvent(e),
-                customerInstructions: stripRegInterestTag(e.customerInstructions)
-              }));
+            if (Array.isArray(parsed)) {
+              const filtered = parsed.filter(e => e && 
+                e.id !== 'summer-popup-2026' && 
+                e.id !== 'autumn-feast-2026' && 
+                e.name !== 'Autumn Harvest Feast' && 
+                e.name !== 'Summer Pizza Pop-Up'
+              );
+              if (filtered.length !== parsed.length) {
+                localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(filtered));
+              }
+              if (filtered.length > 0) {
+                return filtered.map(e => ({
+                  ...e,
+                  registerInterest: extractRegInterestFromEvent(e),
+                  customerInstructions: stripRegInterestTag(e.customerInstructions)
+                }));
+              }
             }
           }
         } catch(e) {}
-        return [
-          {
-            id: "summer-popup-2026",
-            name: "Summer Pizza Pop-Up",
-            description: "Wood-fired sourdough pizza pop-up event with seasonal local toppings.",
-            date: "12 July 2026",
-            time: "17:00 - 21:00",
-            location: "Village Green, Guilden Morden",
-            status: "Open",
-            active: true,
-            registerInterest: extractRegInterestFromEvent({ id: "summer-popup-2026" })
-          },
-          {
-            id: "autumn-feast-2026",
-            name: "Autumn Harvest Feast",
-            description: "Seasonal sourdough specials and wood-fired appetizers.",
-            date: "18 September 2026",
-            time: "18:00 - 21:30",
-            location: "Town Hall Yard",
-            status: "Open",
-            active: true,
-            registerInterest: extractRegInterestFromEvent({ id: "autumn-feast-2026" })
-          }
-        ];
+        return [];
       }
 
       function renderEventsArray(eventsList) {
@@ -309,18 +297,33 @@
 
         if (res && res.ok) {
           const data = await res.json();
-          if (data && data.success && Array.isArray(data.events) && data.events.length > 0) {
-            const processedEvents = data.events.map(e => ({
-              ...e,
-              registerInterest: extractRegInterestFromEvent(e),
-              customerInstructions: stripRegInterestTag(e.customerInstructions)
-            }));
+          if (data && data.success && Array.isArray(data.events)) {
+            const processedEvents = data.events
+              .filter(e => e && 
+                e.id !== 'summer-popup-2026' && 
+                e.id !== 'autumn-feast-2026' && 
+                e.name !== 'Autumn Harvest Feast' && 
+                e.name !== 'Summer Pizza Pop-Up'
+              )
+              .map(e => ({
+                ...e,
+                registerInterest: extractRegInterestFromEvent(e),
+                customerInstructions: stripRegInterestTag(e.customerInstructions)
+              }));
             localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(processedEvents));
             renderEventsArray(processedEvents);
+          } else {
+            renderEventsArray([]);
+          }
+        } else {
+          if (!initialEvents || initialEvents.length === 0) {
+            renderEventsArray([]);
           }
         }
       } catch (err) {
-        // Fallback already rendered, silently continue
+        if (!initialEvents || initialEvents.length === 0) {
+          renderEventsArray([]);
+        }
       }
 
       function escapeHtml(str) {
