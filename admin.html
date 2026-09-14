@@ -1918,28 +1918,19 @@
       const printOrdersButton = document.getElementById('btn-print-orders');
       if (printOrdersButton) {
         printOrdersButton.addEventListener('click', async () => {
-          const printWindow = window.open('about:blank', '_blank');
-          if (!printWindow) {
-            showToast("Please allow pop-ups to print the checklist.", "error");
-            return;
-          }
           try {
             const data = await fetchOrdersChecklist();
-            if (!data) {
-              printWindow.close();
-              return;
-            }
-            const blobUrl = URL.createObjectURL(new Blob([data.html], { type: 'text/html' }));
-            printWindow.location.href = blobUrl;
-            printWindow.onload = () => {
+            if (!data || !ordersChecklistFrame) return;
+            const preview = ordersChecklistFrame.closest('details');
+            if (preview) preview.open = true;
+            ordersChecklistFrame.onload = () => {
               setTimeout(() => {
-                printWindow.focus();
-                printWindow.print();
-                URL.revokeObjectURL(blobUrl);
+                ordersChecklistFrame.contentWindow.focus();
+                ordersChecklistFrame.contentWindow.print();
               }, 250);
             };
+            ordersChecklistFrame.srcdoc = data.html;
           } catch (err) {
-            printWindow.close();
             showToast(err.message || "Unable to prepare the checklist for printing.", "error");
           }
         });
