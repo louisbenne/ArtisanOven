@@ -58,70 +58,77 @@
 
   function findSheetRows(workbook) {
     const sheets = workbook && workbook.Sheets ? workbook.Sheets : {};
-    const firstSheet = workbook && workbook.SheetNames && workbook.SheetNames[0];
-    if (!firstSheet || !sheets[firstSheet]) throw new Error('The workbook does not contain a readable sheet.');
+    const sheetNames = workbook && workbook.SheetNames ? workbook.SheetNames : Object.keys(sheets);
+    if (!sheetNames.length) throw new Error('The workbook does not contain a readable sheet.');
     if (!root.XLSX || !root.XLSX.utils || !root.XLSX.utils.sheet_to_json) {
       throw new Error('The spreadsheet parser is unavailable. Reload the page and try again.');
     }
-    return root.XLSX.utils.sheet_to_json(sheets[firstSheet], { header: 1, raw: true, defval: '' });
+    return sheetNames.map((sheetName) => ({
+      name: sheetName,
+      rows: root.XLSX.utils.sheet_to_json(sheets[sheetName], { header: 1, raw: true, defval: '' })
+    })).filter((sheet) => Array.isArray(sheet.rows));
   }
 
   function parseWorkbook(workbook) {
-    const rows = findSheetRows(workbook);
+    const sheetRows = findSheetRows(workbook);
     let sessionTitle = '';
     const items = [];
 
-    rows.forEach((row) => {
-      const first = text(row[0]);
-      const sessionMatch = first.match(/^CURRENT ACTIVE SESSION:\s*(.+)$/i);
-      if (sessionMatch && !sessionTitle) sessionTitle = sessionMatch[1].trim();
+    sheetRows.forEach(({ rows }) => {
+      rows.forEach((row) => {
+        const first = text(row[0]);
+        const sessionMatch = first.match(/^CURRENT ACTIVE SESSION:\s*(.+)$/i);
+        if (sessionMatch && !sessionTitle) sessionTitle = sessionMatch[1].trim();
+      });
     });
 
-    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
-      if (normalise(rows[rowIndex][0]) !== 'pizza orders') continue;
+    sheetRows.forEach(({ rows }) => {
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        if (normalise(rows[rowIndex][0]) !== 'pizza orders') continue;
 
-      let headerIndex = rowIndex + 1;
-      while (headerIndex < rows.length && rows[headerIndex].every((cell) => text(cell) === '')) headerIndex += 1;
-      const headers = headerIndex < rows.length ? findHeader(rows[headerIndex]) : null;
-      if (!headers) continue;
-      const columns = Object.fromEntries(headers.map((name, index) => [name, index]));
+        let headerIndex = rowIndex + 1;
+        while (headerIndex < rows.length && rows[headerIndex].every((cell) => text(cell) === '')) headerIndex += 1;
+        const headers = headerIndex < rows.length ? findHeader(rows[headerIndex]) : null;
+        if (!headers) continue;
+        const columns = Object.fromEntries(headers.map((name, index) => [name, index]));
 
-      for (let dataIndex = headerIndex + 1; dataIndex < rows.length; dataIndex += 1) {
-        const row = rows[dataIndex];
-        if (!row || row.every((cell) => text(cell) === '')) continue;
-        if (normalise(row[0]) === 'pizza orders' || normalise(row[0]) === 'order summary' ||
-            normalise(row[0]) === 'internal parent orders') break;
+        for (let dataIndex = headerIndex + 1; dataIndex < rows.length; dataIndex += 1) {
+          const row = rows[dataIndex];
+          if (!row || row.every((cell) => text(cell) === '')) continue;
+          if (normalise(row[0]) === 'pizza orders' || normalise(row[0]) === 'order summary' ||
+              normalise(row[0]) === 'internal parent orders') break;
 
-        const orderId = text(row[columns['order id']]);
-        const itemId = text(row[columns['pizza item id']]);
-        const childName = text(row[columns['child name']]);
-        if (!orderId || !itemId || !childName) continue;
+          const orderId = text(row[columns['order id']]);
+          const itemId = text(row[columns['pizza item id']]);
+          const childName = text(row[columns['child name']]);
+          if (!orderId || !itemId || !childName) continue;
 
-        const literalPickup = row[columns['pickup id']];
-        const reconstructed = `${orderId}-${itemId}`;
-        const pickupId = reconstructed || (!isDateValue(literalPickup) ? text(literalPickup) : '');
-        if (!pickupId) continue;
-        const classData = classInfo(row[columns.class]);
-        const paymentMethod = text(row[columns['payment method']]);
-        const allergyFlag = text(row[columns['allergy flag']]).toLowerCase() === 'yes';
+          const literalPickup = row[columns['pickup id']];
+          const reconstructed = `${orderId}-${itemId}`;
+          const pickupId = reconstructed || (!isDateValue(literalPickup) ? text(literalPickup) : '');
+          if (!pickupId) continue;
+          const classData = classInfo(row[columns.class]);
+          const paymentMethod = text(row[columns['payment method']]);
+          const allergyFlag = text(row[columns['allergy flag']]).toLowerCase() === 'yes';
 
-        items.push({
-          pickupId,
-          orderId,
-          childName,
-          className: classData.name,
-          classNumber: classData.number,
-          size: text(row[columns.size]),
-          capacity: pizzaCapacity(row[columns.size]),
-          paymentMethod,
-          paymentIcon: paymentIcon(paymentMethod),
-          paid: text(row[columns.paid]),
-          allergyFlag,
-          allergyDetails: text(row[columns['allergy details']]),
-          payerName: text(row[columns['payer name']])
-        });
+          items.push({
+            pickupId,
+            orderId,
+            childName,
+            className: classData.name,
+            classNumber: classData.number,
+            size: text(row[columns.size]),
+            capacity: pizzaCapacity(row[columns.size]),
+            paymentMethod,
+            paymentIcon: paymentIcon(paymentMethod),
+            paid: text(row[columns.paid]),
+            allergyFlag,
+            allergyDetails: text(row[columns['allergy details']]),
+            payerName: text(row[columns['payer name']])
+          });
+        }
       }
-    }
+    });
 
     const deduped = Array.from(new Map(items.map((item) => [item.pickupId, item])).values());
     if (!sessionTitle) throw new Error('No active session title was found in the workbook.');
