@@ -19,6 +19,8 @@ document.addEventListener("DOMContentLoaded", function () {
   initOrderLookup();
   // Setup Availability Tracker
   initAvailabilityTracker();
+  // Setup Special Events Banner Check
+  initOrderEventsBanner();
   // Setup Quick Copy Buttons
   initCopyButtons();
 });
@@ -244,6 +246,73 @@ function initAvailabilityTracker() {
   fetchStatus();
   // Poll every 45 seconds
   setInterval(fetchStatus, 45000);
+}
+
+function initOrderEventsBanner() {
+  const banner = document.getElementById("order-events-banner") || document.querySelector(".order-events-banner");
+  if (!banner) return;
+
+  const introText = document.getElementById("page-order-intro");
+
+  function setBannerVisibility(hasEvents) {
+    if (hasEvents) {
+      banner.style.display = "block";
+      if (introText) {
+        introText.textContent = "Place your Tuesday school lunch order below or explore upcoming special events.";
+      }
+    } else {
+      banner.style.display = "none";
+      if (introText) {
+        introText.textContent = "Place your Tuesday school lunch order below.";
+      }
+    }
+  }
+
+  // Check local storage cache first for instant render
+  try {
+    const raw = localStorage.getItem("AO_LOCAL_EVENTS");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const active = parsed.filter(e => e && e.active !== false && e.active !== 'false' &&
+          e.id !== 'summer-popup-2026' && e.id !== 'autumn-feast-2026' &&
+          e.name !== 'Autumn Harvest Feast' && e.name !== 'Summer Pizza Pop-Up'
+        );
+        setBannerVisibility(active.length > 0);
+      }
+    }
+  } catch (e) {}
+
+  const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+  if (!apiUrl || apiUrl.indexOf('http') !== 0 || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+    return;
+  }
+
+  const url = new URL(apiUrl);
+  url.searchParams.set("action", "getEvents");
+  url.searchParams.set("_t", Date.now().toString());
+
+  fetch(url.toString(), {
+    method: "GET",
+    mode: "cors",
+    redirect: "follow"
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.success && Array.isArray(data.events)) {
+        const active = data.events.filter(e => e && e.active !== false && e.active !== 'false' &&
+          e.id !== 'summer-popup-2026' && e.id !== 'autumn-feast-2026' &&
+          e.name !== 'Autumn Harvest Feast' && e.name !== 'Summer Pizza Pop-Up'
+        );
+        try {
+          localStorage.setItem("AO_LOCAL_EVENTS", JSON.stringify(active));
+        } catch (e) {}
+        setBannerVisibility(active.length > 0);
+      } else {
+        setBannerVisibility(false);
+      }
+    })
+    .catch(() => {});
 }
 
 function initOrderLookup() {

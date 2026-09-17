@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "lint": "node --check server.js script.js",
+    "lint": "node --check server.js script.js admin_events.js kitchen-board.js parent-order.js apps-script.js admin-sw.js kitchen-sw.js parent-sw.js",
     "build": "echo 'Static site ready'",
     "start": "node server.js"
   },

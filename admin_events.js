@@ -477,8 +477,9 @@ window.loadEventOrdersData = async function(targetEventId = '', silent = false) 
 
     if (data.unauthorized) {
       sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
       if (typeof window.showLoginView === 'function') window.showLoginView();
-      if (typeof window.showLoginError === 'function') window.showLoginError("Session expired.");
+      if (typeof window.showLoginError === 'function') window.showLoginError(data.message || "Access denied. Incorrect password.");
       return;
     }
 

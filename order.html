@@ -15,6 +15,9 @@
 
   <link rel="stylesheet" href="style.css" />
   <style>
+    .order-events-banner {
+      display: none;
+    }
     @media (max-width: 600px) {
       .page-intro h1 { font-size: 1.8rem; }
       .order-events-banner > div {
@@ -46,10 +49,10 @@
     <div class="container">
       <section class="page-intro">
         <h1>Place Your Order</h1>
-        <p>Place your Tuesday school lunch order below or explore upcoming special events.</p>
+        <p id="page-order-intro">Place your Tuesday school lunch order below.</p>
 
-        <!-- Special Events banner stretched out to match availability-tracker UI -->
-        <a href="events.html" class="availability-tracker order-events-banner" style="text-decoration: none; display: block; margin-top: 24px; margin-bottom: 24px; transition: transform 0.2s ease, box-shadow 0.2s ease;">
+        <!-- Special Events banner stretched out to match availability-tracker UI (only displayed if active events exist) -->
+        <a id="order-events-banner" href="events.html" class="availability-tracker order-events-banner" style="text-decoration: none; display: none; margin-top: 24px; margin-bottom: 24px; transition: transform 0.2s ease, box-shadow 0.2s ease;">
           <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
             <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
               <span style="width: 44px; height: 44px; background: rgba(31,58,46,0.1); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--forest); flex-shrink: 0;">

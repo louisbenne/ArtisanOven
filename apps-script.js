@@ -22,12 +22,6 @@ var CONFIRMATION_SUBJECT = 'Your Pizza Order Confirmation & Payment Details';
 var PAYPAL_ME_BASE = 'https://paypal.me/ArtisanOven';
 var PAYPAL_NCP_LINK = 'https://www.paypal.com/ncp/payment/LXZKSSG3QEFJA';
 
-// Default Admin Access Code / Password (can be customized via Admin Dashboard or Script Properties)
-var DEFAULT_ADMIN_ACCESS_CODE = 'ArtisanOvenAdmin2026!';
-var DEFAULT_ADMIN_PASSWORD = DEFAULT_ADMIN_ACCESS_CODE;
-var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
-var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
-
 // Canonical payment mappings
 var PAYMENT_MAP = {
   'Bank Transfer': 'BankTransfer',
@@ -86,6 +80,13 @@ var PAYMENT_INFO_BLOCK =
   'CASH\n\n' +
   'Cash payments may be sent with your child. \n' +
   'Please ensure that the exact amount is provided, as we are unable to give change.';
+
+var INTERNAL_PARENT_DISCOUNT_CODE = 'INTERNAL_PARENT_50';
+var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
+var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
+var DEFAULT_ADMIN_ACCESS_CODE = 'ArtisanOvenAdmin2026!';
+var PARENT_SESSION_TTL_SECONDS = 12 * 60 * 60;
+var ADMIN_SESSION_TTL_SECONDS = 0; // Direct password authentication; no expiration timer or session limit
 
 // ============================================================================
 // SETTINGS STORAGE & RETRIEVAL (ScriptProperties + Admin_Settings Sheet)
@@ -215,30 +216,62 @@ function setAdminAccessCode(newCode) {
 }
 
 function generateAdminToken() {
-  var token = 'ao_adm_' + Utilities.getUuid().replace(/-/g, '') + '_' + Date.now();
-  var expiry = Date.now() + (8 * 60 * 60 * 1000); // 8 hours validity
-  var props = PropertiesService.getScriptProperties();
-  props.setProperty('ADMIN_TOKEN', token);
-  props.setProperty('ADMIN_TOKEN_EXPIRY', String(expiry));
-  return token;
+  return getAdminAccessCode();
 }
 
 function verifyAdminToken(token) {
-  if (!token) return false;
-  var props = PropertiesService.getScriptProperties();
-  var storedToken = props.getProperty('ADMIN_TOKEN');
-  var expiry = parseInt(props.getProperty('ADMIN_TOKEN_EXPIRY') || '0', 10);
-  
-  if (storedToken && storedToken === token && Date.now() < expiry) {
-    return true;
-  }
+  var supplied = safeTrim(token || '');
+  if (!supplied) return false;
+  var expected = getAdminAccessCode();
+  if (!expected) return false;
+  // Black or white authentication: if supplied password matches expected admin code, access is granted. No hours, no token expiration.
+  if (supplied === expected) return true;
+  // Fallback check for any active cache items
+  try {
+    if (CacheService.getScriptCache().get(supplied) === 'valid') return true;
+  } catch (e) {}
   return false;
 }
 
-function invalidateAdminToken() {
-  var props = PropertiesService.getScriptProperties();
-  props.deleteProperty('ADMIN_TOKEN');
-  props.deleteProperty('ADMIN_TOKEN_EXPIRY');
+function getParentAccessCode() {
+  return safeTrim(PropertiesService.getScriptProperties().getProperty(PARENT_ACCESS_CODE_PROP) || '');
+}
+
+function setParentAccessCode(newCode) {
+  var code = safeTrim(newCode || '');
+  if (!code) {
+    throw new Error('Parent access code is required.');
+  }
+  if (code.length < 4) {
+    throw new Error('Parent access code must be at least 4 characters long.');
+  }
+  PropertiesService.getScriptProperties().setProperty(PARENT_ACCESS_CODE_PROP, code);
+  return code;
+}
+
+function generateParentSessionToken() {
+  var token = Utilities.getUuid();
+  CacheService.getScriptCache().put(token, 'valid', PARENT_SESSION_TTL_SECONDS);
+  return token;
+}
+
+function verifyParentSessionToken(token) {
+  var supplied = safeTrim(token || '');
+  if (!supplied) return false;
+  var expected = getParentAccessCode();
+  if (expected && supplied === expected) return true;
+  try {
+    if (CacheService.getScriptCache().get(supplied) === 'valid') return true;
+  } catch (e) {}
+  return false;
+}
+
+function invalidateAdminToken(token) {
+  if (token) {
+    try {
+      CacheService.getScriptCache().remove(token);
+    } catch (e) {}
+  }
 }
 
 // Audit logger
@@ -354,7 +387,23 @@ function doGet(e) {
       });
     }
 
-    // 1b. PUBLIC: GET EVENTS LIST
+    // 1b. PUBLIC: PARENT ACCESS AUTH
+    if (actionLower === 'parentauth' || action === 'parentAuth') {
+      var suppliedCode = safeTrim(params.code || params.accessCode || '');
+      var expectedCode = getParentAccessCode();
+      if (!suppliedCode || !expectedCode || suppliedCode !== expectedCode) {
+        return createJsonResponse({ success: false, message: 'Access denied.' });
+      }
+      var token = generateParentSessionToken();
+      return createJsonResponse({
+        success: true,
+        token: token,
+        expiresInSeconds: PARENT_SESSION_TTL_SECONDS,
+        message: 'Access granted.'
+      });
+    }
+
+    // 1c. PUBLIC: GET EVENTS LIST
     if (actionLower === 'getevents' || action === 'getEvents') {
       setupEventSheets();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -626,6 +675,120 @@ function doGet(e) {
       });
     }
 
+    // 1d. PUBLIC: CREATE INTERNAL PARENT ORDER
+    if (actionLower === 'createparentorder' || action === 'createParentOrder') {
+      var parentToken = safeTrim(params.token || params.sessionToken || '');
+      if (!verifyParentSessionToken(parentToken)) {
+        return createJsonResponse({ success: false, message: 'Access denied.' });
+      }
+
+      var parentName = sanitizeForSheet(params.parentName || params.name || '');
+      var parentEmail = sanitizeForSheet(params.parentEmail || params.email || '');
+      var childName = sanitizeForSheet(params.childName || '');
+      var childClass = sanitizeForSheet(params.class || params.childClass || '');
+      var paymentMethod = sanitizeForSheet(params.paymentMethod || 'Bank Transfer');
+      var notes = sanitizeForSheet(params.notes || params.orderNotes || '');
+      var submissionId = safeTrim(params.submissionId || '');
+      var rawItems = params.items || [];
+      if (typeof rawItems === 'string') {
+        try { rawItems = JSON.parse(rawItems); } catch (e) { rawItems = []; }
+      }
+
+      if (!parentName || !parentEmail || !isValidEmail(parentEmail)) {
+        return createJsonResponse({ success: false, message: 'Please provide a valid parent name and email address.' });
+      }
+      if (!childName || !childClass) {
+        return createJsonResponse({ success: false, message: 'Please provide the child name and class.' });
+      }
+      if (!Array.isArray(rawItems) || rawItems.length === 0) {
+        return createJsonResponse({ success: false, message: 'Please include at least one pizza item.' });
+      }
+
+      if (submissionId) {
+        var orderCache = CacheService.getScriptCache();
+        if (orderCache.get(submissionId)) {
+          return createJsonResponse({ success: false, message: 'This order was already submitted successfully.' });
+        }
+        try { orderCache.put(submissionId, 'processed', 300); } catch (e) {}
+      }
+
+      var validatedItems = [];
+      var originalTotal = 0;
+      for (var pi = 0; pi < rawItems.length; pi++) {
+        var item = rawItems[pi];
+        var sizeKey = safeTrim(item.size || '');
+        var qty = parseInt(item.qty, 10);
+        if (!PRICE_MAP[sizeKey]) {
+          return createJsonResponse({ success: false, message: 'Invalid pizza size selected.' });
+        }
+        if (isNaN(qty) || qty < 1 || qty > 50) {
+          return createJsonResponse({ success: false, message: 'Invalid quantity.' });
+        }
+        var unitPrice = PRICE_MAP[sizeKey];
+        originalTotal += unitPrice * qty;
+        validatedItems.push({ size: sizeKey, qty: qty, unitPrice: unitPrice });
+      }
+
+      var discountInfo = getDiscount(INTERNAL_PARENT_DISCOUNT_CODE, originalTotal);
+      if (!discountInfo || !discountInfo.valid) {
+        return createJsonResponse({ success: false, message: 'Unable to apply the internal parent discount.' });
+      }
+
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var parentSheet = ensureInternalParentOrdersSheet(ss);
+      var orderId = getNextOrderNumber();
+      var orderToken = Utilities.getUuid();
+      var finalTotal = Number(discountInfo.newTotal) || 0;
+      var discountAmount = Number(discountInfo.discountAmount) || 0;
+
+      parentSheet.appendRow([
+        new Date(),
+        orderId,
+        parentName,
+        parentEmail,
+        childName,
+        childClass,
+        JSON.stringify(validatedItems),
+        originalTotal,
+        discountAmount,
+        finalTotal,
+        paymentMethod,
+        'Pending Payment',
+        'Confirmed',
+        'PENDING',
+        notes,
+        orderToken,
+        false,
+        'INTERNAL_PARENT'
+      ]);
+      SpreadsheetApp.flush();
+
+      try { sendParentOrderConfirmation(orderId); } catch (err) {
+        Logger.log('Error sending parent confirmation email: ' + err);
+      }
+      try { sendInternalParentOrderNotification(orderId); } catch (err) {
+        Logger.log('Error sending parent organiser notification: ' + err);
+      }
+      // Keep the operational workbook and emailed snapshot in sync with
+      // regular orders whenever a parent order is received.
+      try {
+        rebuildCleanSheets();
+        emailXlsxSnapshot();
+      } catch (err) {
+        Logger.log('Error rebuilding/emailing parent order update: ' + err);
+      }
+
+      return createJsonResponse({
+        success: true,
+        orderId: orderId,
+        originalTotal: originalTotal,
+        discountAmount: discountAmount,
+        finalTotal: finalTotal,
+        token: orderToken,
+        message: 'Parent order successfully placed.'
+      });
+    }
+
     // 1. PUBLIC: ORDER LOOKUP
     if (action === 'getOrder') {
       if (!query) {
@@ -698,6 +861,26 @@ function doGet(e) {
         totalPizzas += stats.pizzaCapacity;
         if (stats.pizzaSelections > 0) totalOrders++;
       }
+
+      var parentSheet = ss.getSheetByName('Internal Parent Orders');
+      if (parentSheet && parentSheet.getLastRow() >= 2) {
+        var parentData = parentSheet.getDataRange().getValues();
+        for (var pr = 1; pr < parentData.length; pr++) {
+          var parentRow = parentData[pr];
+          if (!parentRow || rowIsBlank(parentRow)) continue;
+          if (safeTrim(String(parentRow[16] || '')).toUpperCase() === 'TRUE') continue;
+          var parentItemsJson = safeTrim(String(parentRow[6] || '[]'));
+          try {
+            var parentItems = JSON.parse(parentItemsJson);
+            for (var pi = 0; pi < parentItems.length; pi++) {
+              var parentItem = parentItems[pi] || {};
+              totalPizzas += getPizzaCapacityValue(parentItem.size || '') * (parseInt(parentItem.qty, 10) || 0);
+            }
+          } catch (e) {
+            Logger.log('Error parsing Internal Parent Orders items for status: ' + e);
+          }
+        }
+      }
       
       totalPizzas = normalizePizzaCapacity(totalPizzas);
 
@@ -749,17 +932,52 @@ function doGet(e) {
       if (!suppliedCode || !expectedCode || suppliedCode !== expectedCode) {
         return createJsonResponse({
           success: false,
-          message: 'Access denied. Please check your code and try again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
-      var token = generateAdminToken();
       logAdminAction('Admin Login', 'Successful login from web interface');
       return createJsonResponse({
         success: true,
-        token: token,
-        expiresInSeconds: 8 * 60 * 60,
+        token: suppliedCode,
         message: 'Access granted.'
       });
+    }
+
+    // 3b. KITCHEN BOARD: LOAD SAVED READ-ONLY STATE
+    if (actionLower === 'kitchenload' || action === 'kitchenLoad') {
+      var kitchenToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(kitchenToken)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
+      }
+      return createJsonResponse({ success: true, state: loadKitchenBoardState() });
+    }
+
+    // 3b.1. KITCHEN BOARD: FAST CHANGE CHECK FOR OPEN BOARDS
+    if (actionLower === 'kitchenstatus' || action === 'kitchenStatus') {
+      var statusToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(statusToken)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
+      }
+      return createJsonResponse({ success: true, updatedAt: getKitchenBoardUpdatedAt() });
+    }
+
+    // 3c. KITCHEN BOARD: SAVE CLIENT-SIDE BOARD STATE
+    if (actionLower === 'kitchensave' || action === 'kitchenSave') {
+      var saveToken = safeTrim(params.token || '');
+      if (!verifyAdminToken(saveToken)) {
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
+      }
+      var kitchenPayload = params.payload || '';
+      if (!kitchenPayload || kitchenPayload.length > 500000) {
+        return createJsonResponse({ success: false, message: 'Kitchen board state is missing or too large.' });
+      }
+      try {
+        var parsedKitchenState = JSON.parse(kitchenPayload);
+        var savedAt = saveKitchenBoardState(parsedKitchenState);
+        return createJsonResponse({ success: true, savedAt: savedAt });
+      } catch (kitchenError) {
+        return createJsonResponse({ success: false, message: 'Kitchen board state could not be saved.' });
+      }
     }
 
     // 4. ADMIN: GET ALL SETTINGS
@@ -769,7 +987,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -793,23 +1011,102 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
+        });
+      }
+      var combinedOrders = getAllOrdersForAdmin();
+      var parentOrders = getAllParentOrdersForAdmin();
+      parentOrders.forEach(function(parentOrder) {
+        var childNames = safeTrim(parentOrder.childName || '').split(/\s*,\s*/).filter(Boolean);
+        var childClasses = safeTrim(parentOrder.className || '').split(/\s*,\s*/).filter(Boolean);
+        var pizzaItems = [];
+        (parentOrder.items || []).forEach(function(item) {
+          var quantity = parseInt(item.qty, 10) || 0;
+          for (var pi = 0; pi < quantity; pi++) {
+            pizzaItems.push({
+              recipient: childNames[pizzaItems.length] || childNames[0] || 'Child',
+              size: item.size || 'Pizza',
+              sizeKey: item.sizeKey || '',
+              capacity: getPizzaCapacityValue(item.sizeKey || ''),
+              price: Number(item.unitPrice || 0),
+              class: childClasses[pizzaItems.length] || childClasses[0] || ''
+            });
+          }
+        });
+        var capacity = pizzaItems.reduce(function(sum, item) {
+          return sum + item.capacity;
+        }, 0);
+        combinedOrders.push({
+          orderId: parentOrder.orderId,
+          timestamp: parentOrder.timestamp,
+          customer: { name: parentOrder.parentName, email: parentOrder.parentEmail },
+          allergy: '',
+          pizzas: pizzaItems,
+          total: Number(parentOrder.finalTotal || 0),
+          totalAfterDiscount: Number(parentOrder.finalTotal || 0),
+          discountCode: INTERNAL_PARENT_DISCOUNT_CODE,
+          discountAmount: Number(parentOrder.discountAmount || 0),
+          discountReason: 'Internal parent discount',
+          pizzaCount: normalizePizzaCapacity(capacity),
+          totalCapacity: normalizePizzaCapacity(capacity),
+          itemCount: pizzaItems.length,
+          paymentStatus: parentOrder.paymentStatus || 'Pending Payment',
+          source: 'parent'
+        });
+      });
+      return createJsonResponse({
+        success: true,
+        orders: combinedOrders
+      });
+    }
+
+    // 5b. ADMIN: GET PARENT ORDERS
+    if (action === 'adminGetParentOrders' || actionLower === 'admingetparentorders') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Access denied. Incorrect password.'
         });
       }
       return createJsonResponse({
         success: true,
-        orders: getAllOrdersForAdmin()
+        orders: getAllParentOrdersForAdmin()
       });
     }
 
-    // 5b. ADMIN: UPDATE SETTINGS
+    // 5c. ADMIN: ROTATE PARENT ACCESS CODE
+    if (action === 'adminSetParentAccessCode' || actionLower === 'adminsetparentaccesscode') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Access denied. Incorrect password.'
+        });
+      }
+      var newCode = safeTrim(params.parentAccessCode || params.code || '');
+      if (!newCode) {
+        return createJsonResponse({ success: false, message: 'Parent access code is required.' });
+      }
+      try {
+        setParentAccessCode(newCode);
+        logAdminAction('Parent Access Code Updated', 'Rotated parent access code.');
+        return createJsonResponse({ success: true, message: 'Parent access code updated.' });
+      } catch (err) {
+        return createJsonResponse({ success: false, message: err.toString() });
+      }
+    }
+
+    // 5d. ADMIN: UPDATE SETTINGS
     if (action === 'adminUpdateSettings' || actionLower === 'adminupdatesettings') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -856,7 +1153,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -877,7 +1174,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -914,7 +1211,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -973,7 +1270,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -981,6 +1278,26 @@ function doGet(e) {
       var source = safeTrim(params.source || '');
       if (!orderId) {
         return createJsonResponse({ success: false, message: 'Order ID is required.' });
+      }
+
+      if (source === 'parent') {
+        try {
+          var parentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Internal Parent Orders');
+          if (parentSheet && parentSheet.getLastRow() >= 2) {
+            var parentRows = parentSheet.getDataRange().getValues();
+            for (var parentIndex = 1; parentIndex < parentRows.length; parentIndex++) {
+              if (safeTrim(String(parentRows[parentIndex][1] || '')).toUpperCase() === orderId.toUpperCase()) {
+                parentSheet.getRange(parentIndex + 1, 14).setValue('');
+                break;
+              }
+            }
+          }
+          sendParentOrderConfirmation(orderId);
+          logAdminAction('Resend Confirmation', 'Manually resent confirmation for Parent Order #' + orderId);
+          return createJsonResponse({ success: true, message: 'Confirmation resent successfully for Parent Order #' + orderId });
+        } catch (err) {
+          return createJsonResponse({ success: false, message: 'Error resending parent confirmation: ' + err.toString() });
+        }
       }
 
       if (source === 'event' || /^E/i.test(orderId)) {
@@ -1027,7 +1344,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1179,7 +1496,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1191,6 +1508,25 @@ function doGet(e) {
       }
 
       var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      if (source === 'parent') {
+        var parentSheet = ss.getSheetByName('Internal Parent Orders');
+        var foundParentRow = -1;
+        var parentData = parentSheet ? parentSheet.getDataRange().getValues() : [];
+        for (var i = 1; i < parentData.length; i++) {
+          if (safeTrim(String(parentData[i][1])).toUpperCase() === orderId.toUpperCase()) {
+            foundParentRow = i + 1;
+            break;
+          }
+        }
+        if (foundParentRow < 2) {
+          return createJsonResponse({ success: false, message: 'Parent order #' + orderId + ' not found.' });
+        }
+        parentSheet.getRange(foundParentRow, 12).setValue(status);
+        SpreadsheetApp.flush();
+        logAdminAction('Payment Updated', 'Parent Order #' + orderId + ' set to ' + status);
+        return createJsonResponse({ success: true, message: 'Parent Order #' + orderId + ' status updated to ' + status });
+      }
 
       if (source === 'event' || /^E/i.test(orderId)) {
         var sheet = ss.getSheetByName('Event Customers');
@@ -1251,7 +1587,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1262,6 +1598,28 @@ function doGet(e) {
       }
 
       var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var parentSheet = ss.getSheetByName('Internal Parent Orders');
+      var foundParentRow = -1;
+      if (parentSheet && parentSheet.getLastRow() >= 2) {
+        var parentData = parentSheet.getDataRange().getValues();
+        for (var i = 1; i < parentData.length; i++) {
+          if (safeTrim(String(parentData[i][1])).toUpperCase() === orderId.toUpperCase()) {
+            foundParentRow = i + 1;
+            break;
+          }
+        }
+      }
+
+      if (source === 'parent' || foundParentRow >= 2) {
+        if (foundParentRow < 2) {
+          return createJsonResponse({ success: false, message: 'Parent order #' + orderId + ' not found.' });
+        }
+        parentSheet.getRange(foundParentRow, 17).setValue('TRUE');
+        SpreadsheetApp.flush();
+        logAdminAction('Delete Parent Order', 'Parent Order #' + orderId + ' marked as deleted');
+        return createJsonResponse({ success: true, message: 'Parent Order #' + orderId + ' deleted successfully.' });
+      }
+
       var eventSheet = ss.getSheetByName('Event Customers');
       var foundEventRow = -1;
       if (eventSheet && eventSheet.getLastRow() >= 2) {
@@ -1330,7 +1688,7 @@ function doGet(e) {
     if (action === 'adminGetEvents' || actionLower === 'admingetevents') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1382,7 +1740,7 @@ function doGet(e) {
     if (action === 'adminSaveEvent' || actionLower === 'adminsaveevent') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var eventId = safeTrim(params.eventId || '');
@@ -1511,7 +1869,7 @@ function doGet(e) {
     if (action === 'adminGetRegisterInterest' || actionLower === 'admingetregisterinterest') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1553,7 +1911,7 @@ function doGet(e) {
     if (action === 'adminDeleteEvent' || actionLower === 'admindeleteevent') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var eventId = safeTrim(params.eventId || '');
@@ -1581,7 +1939,7 @@ function doGet(e) {
     if (action === 'adminGetEventOrders' || actionLower === 'admingeteventorders') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var eventId = safeTrim(params.eventId || params.event || '');
@@ -1651,39 +2009,39 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
-      var currentPass = safeTrim(params.currentPassword || '');
-      var newPass = safeTrim(params.newPassword || '');
+      var currentPass = safeTrim(params.currentPassword || params.currentCode || '');
+      var newPass = safeTrim(params.newPassword || params.newCode || '');
 
-      if (currentPass !== getAdminPassword()) {
+      if (currentPass !== getAdminAccessCode()) {
         return createJsonResponse({
           success: false,
-          message: 'Current password is not correct.'
+          message: 'Current access code is not correct.'
         });
       }
 
-      if (!newPass || newPass.length < 6) {
+      if (!newPass || newPass.length < 4) {
         return createJsonResponse({
           success: false,
-          message: 'New password must be at least 6 characters.'
+          message: 'New access code must be at least 4 characters.'
         });
       }
 
       setAdminPassword(newPass);
-      logAdminAction('Password Changed', 'Administrator password updated');
+      logAdminAction('Access Code Changed', 'Shared access code updated');
 
       return createJsonResponse({
         success: true,
-        message: 'Admin password updated successfully.'
+        message: 'Shared access code updated successfully.'
       });
     }
 
     // 8. ADMIN: LOGOUT
     if (action === 'adminLogout' || actionLower === 'adminlogout') {
-      invalidateAdminToken();
+      invalidateAdminToken(safeTrim(params.token || ''));
       return createJsonResponse({
         success: true,
         message: 'Logged out successfully.'
@@ -1951,6 +2309,18 @@ function getDiscount(rawCode, subtotal) {
     };
   }
 
+  if (code === INTERNAL_PARENT_DISCOUNT_CODE) {
+    var parentDiscountAmount = roundCurrency((Number(subtotal) || 0) * 0.5);
+    return {
+      valid: true,
+      code: code,
+      type: 'percent',
+      value: 50,
+      discountAmount: parentDiscountAmount,
+      newTotal: Math.max(0, roundCurrency((Number(subtotal) || 0) - parentDiscountAmount))
+    };
+  }
+
   var sheet = ensureDiscountCodeSheet();
   if (!sheet) return null;
 
@@ -2098,6 +2468,60 @@ function calculateCurrentSessionStats(settings) {
   }
 }
 
+function getKitchenBoardSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Kitchen_Board_State');
+  if (!sheet) {
+    sheet = ss.insertSheet('Kitchen_Board_State');
+    sheet.getRange(1, 1, 1, 5).setValues([['SESSION TITLE', 'BOARD DATA JSON', 'COMPLETED JSON', 'META JSON', 'UPDATED AT']]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function loadKitchenBoardState() {
+  var sheet = getKitchenBoardSheet();
+  if (sheet.getLastRow() < 2) return null;
+  var row = sheet.getRange(2, 1, 1, 5).getValues()[0];
+  if (!row[0]) return null;
+  return {
+    sessionTitle: String(row[0]),
+    data: row[1] ? JSON.parse(String(row[1])) : null,
+    completed: row[2] ? JSON.parse(String(row[2])) : [],
+    meta: row[3] ? JSON.parse(String(row[3])) : {},
+    updatedAt: row[4] instanceof Date ? row[4].toISOString() : String(row[4] || '')
+  };
+}
+
+function getKitchenBoardUpdatedAt() {
+  var sheet = getKitchenBoardSheet();
+  if (sheet.getLastRow() < 2) return '';
+  var value = sheet.getRange(2, 5).getValue();
+  return value instanceof Date ? value.toISOString() : String(value || '');
+}
+
+function saveKitchenBoardState(state) {
+  if (!state || !state.sessionTitle || !state.data || !Array.isArray(state.completed)) {
+    throw new Error('Invalid kitchen board state.');
+  }
+  var sheet = getKitchenBoardSheet();
+  var row = [
+    String(state.sessionTitle).slice(0, 200),
+    JSON.stringify(state.data),
+    JSON.stringify(state.completed),
+    JSON.stringify(state.meta || {}),
+    new Date()
+  ];
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    sheet.getRange(2, 1, 1, 5).setValues([row]);
+  } finally {
+    lock.releaseLock();
+  }
+  return row[4] instanceof Date ? row[4].toISOString() : String(row[4]);
+}
+
 function createJsonResponse(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
@@ -2109,6 +2533,8 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
   if (searchIdClean && /^E/i.test(searchIdClean)) {
     var eventRes = lookupEventOrder(searchEmail, searchOrderId, searchToken);
     if (eventRes) return eventRes;
+    var parentRes = lookupInternalParentOrder(searchEmail, searchOrderId, searchToken);
+    if (parentRes) return parentRes;
   }
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2116,7 +2542,7 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
   var data = raw.getDataRange().getValues();
   if (data.length < 2) {
     if (searchEmail) {
-      return lookupEventOrder(searchEmail, '', searchToken);
+      return lookupEventOrder(searchEmail, '', searchToken) || lookupInternalParentOrder(searchEmail, '', searchToken);
     }
     return null;
   }
@@ -2208,9 +2634,9 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
 
   if (matchingOrders.length === 0) {
     if (searchEmail) {
-      return lookupEventOrder(searchEmail, '', searchToken);
+      return lookupEventOrder(searchEmail, '', searchToken) || lookupInternalParentOrder(searchEmail, '', searchToken);
     }
-    return null;
+    return lookupInternalParentOrder(searchEmail, searchOrderId, searchToken);
   }
   return matchingOrders[matchingOrders.length - 1];
 }
@@ -2494,6 +2920,61 @@ function rebuildCleanSheets() {
     currentRow += orderTotalsRows.length;
   }
 
+  sheet.autoResizeColumns(1, 11);
+  appendParentOrdersToUpdateSheet(sheet);
+  SpreadsheetApp.flush();
+}
+
+function appendParentOrdersToUpdateSheet(sheet) {
+  var parentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Internal Parent Orders');
+  if (!parentSheet || parentSheet.getLastRow() < 2) return;
+
+  var rows = parentSheet.getDataRange().getValues();
+  var summaryRows = [];
+  var pizzaRows = [];
+  var totalRows = [];
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row || rowIsBlank(row) || safeTrim(String(row[16] || '')).toUpperCase() === 'TRUE') continue;
+    var orderId = safeTrim(String(row[1] || ''));
+    var parentName = safeTrim(String(row[2] || ''));
+    var parentEmail = safeTrim(String(row[3] || ''));
+    var childNames = safeTrim(String(row[4] || '')).split(/\s*,\s*/).filter(Boolean);
+    var childClasses = safeTrim(String(row[5] || '')).split(/\s*,\s*/).filter(Boolean);
+    var items = [];
+    try { items = JSON.parse(String(row[6] || '[]')); } catch (e) {}
+    var details = [];
+    var pizzaNumber = 0;
+    items.forEach(function(item) {
+      var qty = parseInt(item.qty, 10) || 0;
+      for (var q = 0; q < qty; q++) {
+        pizzaNumber++;
+        var childName = childNames[pizzaNumber - 1] || childNames[0] || 'Child';
+        var childClass = childClasses[pizzaNumber - 1] || childClasses[0] || '';
+        var size = formatSizeLabel(item.size || '');
+        details.push(orderId + '-' + pizzaNumber + ': ' + childName + ' (' + childClass + ') - ' + size);
+        pizzaRows.push([orderId, parentName, mapPaymentMethod(row[10]), row[11] === 'Paid' ? 'Yes' : 'No', '', '', pizzaNumber, orderId + '-' + pizzaNumber, childName, childClass, size]);
+      }
+    });
+    summaryRows.push([orderId, parentName, mapPaymentMethod(row[10]), row[11] === 'Paid' ? 'Yes' : 'No', '', '', pizzaNumber, details.join('\n')]);
+    totalRows.push([orderId, parentName, parentEmail, Number(row[9]) || 0, row[13] === 'SENT' ? 'Yes' : 'No']);
+  }
+
+  if (!summaryRows.length) return;
+  var start = sheet.getLastRow() + 2;
+  writeSectionTitle(sheet, start, 'INTERNAL PARENT ORDERS', 11);
+  start += 2;
+  sheet.getRange(start, 1, 1, 8).setValues([['Order ID', 'Payer Name', 'Payment Method', 'Paid', 'Allergy Flag', 'Allergy Details', 'No. of Pizzas', 'Pizza Details']]).setFontWeight('bold').setBackground('#E8E8E8');
+  start++;
+  sheet.getRange(start, 1, summaryRows.length, 8).setValues(summaryRows);
+  start += summaryRows.length + 2;
+  sheet.getRange(start, 1, 1, 11).setValues([['Order ID', 'Payer Name', 'Payment Method', 'Paid', 'Allergy Flag', 'Allergy Details', 'Pizza Item ID', 'Pickup ID', 'Child Name', 'Class', 'Size']]).setFontWeight('bold').setBackground('#E8E8E8');
+  start++;
+  sheet.getRange(start, 1, pizzaRows.length, 11).setValues(pizzaRows);
+  start += pizzaRows.length + 2;
+  sheet.getRange(start, 1, 1, 5).setValues([['Order ID', 'Payer Name', 'Email', 'Amount Owed (£)', 'Confirmation Emailed']]).setFontWeight('bold').setBackground('#E8E8E8');
+  start++;
+  sheet.getRange(start, 1, totalRows.length, 5).setValues(totalRows);
   sheet.autoResizeColumns(1, 11);
 }
 
@@ -3262,6 +3743,48 @@ function getAllOrdersForAdmin() {
   return allOrders;
 }
 
+function getAllParentOrdersForAdmin() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Internal Parent Orders');
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  var rows = sheet.getDataRange().getValues();
+  var orders = [];
+  for (var i = rows.length - 1; i >= 1; i--) {
+    var row = rows[i];
+    if (!row || rowIsBlank(row)) continue;
+    if (safeTrim(String(row[16] || '')).toUpperCase() === 'TRUE') continue;
+
+    var itemsJson = safeTrim(String(row[6] || '[]'));
+    var items = [];
+    try { items = JSON.parse(itemsJson); } catch (e) {}
+
+    orders.push({
+      orderId: safeTrim(String(row[1] || '')),
+      parentName: safeTrim(String(row[2] || '')),
+      parentEmail: safeTrim(String(row[3] || '')),
+      childName: safeTrim(String(row[4] || '')),
+      className: safeTrim(String(row[5] || '')),
+      items: items.map(function(item) {
+        return {
+          sizeKey: item.size || '',
+          size: formatSizeLabel(item.size || ''),
+          qty: parseInt(item.qty, 10) || 0,
+          unitPrice: parseFloat(item.unitPrice || PRICE_MAP[item.size] || 0)
+        };
+      }),
+      originalTotal: parseFloat(row[7]) || 0,
+      discountAmount: parseFloat(row[8]) || 0,
+      finalTotal: parseFloat(row[9]) || 0,
+      paymentMethod: mapPaymentMethod(row[10]),
+      paymentStatus: safeTrim(String(row[11] || '')),
+      orderType: safeTrim(String(row[17] || '')) || 'INTERNAL_PARENT',
+      timestamp: row[0] instanceof Date ? Utilities.formatDate(row[0], 'Europe/London', 'dd MMM yyyy HH:mm') : String(row[0] || '')
+    });
+  }
+  return orders;
+}
+
 /**
  * ============================================================================
  * SPECIAL EVENTS & CATERING BACKEND HELPERS
@@ -3368,6 +3891,25 @@ function setupEventSheets() {
   }
 }
 
+function ensureInternalParentOrdersSheet(ss) {
+  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return null;
+
+  var sheet = ss.getSheetByName('Internal Parent Orders');
+  if (!sheet) {
+    sheet = ss.insertSheet('Internal Parent Orders');
+    sheet.appendRow([
+      'Timestamp', 'OrderId', 'ParentName', 'ParentEmail', 'ChildName', 'Class', 'ItemsJson',
+      'OriginalTotal', 'DiscountAmount', 'FinalTotal', 'PaymentMethod', 'PaymentStatus',
+      'OrderStatus', 'ConfirmationStatus', 'Notes', 'Token', 'Deleted', 'OrderType'
+    ]);
+    sheet.getRange(1, 1, 1, 18).setFontWeight('bold').setBackground('#E8E8E8');
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, 18);
+  }
+  return sheet;
+}
+
 /**
  * Creates or retrieves a dedicated tab/sheet for a specific event's orders.
  * Google Sheet tab names are limited to 31 characters.
@@ -3471,6 +4013,215 @@ function lookupEventOrder(searchEmail, searchOrderId, searchToken) {
     }
   }
   return null;
+}
+
+function lookupInternalParentOrder(searchEmail, searchOrderId, searchToken) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Internal Parent Orders');
+  if (!sheet || sheet.getLastRow() < 2) return null;
+  var data = sheet.getDataRange().getValues();
+
+  var normEmail = searchEmail ? searchEmail.toLowerCase() : '';
+  var normId = searchOrderId ? searchOrderId.toUpperCase().replace(/\s+/g, '') : '';
+  var sToken = searchToken ? safeTrim(searchToken) : '';
+
+  for (var i = data.length - 1; i >= 1; i--) {
+    var row = data[i];
+    if (!row || rowIsBlank(row)) continue;
+    if (safeTrim(String(row[16] || '')).toUpperCase() === 'TRUE') continue;
+
+    var orderId = safeTrim(String(row[1] || '')).toUpperCase();
+    var parentName = safeTrim(String(row[2] || ''));
+    var parentEmail = safeTrim(String(row[3] || ''));
+    var childName = safeTrim(String(row[4] || ''));
+    var childClass = safeTrim(String(row[5] || ''));
+    var itemsJson = safeTrim(String(row[6] || '[]'));
+    var originalTotal = parseFloat(row[7]) || 0;
+    var discountAmount = parseFloat(row[8]) || 0;
+    var finalTotal = parseFloat(row[9]) || originalTotal;
+    var paymentMethod = mapPaymentMethod(row[10]);
+    var paymentStatus = safeTrim(String(row[11] || ''));
+    var token = safeTrim(String(row[15] || ''));
+
+    var idMatches = normId && (normId === orderId);
+    var emailMatches = normEmail && parentEmail && (parentEmail.toLowerCase() === normEmail);
+    var tokenMatches = sToken && idMatches && (token === sToken);
+
+    if (tokenMatches || emailMatches || (idMatches && !sToken)) {
+      var items = [];
+      try { items = JSON.parse(itemsJson); } catch (e) { items = []; }
+      var pizzas = items.map(function(item, idx) {
+        var sizeKey = safeTrim(item.size || '');
+        var unitPrice = parseFloat(item.unitPrice || PRICE_MAP[sizeKey] || 0);
+        var qty = parseInt(item.qty, 10) || 1;
+        return {
+          item: formatSizeLabel(sizeKey),
+          sizeKey: sizeKey,
+          quantity: qty,
+          childName: childName || 'Child',
+          class: childClass || '',
+          price: unitPrice * qty,
+          priceFormatted: '£' + (unitPrice * qty).toFixed(2),
+          pickupId: orderId + '-' + (idx + 1)
+        };
+      });
+
+      return {
+        orderIndex: orderId,
+        formattedOrderId: orderId,
+        payerName: parentName || 'Parent',
+        payerEmail: parentEmail,
+        paymentMethod: paymentMethod,
+        paid: paymentStatus === 'Paid' ? 'Yes' : 'No',
+        total: finalTotal,
+        totalAfterDiscount: finalTotal,
+        discountCode: INTERNAL_PARENT_DISCOUNT_CODE,
+        discountAmount: discountAmount,
+        discountReason: '50% internal parent discount',
+        pizzas: pizzas
+      };
+    }
+  }
+  return null;
+}
+
+function sendParentOrderConfirmation(orderId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Internal Parent Orders');
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var data = sheet.getDataRange().getValues();
+
+  var rowNum = -1;
+  var row = null;
+  for (var i = 1; i < data.length; i++) {
+    if (safeTrim(String(data[i][1])).toUpperCase() === String(orderId).toUpperCase()) {
+      rowNum = i + 1;
+      row = data[i];
+      break;
+    }
+  }
+  if (!row) return;
+
+  var alreadySent = safeTrim(String(row[13] || ''));
+  if (alreadySent === 'SENT') return;
+
+  sheet.getRange(rowNum, 14).setValue('SENT');
+  SpreadsheetApp.flush();
+
+  var parentName = safeTrim(String(row[2] || 'there'));
+  var parentEmail = safeTrim(String(row[3] || ''));
+  var childName = safeTrim(String(row[4] || ''));
+  var childClass = safeTrim(String(row[5] || ''));
+  var itemsJson = safeTrim(String(row[6] || '[]'));
+  var discountAmount = parseFloat(row[8]) || 0;
+  var finalTotal = parseFloat(row[9]) || 0;
+  var token = safeTrim(String(row[15] || ''));
+  var paymentMethod = mapPaymentMethod(row[10]);
+
+  var items = [];
+  try { items = JSON.parse(itemsJson); } catch (e) {}
+  var lines = items.map(function(item) {
+    var q = parseInt(item.qty, 10) || 1;
+    var up = parseFloat(item.unitPrice || PRICE_MAP[item.size] || 0);
+    return formatSizeLabel(item.size) + ' x ' + q + ' — £' + (up * q).toFixed(2);
+  });
+
+  var orderLink = 'https://www.artisanoven.shop/Payment.html?order=' + orderId + '&token=' + token + '&t=' + new Date().getTime();
+  var body =
+    'Hi ' + parentName + ',\n\n' +
+    'Thank you for placing your internal parent order for ' + childName + ' (' + childClass + ').\n\n' +
+    'ORDER NUMBER: #' + orderId + '\n\n' +
+    'View your order here:\n' + orderLink + '\n\n' +
+    'ORDER SUMMARY\n\n' +
+    lines.join('\n') + '\n\n' +
+    'ORIGINAL TOTAL: £' + (parseFloat(row[7]) || 0).toFixed(2) + '\n' +
+    'DISCOUNT: -£' + discountAmount.toFixed(2) + '\n' +
+    'FINAL TOTAL: £' + finalTotal.toFixed(2) + '\n\n' +
+    'PAYMENT METHOD: ' + paymentMethod + '\n\n' +
+    PAYMENT_INFO_BLOCK + '\n\n' +
+    'Thank you for supporting Artisan Oven.\n\n' +
+    'Kind regards,\n\nMarlow, Louis, and Quinton';
+
+  var htmlBody =
+    '<p>Hi ' + parentName + ',</p>' +
+    '<p>Thank you for placing your internal parent order for <strong>' + childName + '</strong> (' + childClass + ').</p>' +
+    '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + orderId + '</a></strong></p>' +
+    '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
+    '<p><strong>ORDER SUMMARY</strong></p>' +
+    '<p>' + lines.join('<br>') + '</p>' +
+    '<p><strong>ORIGINAL TOTAL:</strong> £' + (parseFloat(row[7]) || 0).toFixed(2) + '<br>' +
+    '<strong>DISCOUNT:</strong> -£' + discountAmount.toFixed(2) + '<br>' +
+    '<strong>FINAL TOTAL:</strong> £' + finalTotal.toFixed(2) + '</p>' +
+    '<p><strong>PAYMENT METHOD:</strong> ' + paymentMethod + '</p>' +
+    '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
+    '<p>Thank you for supporting Artisan Oven!</p>' +
+    '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
+
+  try {
+    MailApp.sendEmail({
+      to: parentEmail,
+      subject: 'Artisan Oven — Parent Order Confirmation (' + orderId + ')',
+      body: body,
+      htmlBody: htmlBody
+    });
+    sheet.getRange(rowNum, 14).setValue('SENT');
+  } catch (e) {
+    sheet.getRange(rowNum, 14).setValue('FAILED: ' + e.toString().substring(0, 50));
+  }
+}
+
+function sendInternalParentOrderNotification(orderId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Internal Parent Orders');
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var data = sheet.getDataRange().getValues();
+
+  var row = null;
+  for (var i = 1; i < data.length; i++) {
+    if (safeTrim(String(data[i][1])).toUpperCase() === String(orderId).toUpperCase()) {
+      row = data[i];
+      break;
+    }
+  }
+  if (!row) return;
+
+  var parentName = safeTrim(String(row[2] || ''));
+  var parentEmail = safeTrim(String(row[3] || ''));
+  var childName = safeTrim(String(row[4] || ''));
+  var childClass = safeTrim(String(row[5] || ''));
+  var itemsJson = safeTrim(String(row[6] || '[]'));
+  var originalTotal = parseFloat(row[7]) || 0;
+  var discountAmount = parseFloat(row[8]) || 0;
+  var finalTotal = parseFloat(row[9]) || 0;
+  var paymentMethod = mapPaymentMethod(row[10]);
+  var notes = safeTrim(String(row[14] || ''));
+
+  var items = [];
+  try { items = JSON.parse(itemsJson); } catch (e) {}
+  var lineItems = items.map(function(item) {
+    var qty = parseInt(item.qty, 10) || 1;
+    var up = parseFloat(item.unitPrice || PRICE_MAP[item.size] || 0);
+    return formatSizeLabel(item.size) + ' x ' + qty + ' — £' + (up * qty).toFixed(2);
+  });
+
+  var body =
+    'NEW INTERNAL PARENT ORDER — Order #' + orderId + '\n\n' +
+    'Parent: ' + parentName + ' (' + parentEmail + ')\n' +
+    'Child: ' + childName + '\n' +
+    'Class: ' + childClass + '\n' +
+    'Payment Method: ' + paymentMethod + '\n' +
+    'Items:\n' + lineItems.join('\n') + '\n\n' +
+    'Original Total: £' + originalTotal.toFixed(2) + '\n' +
+    'Discount: -£' + discountAmount.toFixed(2) + '\n' +
+    'Final Total: £' + finalTotal.toFixed(2) + '\n\n' +
+    (notes ? 'Notes: ' + notes + '\n\n' : '') +
+    'Order Type: INTERNAL_PARENT';
+
+  MailApp.sendEmail({
+    to: YOUR_EMAIL,
+    subject: 'NEW INTERNAL PARENT ORDER — Order #' + orderId,
+    body: body
+  });
 }
 
 function sendEventConfirmation(orderId) {

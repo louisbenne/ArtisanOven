@@ -86,7 +86,7 @@ var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
 var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
 var DEFAULT_ADMIN_ACCESS_CODE = 'ArtisanOvenAdmin2026!';
 var PARENT_SESSION_TTL_SECONDS = 12 * 60 * 60;
-var ADMIN_SESSION_TTL_SECONDS = 8 * 60 * 60;
+var ADMIN_SESSION_TTL_SECONDS = 0; // Direct password authentication; no expiration timer or session limit
 
 // ============================================================================
 // SETTINGS STORAGE & RETRIEVAL (ScriptProperties + Admin_Settings Sheet)
@@ -216,14 +216,21 @@ function setAdminAccessCode(newCode) {
 }
 
 function generateAdminToken() {
-  var token = Utilities.getUuid();
-  CacheService.getScriptCache().put(token, 'valid', ADMIN_SESSION_TTL_SECONDS);
-  return token;
+  return getAdminAccessCode();
 }
 
 function verifyAdminToken(token) {
-  if (!token) return false;
-  return CacheService.getScriptCache().get(token) === 'valid';
+  var supplied = safeTrim(token || '');
+  if (!supplied) return false;
+  var expected = getAdminAccessCode();
+  if (!expected) return false;
+  // Black or white authentication: if supplied password matches expected admin code, access is granted. No hours, no token expiration.
+  if (supplied === expected) return true;
+  // Fallback check for any active cache items
+  try {
+    if (CacheService.getScriptCache().get(supplied) === 'valid') return true;
+  } catch (e) {}
+  return false;
 }
 
 function getParentAccessCode() {
@@ -249,13 +256,21 @@ function generateParentSessionToken() {
 }
 
 function verifyParentSessionToken(token) {
-  if (!token) return false;
-  return CacheService.getScriptCache().get(token) === 'valid';
+  var supplied = safeTrim(token || '');
+  if (!supplied) return false;
+  var expected = getParentAccessCode();
+  if (expected && supplied === expected) return true;
+  try {
+    if (CacheService.getScriptCache().get(supplied) === 'valid') return true;
+  } catch (e) {}
+  return false;
 }
 
 function invalidateAdminToken(token) {
   if (token) {
-    CacheService.getScriptCache().remove(token);
+    try {
+      CacheService.getScriptCache().remove(token);
+    } catch (e) {}
   }
 }
 
@@ -917,15 +932,13 @@ function doGet(e) {
       if (!suppliedCode || !expectedCode || suppliedCode !== expectedCode) {
         return createJsonResponse({
           success: false,
-          message: 'Access denied. Please check your code and try again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
-      var token = generateAdminToken();
       logAdminAction('Admin Login', 'Successful login from web interface');
       return createJsonResponse({
         success: true,
-        token: token,
-        expiresInSeconds: ADMIN_SESSION_TTL_SECONDS,
+        token: suppliedCode,
         message: 'Access granted.'
       });
     }
@@ -934,7 +947,7 @@ function doGet(e) {
     if (actionLower === 'kitchenload' || action === 'kitchenLoad') {
       var kitchenToken = safeTrim(params.token || '');
       if (!verifyAdminToken(kitchenToken)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Admin session expired.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       return createJsonResponse({ success: true, state: loadKitchenBoardState() });
     }
@@ -943,7 +956,7 @@ function doGet(e) {
     if (actionLower === 'kitchenstatus' || action === 'kitchenStatus') {
       var statusToken = safeTrim(params.token || '');
       if (!verifyAdminToken(statusToken)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Admin session expired.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       return createJsonResponse({ success: true, updatedAt: getKitchenBoardUpdatedAt() });
     }
@@ -952,7 +965,7 @@ function doGet(e) {
     if (actionLower === 'kitchensave' || action === 'kitchenSave') {
       var saveToken = safeTrim(params.token || '');
       if (!verifyAdminToken(saveToken)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Admin session expired.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       var kitchenPayload = params.payload || '';
       if (!kitchenPayload || kitchenPayload.length > 500000) {
@@ -974,7 +987,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -998,7 +1011,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
       var combinedOrders = getAllOrdersForAdmin();
@@ -1054,7 +1067,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
       return createJsonResponse({
@@ -1070,7 +1083,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
       var newCode = safeTrim(params.parentAccessCode || params.code || '');
@@ -1093,7 +1106,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1140,7 +1153,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1161,7 +1174,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1198,7 +1211,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1257,7 +1270,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1331,7 +1344,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1483,7 +1496,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1574,7 +1587,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized. Please log in again.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -1675,7 +1688,7 @@ function doGet(e) {
     if (action === 'adminGetEvents' || actionLower === 'admingetevents') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1727,7 +1740,7 @@ function doGet(e) {
     if (action === 'adminSaveEvent' || actionLower === 'adminsaveevent') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var eventId = safeTrim(params.eventId || '');
@@ -1856,7 +1869,7 @@ function doGet(e) {
     if (action === 'adminGetRegisterInterest' || actionLower === 'admingetregisterinterest') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1898,7 +1911,7 @@ function doGet(e) {
     if (action === 'adminDeleteEvent' || actionLower === 'admindeleteevent') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var eventId = safeTrim(params.eventId || '');
@@ -1926,7 +1939,7 @@ function doGet(e) {
     if (action === 'adminGetEventOrders' || actionLower === 'admingeteventorders') {
       var token = safeTrim(params.token || '');
       if (!verifyAdminToken(token)) {
-        return createJsonResponse({ success: false, unauthorized: true, message: 'Unauthorized.' });
+        return createJsonResponse({ success: false, unauthorized: true, message: 'Access denied. Incorrect password.' });
       }
       setupEventSheets();
       var eventId = safeTrim(params.eventId || params.event || '');
@@ -1996,7 +2009,7 @@ function doGet(e) {
         return createJsonResponse({
           success: false,
           unauthorized: true,
-          message: 'Session expired or unauthorized.'
+          message: 'Access denied. Incorrect password.'
         });
       }
 
@@ -2402,6 +2415,10 @@ function calculateCurrentSessionStats(settings) {
     var totalHistoricalOrders = 0;
     var totalHistoricalPizzas = 0;
     var totalHistoricalPizzaSelections = 0;
+    
+    var currentCashIncome = 0;
+    var currentTotalIncome = 0;
+    var headers = data.length > 0 ? data[0] : [];
 
     for (var r = 1; r < data.length; r++) {
       var row = data[r];
@@ -2417,7 +2434,34 @@ function calculateCurrentSessionStats(settings) {
 
       if (r >= startRow) {
         totalPizzas += stats.pizzaCapacity;
-        if (stats.pizzaSelections > 0) totalOrders++;
+        if (stats.pizzaSelections > 0) {
+          totalOrders++;
+          
+          var paymentRaw = firstNonEmpty(row[49], row[51]);
+          var paymentMethod = mapPaymentMethod(paymentRaw);
+          
+          var qtyDigit = extractDigit(safeTrim(row[3])) || '0';
+          var blocks = BRANCHES[qtyDigit] || [];
+          var orderTotal = 0;
+          for (var b = 0; b < blocks.length; b++) {
+            var cols = blocks[b];
+            var sizeRaw = safeTrim(row[cols[0]]);
+            var childName = safeTrim(row[cols[1]]);
+            if (sizeRaw || childName) {
+              var size = mapSize(sizeRaw);
+              var price = PRICE_MAP[size] || 0;
+              orderTotal += price;
+            }
+          }
+          
+          var discountInfo = getOrderDiscountInfo(row, headers, orderTotal);
+          var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
+          
+          currentTotalIncome += totalAfterDiscount;
+          if (paymentMethod === 'Cash') {
+            currentCashIncome += totalAfterDiscount;
+          }
+        }
       }
     }
 
@@ -2435,6 +2479,8 @@ function calculateCurrentSessionStats(settings) {
       maxPizzas: maxLimit,
       remainingPizzas: remaining,
       currentOrders: totalOrders,
+      currentCashIncome: currentCashIncome,
+      currentTotalIncome: currentTotalIncome,
       orderingOpen: isOpen,
       orderingEnabled: (settings.orderingEnabled === true),
       isPastDeadline: isPastDeadline,

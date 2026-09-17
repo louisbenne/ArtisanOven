@@ -504,6 +504,15 @@
             <p class="metric-hint" id="metric-total-hint">Active responses this session</p>
           </div>
 
+          <!-- Metric: Expected Cash -->
+          <div class="metric-card">
+            <span class="metric-label">Income (Live Session)</span>
+            <div class="metric-value-wrap">
+              <span class="metric-number" id="metric-cash-income" style="color: var(--forest);">£0.00</span>
+            </div>
+            <p class="metric-hint" id="metric-income-hint">Cash & Bank to be collected</p>
+          </div>
+
         </div>
 
         <!-- 2. ORDER CAPACITY & LIVE CONTROLS -->
@@ -1465,7 +1474,7 @@
     }
     (function () {
       const STORAGE_KEY_TOKEN = "ao_admin_session_token";
-      let currentAdminToken = sessionStorage.getItem(STORAGE_KEY_TOKEN) || "";
+      let currentAdminToken = localStorage.getItem(STORAGE_KEY_TOKEN) || sessionStorage.getItem(STORAGE_KEY_TOKEN) || "";
       let cachedSettings = null;
 
       // Elements
@@ -1587,7 +1596,7 @@
               showDashboardView();
               loadDashboardData();
             } else {
-              showLoginError(data.message || "Access denied. Please check your code and try again.");
+              showLoginError(data.message || "Access denied. Incorrect password.");
             }
           } else {
             showLoginError(errorMsg);
@@ -1786,6 +1795,9 @@
             }
 
             if (data.success) {
+              currentAdminToken = newPassword;
+              sessionStorage.setItem(STORAGE_KEY_TOKEN, newPassword);
+              localStorage.setItem("ao_admin_session_token", newPassword);
               showToast("Shared access code changed successfully!", "success");
               formChangePass.reset();
             } else {
@@ -2018,9 +2030,10 @@
           
           if (data.unauthorized) {
             sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+            localStorage.removeItem("ao_admin_session_token");
             currentAdminToken = "";
             showLoginView();
-            showLoginError(data.message || "Session expired.");
+            showLoginError(data.message || "Access denied. Incorrect password.");
             return;
           }
 
@@ -2324,9 +2337,10 @@
 
           if (data.unauthorized) {
             sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+            localStorage.removeItem("ao_admin_session_token");
             currentAdminToken = "";
             showLoginView();
-            showLoginError(data.message || "Session expired.");
+            showLoginError(data.message || "Access denied. Incorrect password.");
             return;
           }
 
@@ -2637,6 +2651,7 @@
         const metricSessionId = document.getElementById("metric-session-id");
         const metricOrdersCount = document.getElementById("metric-orders-count");
         const metricTotalHint = document.getElementById("metric-total-hint");
+        const metricCashIncome = document.getElementById("metric-cash-income");
 
         const curPizzas = stats ? stats.currentPizzas : 0;
         const maxPizzas = settings.maxPizzas || 20;
@@ -2667,6 +2682,15 @@
         if (metricOrdersCount && stats) {
           metricOrdersCount.textContent = stats.currentOrders + " orders";
           if (metricTotalHint) metricTotalHint.textContent = "Historical total: " + (stats.totalHistoricalOrders || stats.currentOrders) + " orders";
+        }
+        if (metricCashIncome && stats) {
+          metricCashIncome.textContent = "£" + (stats.currentCashIncome || 0).toFixed(2);
+          const incomeHint = document.getElementById("metric-income-hint");
+          if (incomeHint) {
+             const expectedBank = (stats.currentTotalIncome || 0) - (stats.currentCashIncome || 0);
+             incomeHint.textContent = "Cash: £" + (stats.currentCashIncome || 0).toFixed(2) + " | Bank: £" + expectedBank.toFixed(2);
+             metricCashIncome.textContent = "£" + (stats.currentTotalIncome || 0).toFixed(2);
+          }
         }
 
         // Populate Order Settings Form
@@ -3215,7 +3239,7 @@
         currentAdminToken = "";
         sessionStorage.removeItem(STORAGE_KEY_TOKEN);
         localStorage.removeItem("ao_admin_session_token");
-        showToast("Session expired. Please log in again.", "error");
+        showToast("Access denied. Incorrect password.", "error");
         showLoginView();
       }
 

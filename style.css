@@ -8,7 +8,9 @@
 
 @font-face {
   font-family: "Baar Sophia";
-  src: url("fonts/BaarSophia.ttf") format("truetype");
+  src: local("Baar Sophia"),
+       url("fonts/BaarSophia.woff") format("woff"),
+       url("fonts/BaarSophia.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;

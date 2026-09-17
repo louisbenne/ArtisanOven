@@ -9,12 +9,36 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
+// Remove Express fingerprinting header
+app.disable('x-powered-by');
+
 // Enable gzip/deflate compression for all text/json/asset responses
 app.use(compression());
 
 // Performance and standard security headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// Guard: Prevent static exposure of server-side code, secrets, configurations, and repository docs
+const FORBIDDEN_FILE_PATTERNS = [
+  /^\./, // Hidden files (.env, .git, .clasp.json, etc.)
+  /\.(gs|ts|env|bak|config|lock|log|md)$/i, // Backend scripts, config, logs, markdown
+  /^(server\.js|package\.json|package-lock\.json|metadata\.json|apps-script\.js)$/i, // Specific backend files
+];
+
+app.use((req, res, next) => {
+  const normalizedPath = path.normalize(req.path).replace(/^(\.\.[\/\\])+/, '');
+  const basename = path.basename(normalizedPath);
+
+  if (
+    normalizedPath.startsWith('/apps-script') ||
+    FORBIDDEN_FILE_PATTERNS.some((pattern) => pattern.test(basename))
+  ) {
+    return res.status(404).end();
+  }
   next();
 });
 
@@ -44,6 +68,21 @@ app.get(['/event-order', '/event-order.html', '/Event-Order', '/Event-Order.html
   res.sendFile(path.join(__dirname, 'event-order.html'));
 });
 
+app.get(['/kitchen', '/kitchen.html', '/Kitchen', '/Kitchen.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'kitchen.html'));
+});
+
+app.get(['/parent-order', '/parent-order.html', '/Parent-Order', '/Parent-Order.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'parent-order.html'));
+});
+
+app.get(['/terms', '/terms.html', '/Terms', '/Terms.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'terms.html'));
+});
+
 app.get(['/', '/index.html'], (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -51,6 +90,7 @@ app.get(['/', '/index.html'], (req, res) => {
 
 // Serve static assets with caching headers for non-HTML files
 app.use(express.static(__dirname, {
+  dotfiles: 'ignore',
   maxAge: '1h',
   etag: true,
   setHeaders: (res, filePath) => {
@@ -64,8 +104,11 @@ app.use(express.static(__dirname, {
   }
 }));
 
-// Fallback to index.html
+// Fallback to index.html for unknown extensionless routes, 404 for missing static files
 app.get('*', (req, res) => {
+  if (path.extname(req.path)) {
+    return res.status(404).end();
+  }
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'index.html'));
 });
