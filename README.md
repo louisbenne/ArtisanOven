@@ -90,3 +90,7 @@ Place logos or photos in an `assets/` folder and reference them normally:
 ## License
 
 Distributed under the MIT License. See `LICENSE` for details.
+
+## AI Disclaimer
+
+100% of the code in this project was created using AI.
