@@ -340,6 +340,33 @@
 </head>
 <body class="admin-body">
 
+  <!-- ========================================================
+       MODAL: GENERIC CONFIRMATION
+       ======================================================== -->
+  <div id="generic-confirm-modal" class="admin-modal-backdrop" style="display: none;">
+    <div class="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="generic-confirm-title" style="max-width: 440px;">
+      <div class="modal-header">
+        <div id="generic-confirm-icon" class="modal-icon-danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3 id="generic-confirm-title" class="modal-title">Confirm Action</h3>
+      </div>
+      <div class="modal-body">
+        <p id="generic-confirm-body" style="margin: 0; line-height: 1.5; color: var(--text-main); font-weight: 500;">Are you sure you want to proceed?</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-generic-confirm-cancel" class="admin-secondary-btn">Cancel</button>
+        <button type="button" id="btn-generic-confirm-ok" class="admin-danger-btn">
+          <span class="btn-text">Confirm</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <header class="site-header admin-header">
     <div class="container admin-header-flex">
       <a href="index.html" class="wordmark">
@@ -1497,6 +1524,52 @@
       const modalCancelBtn = document.getElementById("btn-modal-cancel");
       const modalConfirmBtn = document.getElementById("btn-modal-confirm");
 
+      // Generic Confirm Modal
+      const genericModal = document.getElementById("generic-confirm-modal");
+      const genericModalTitle = document.getElementById("generic-confirm-title");
+      const genericModalBody = document.getElementById("generic-confirm-body");
+      const genericModalOkBtn = document.getElementById("btn-generic-confirm-ok");
+      const genericModalCancelBtn = document.getElementById("btn-generic-confirm-cancel");
+      const genericModalIcon = document.getElementById("generic-confirm-icon");
+
+      function confirmAction({ title, body, confirmText = 'Confirm', danger = true }) {
+        return new Promise((resolve) => {
+          if (!genericModal) return resolve(false);
+          
+          genericModalTitle.textContent = title;
+          genericModalBody.innerHTML = body.replace(/\n/g, '<br>');
+          genericModalOkBtn.querySelector('.btn-text').textContent = confirmText;
+          
+          if (danger) {
+            genericModalOkBtn.className = 'admin-danger-btn';
+            genericModalIcon.className = 'modal-icon-danger';
+          } else {
+            genericModalOkBtn.className = 'admin-primary-btn';
+            genericModalIcon.className = 'modal-icon-info'; // Assuming you might have info style or just default
+            genericModalIcon.style.color = 'var(--forest)';
+            genericModalIcon.style.background = 'rgba(31,58,46,0.1)';
+          }
+
+          const onCancel = () => {
+            cleanup();
+            resolve(false);
+          };
+          const onConfirm = () => {
+            cleanup();
+            resolve(true);
+          };
+          const cleanup = () => {
+            genericModal.style.display = 'none';
+            genericModalCancelBtn.removeEventListener('click', onCancel);
+            genericModalOkBtn.removeEventListener('click', onConfirm);
+          };
+
+          genericModalCancelBtn.addEventListener('click', onCancel);
+          genericModalOkBtn.addEventListener('click', onConfirm);
+          genericModal.style.display = 'flex';
+        });
+      }
+
       // Password toggle
       if (togglePasswordBtn && passwordInput) {
         togglePasswordBtn.addEventListener("click", function () {
@@ -2225,7 +2298,12 @@
         container.querySelectorAll('.resend-btn-inline').forEach(btn => {
           btn.addEventListener('click', async function() {
             const orderId = this.getAttribute('data-order-id');
-            if (!confirm(`Resend confirmation email for Order #${orderId}?`)) return;
+            if (!(await confirmAction({ 
+              title: 'Resend Confirmation?', 
+              body: `Resend confirmation email for Order #${orderId}?`,
+              confirmText: 'Resend Email',
+              danger: false
+            }))) return;
 
             this.disabled = true;
             const originalHtml = this.innerHTML;
@@ -2266,7 +2344,10 @@
             const existingOrder = cachedOrders.find(o => String(o.orderId) === String(orderId));
             const customerName = (existingOrder && existingOrder.customer && existingOrder.customer.name) ? ` (${existingOrder.customer.name})` : '';
 
-            if (!confirm(`Are you sure you want to PERMANENTLY DELETE Order #${orderId}${customerName}?\n\nThis will only delete this specific order and update your available capacity.`)) return;
+            if (!(await confirmAction({ 
+              title: 'Delete Order?', 
+              body: `Are you sure you want to PERMANENTLY DELETE Order #${orderId}${customerName}?\n\nThis will only delete this specific order and update your available capacity.` 
+            }))) return;
 
             this.disabled = true;
             const originalHtml = this.innerHTML;
@@ -2522,7 +2603,10 @@
 
       window.deleteParentOrder = async function(button) {
         const orderId = button.getAttribute('data-order-id');
-        if (!orderId || !confirm('Delete parent order #' + orderId + '?')) return;
+        if (!orderId || !(await confirmAction({ 
+          title: 'Delete Parent Order?', 
+          body: 'Delete parent order #' + orderId + '?' 
+        }))) return;
         try {
           const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
           const url = new URL(apiUrl);
