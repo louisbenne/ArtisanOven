@@ -2,7 +2,6 @@
 
 Ordering system and marketing site for **[artisanoven.shop](http://www.artisanoven.shop/)**, a school pizza business. The frontend is a static, no-build HTML/CSS/JS site hosted on GitHub Pages; the backend is a Google Apps Script web app bound to a Google Sheet, providing a JSON API, capacity and session management, an admin dashboard, and transactional email.
 
-## Development Approach
 
 This project was built through rapid, iterative, conversation-driven development rather than a conventional up-front design and engineering process. Features, fixes, and structure emerged incrementally in response to real-world needs as the business operated, rather than being planned out in advance. As a result:
 
