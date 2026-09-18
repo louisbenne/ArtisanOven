@@ -160,6 +160,28 @@
       cursor: wait;
     }
 
+    /* Dashboard Re-grouping Headings */
+    .settings-zone-heading {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--forest);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 40px 0 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(31, 58, 46, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .settings-zone-heading.zone-danger {
+      color: var(--terracotta);
+      border-top: 2px solid var(--terracotta);
+      padding-top: 30px;
+      border-bottom: none;
+      margin-top: 60px;
+    }
+
     .orders-checklist-card {
       background: var(--white);
       border: 1px solid rgba(31, 58, 46, 0.1);
@@ -542,6 +564,8 @@
 
         </div>
 
+        <h3 class="settings-zone-heading">Day-to-day settings</h3>
+
         <!-- 2. ORDER CAPACITY & LIVE CONTROLS -->
         <div class="admin-card">
           <div class="card-header">
@@ -705,6 +729,55 @@
           </form>
         </div>
 
+        <!-- 5. RECENT AUDIT LOGS (COLLAPSED BY DEFAULT) -->
+        <div class="admin-card collapsible-card" id="card-audit-logs">
+          <div class="card-header card-header-clickable" id="header-audit-logs" role="button" tabindex="0" aria-expanded="true" aria-controls="admin-logs-wrapper">
+            <div class="card-header-main">
+              <div class="card-header-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="card-title-row">
+                  <h2 class="card-title" style="margin-bottom: 0;">Recent Activity & Audit Trail</h2>
+                  <span class="badge-log-count" id="badge-log-count" style="display: none;">0 logged</span>
+                </div>
+                <p class="card-desc" style="margin-top: 4px;">Logged administrative changes and session events from Google Sheets.</p>
+              </div>
+            </div>
+            <button type="button" class="card-collapse-toggle-btn" id="btn-toggle-audit-logs" tabindex="-1" aria-hidden="true">
+              <span class="toggle-text" id="text-toggle-audit-logs">Hide log</span>
+              <svg class="chevron-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <div class="admin-logs-wrapper collapsible-content" id="admin-logs-wrapper">
+            <table class="admin-logs-table" id="admin-logs-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Action</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="admin-logs-body">
+                <tr>
+                  <td colspan="3" class="table-empty">Loading audit logs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <h3 class="settings-zone-heading zone-danger">Session & access control</h3>
+
         <!-- 4. START NEW WEEK (DEDICATED RESET ACTION) -->
         <div class="admin-card card-action-danger">
           <div class="card-header">
@@ -744,53 +817,6 @@
                 START NEW WEEK SESSION &rarr;
               </button>
             </div>
-          </div>
-        </div>
-
-        <!-- 5. RECENT AUDIT LOGS (COLLAPSED BY DEFAULT) -->
-        <div class="admin-card collapsible-card collapsed" id="card-audit-logs">
-          <div class="card-header card-header-clickable" id="header-audit-logs" role="button" tabindex="0" aria-expanded="false" aria-controls="admin-logs-wrapper">
-            <div class="card-header-main">
-              <div class="card-header-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-              </div>
-              <div>
-                <div class="card-title-row">
-                  <h2 class="card-title" style="margin-bottom: 0;">Recent Activity & Audit Trail</h2>
-                  <span class="badge-log-count" id="badge-log-count" style="display: none;">0 logged</span>
-                </div>
-                <p class="card-desc" style="margin-top: 4px;">Logged administrative changes and session events from Google Sheets.</p>
-              </div>
-            </div>
-            <button type="button" class="card-collapse-toggle-btn" id="btn-toggle-audit-logs" tabindex="-1" aria-hidden="true">
-              <span class="toggle-text" id="text-toggle-audit-logs">Show log</span>
-              <svg class="chevron-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
-          </div>
-
-          <div class="admin-logs-wrapper collapsible-content" id="admin-logs-wrapper">
-            <table class="admin-logs-table" id="admin-logs-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Action</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody id="admin-logs-body">
-                <tr>
-                  <td colspan="3" class="table-empty">Loading audit logs...</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
 
