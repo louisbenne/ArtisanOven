@@ -1219,6 +1219,20 @@ function doGet(e) {
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
       var lastRow = raw.getLastRow();
       
+      // Email previous week's complete data archive before clearing
+      if (lastRow > 1) {
+        try {
+          var settingsBeforeReset = getSettings();
+          var recipient = safeTrim(settingsBeforeReset.ordersTeamEmail || YOUR_EMAIL);
+          if (recipient) {
+            sendInternalSummaryEmail(recipient, 'ARCHIVE: Previous Week Data Snapshot prior to New Week Reset (' + (settingsBeforeReset.serviceDate || 'Previous Session') + ')');
+            emailXlsxSnapshot(recipient);
+          }
+        } catch (archiveErr) {
+          Logger.log('Failed to email previous week archive: ' + archiveErr);
+        }
+      }
+
       // 1. DELETE OLD RESPONSES (so next form submission is on row 2 = Order 1)
       if (lastRow > 1) {
         raw.deleteRows(2, lastRow - 1);
@@ -2661,9 +2675,15 @@ function onFormSubmitTrigger(e) {
     Logger.log('Discount processing on form submit failed: ' + err);
   }
 
-  rebuildCleanSheets();
-  emailXlsxSnapshot();
+  // CRITICAL: Send customer confirmation FIRST before heavy admin spreadsheet rebuild/export tasks
   trySendOrderConfirmation(e);
+
+  rebuildCleanSheets();
+  try {
+    emailXlsxSnapshot();
+  } catch (snapErr) {
+    Logger.log('emailXlsxSnapshot warning: ' + snapErr);
+  }
 }
 
 function ensureColumnsExist(sheet, minColumns) {
@@ -3256,136 +3276,175 @@ function sendCustomerCustomEmail(recipientEmail, subject, messageBody) {
 
 function trySendOrderConfirmation(e) {
   try {
-    if (!e || !e.range) return;
-    sendOrderConfirmationForRow(e.range.getRow());
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+    if (!raw) return;
+    ensureColumnsExist(raw, CONFIRMATION_SENT_COL);
+    ensureColumnsExist(raw, ORDER_TOKEN_COL);
+
+    var rowNum = (e && e.range) ? e.range.getRow() : raw.getLastRow();
+    if (rowNum >= 2 && rowNum <= raw.getLastRow()) {
+      sendOrderConfirmationForRow(rowNum);
+    }
   } catch (err) {
     Logger.log('trySendOrderConfirmation error: ' + err);
   }
 }
 
 function sendOrderConfirmationForRow(rowNum) {
-  var settings = getSettings();
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-
-  var alreadySent = raw.getRange(rowNum, CONFIRMATION_SENT_COL).getValue();
-  if (alreadySent === 'SENT') return;
-
-  // Mark as SENT immediately to prevent double processing in case of trigger hiccups
-  raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
-  SpreadsheetApp.flush();
-
-  var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL);
-  var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
-
-  var orderIndex = rowNum - 1;
-  var formattedOrderId = String(orderIndex);
-
-  var qtyRaw = safeTrim(row[3]);
-  var qtyDigit = extractDigit(qtyRaw) || '0';
-  var paymentRaw = firstNonEmpty(row[49], row[51]);
-  var payerRaw = firstNonEmpty(row[50], row[52]);
-  var paymentMethod = mapPaymentMethod(paymentRaw);
-  var payerName = safeTrim(payerRaw) || 'there';
-  var payerEmail = extractPayerEmail(row);
-
-  if (!payerEmail) {
-    Logger.log('No valid email found for row ' + rowNum + ' — confirmation not sent.');
-    return;
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (lockErr) {
+    Logger.log('Could not obtain lock for row ' + rowNum + ': ' + lockErr);
   }
-
-  // Generate or retrieve the secure token for this order
-  var token = raw.getRange(rowNum, ORDER_TOKEN_COL).getValue();
-  if (!token) {
-    token = Utilities.getUuid();
-    raw.getRange(rowNum, ORDER_TOKEN_COL).setValue(token);
-  }
-
-  var blocks = BRANCHES[qtyDigit] || [];
-  var pizzas = [];
-  var orderTotal = 0;
-
-  for (var b = 0; b < blocks.length; b++) {
-    var cols = blocks[b];
-    var sizeRaw = safeTrim(row[cols[0]]);
-    var childName = safeTrim(row[cols[1]]);
-    var cls = safeTrim(row[cols[2]]);
-    if (!sizeRaw && !childName) continue;
-
-    var size = mapSize(sizeRaw);
-    var price = PRICE_MAP[size] || 0;
-    orderTotal += price;
-
-    pizzas.push({
-      size: size || 'Unknown',
-      childName: childName || 'Unknown',
-      class: cls || '',
-      price: price
-    });
-  }
-
-  var orderHeaders = raw.getRange(1, 1, 1, raw.getLastColumn()).getValues()[0];
-  var discountInfo = getOrderDiscountInfo(row, orderHeaders, orderTotal);
-  var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
-
-  if (pizzas.length === 0) {
-    Logger.log('No pizza items parsed for row ' + rowNum + ' — confirmation not sent.');
-    return;
-  }
-
-  var lines = pizzas.map(function(p) {
-    return p.childName + (p.class ? ' (' + p.class + ')' : '') + '\n' + formatSizeLabel(p.size) + ' — £' + p.price.toFixed(2);
-  });
-  if (discountInfo && discountInfo.code) {
-    lines.push('DISCOUNT: ' + discountInfo.code + ' (-£' + discountInfo.discountAmount.toFixed(2) + ')');
-  }
-
-  var orderLink = 'https://www.artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
-
-  var body =
-    'Hi ' + payerName + ',\n\n' +
-    'Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:\n\n' +
-    'ORDER NUMBER: #' + formattedOrderId + '\n\n' +
-    'Click your order number or the link below to view your order:\n' + orderLink + '\n\n' +
-    'ORDER SUMMARY\n\n' +
-    lines.join('\n\n') + '\n\n' +
-    'TOTAL AMOUNT DUE: £' + totalAfterDiscount.toFixed(2) + '\n\n' +
-    PAYMENT_INFO_BLOCK + '\n\n' +
-    'COLLECTION\n\n' +
-    'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
-    'STAY UPDATED\n' +
-    'Join our WhatsApp group: https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO\n\n' +
-    'Thank you.\n\n' +
-    'Kind regards,\n\nMarlow, Louis, and Quinton';
-
-  var htmlBody =
-    '<p>Hi ' + payerName + ',</p>' +
-    '<p>Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:</p>' +
-    '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + formattedOrderId + '</a></strong></p>' +
-    '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
-    '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
-    '<p><strong>ORDER SUMMARY</strong></p>' +
-    '<p>' + lines.join('<br><br>') + '</p>' +
-    '<p><strong>TOTAL AMOUNT DUE: £' + totalAfterDiscount.toFixed(2) + '</strong></p>' +
-    '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
-    '<p><strong>COLLECTION</strong></p>' +
-    '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
-    '<p><strong>STAY UPDATED</strong></p>' +
-    '<p>Join our WhatsApp group for updates: <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO">Click here to join</a></p>' +
-    '<p>Thank you.</p>' +
-    '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
 
   try {
+    var settings = getSettings();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+    if (!raw) return;
+
+    ensureColumnsExist(raw, CONFIRMATION_SENT_COL);
+    ensureColumnsExist(raw, ORDER_TOKEN_COL);
+
+    var alreadySent = raw.getRange(rowNum, CONFIRMATION_SENT_COL).getValue();
+    if (alreadySent === 'SENT') return;
+
+    var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL, ORDER_TOKEN_COL);
+    var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
+
+    // Safeguard: Check order timestamp to prevent bulk email dispatch on historical/existing rows during deployment or code updates
+    var timestamp = row[0];
+    if (timestamp instanceof Date) {
+      var ageMs = new Date().getTime() - timestamp.getTime();
+      if (ageMs > 2 * 60 * 60 * 1000) {
+        Logger.log('Skipping confirmation for historical row ' + rowNum + ' (submitted > 2 hours ago)');
+        raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
+        return;
+      }
+    }
+
+    // Mark as SENT immediately inside lock to prevent double processing under high pressure / concurrent triggers
+    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
+    SpreadsheetApp.flush();
+
+    var orderIndex = rowNum - 1;
+    var formattedOrderId = String(orderIndex);
+
+    var qtyRaw = safeTrim(row[3]);
+    var qtyDigit = extractDigit(qtyRaw) || '0';
+    var paymentRaw = firstNonEmpty(row[49], row[51]);
+    var payerRaw = firstNonEmpty(row[50], row[52]);
+    var paymentMethod = mapPaymentMethod(paymentRaw);
+    var payerName = safeTrim(payerRaw) || 'there';
+    var payerEmail = extractPayerEmail(row);
+
+    if (!payerEmail) {
+      Logger.log('No valid email found for row ' + rowNum + ' — confirmation not sent.');
+      return;
+    }
+
+    // Generate or retrieve the secure token for this order
+    var token = raw.getRange(rowNum, ORDER_TOKEN_COL).getValue();
+    if (!token) {
+      token = Utilities.getUuid();
+      raw.getRange(rowNum, ORDER_TOKEN_COL).setValue(token);
+    }
+
+    var blocks = BRANCHES[qtyDigit] || [];
+    var pizzas = [];
+    var orderTotal = 0;
+
+    for (var b = 0; b < blocks.length; b++) {
+      var cols = blocks[b];
+      var sizeRaw = safeTrim(row[cols[0]]);
+      var childName = safeTrim(row[cols[1]]);
+      var cls = safeTrim(row[cols[2]]);
+      if (!sizeRaw && !childName) continue;
+
+      var size = mapSize(sizeRaw);
+      var price = PRICE_MAP[size] || 0;
+      orderTotal += price;
+
+      pizzas.push({
+        size: size || 'Unknown',
+        childName: childName || 'Unknown',
+        class: cls || '',
+        price: price
+      });
+    }
+
+    var orderHeaders = raw.getRange(1, 1, 1, raw.getLastColumn()).getValues()[0];
+    var discountInfo = getOrderDiscountInfo(row, orderHeaders, orderTotal);
+    var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
+
+    if (pizzas.length === 0) {
+      Logger.log('No pizza items parsed for row ' + rowNum + ' — confirmation not sent.');
+      return;
+    }
+
+    var lines = pizzas.map(function(p) {
+      return p.childName + (p.class ? ' (' + p.class + ')' : '') + '\n' + formatSizeLabel(p.size) + ' — £' + p.price.toFixed(2);
+    });
+    if (discountInfo && discountInfo.code) {
+      lines.push('DISCOUNT: ' + discountInfo.code + ' (-£' + discountInfo.discountAmount.toFixed(2) + ')');
+    }
+
+    var orderLink = 'https://www.artisanoven.shop/Payment.html?order=' + formattedOrderId + '&token=' + token + '&t=' + new Date().getTime();
+
+    var body =
+      'Hi ' + payerName + ',\n\n' +
+      'Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:\n\n' +
+      'ORDER NUMBER: #' + formattedOrderId + '\n\n' +
+      'Click your order number or the link below to view your order:\n' + orderLink + '\n\n' +
+      'ORDER SUMMARY\n\n' +
+      lines.join('\n\n') + '\n\n' +
+      'TOTAL AMOUNT DUE: £' + totalAfterDiscount.toFixed(2) + '\n\n' +
+      PAYMENT_INFO_BLOCK + '\n\n' +
+      'COLLECTION\n\n' +
+      'Please ask your child to collect their pizza from the back of the courtyard at lunchtime.\n\n' +
+      'STAY UPDATED\n' +
+      'Join our WhatsApp group: https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO\n\n' +
+      'Thank you.\n\n' +
+      'Kind regards,\n\nMarlow, Louis, and Quinton';
+
+    var htmlBody =
+      '<p>Hi ' + payerName + ',</p>' +
+      '<p>Thank you for placing your pizza order for ' + settings.serviceDate + '. Please find your order details below:</p>' +
+      '<p><strong>ORDER NUMBER: <a href="' + orderLink + '" target="_blank">#' + formattedOrderId + '</a></strong></p>' +
+      '<p><a href="' + orderLink + '" target="_blank" style="display:inline-block;padding:10px 20px;background-color:#4F6359;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">VIEW MY ORDER</a></p>' +
+      '<p>You will be taken directly to your order on the Artisan Oven website.</p>' +
+      '<p><strong>ORDER SUMMARY</strong></p>' +
+      '<p>' + lines.join('<br><br>') + '</p>' +
+      '<p><strong>TOTAL AMOUNT DUE: £' + totalAfterDiscount.toFixed(2) + '</strong></p>' +
+      '<p>' + PAYMENT_INFO_BLOCK.replace(/\n/g, '<br>') + '</p>' +
+      '<p><strong>COLLECTION</strong></p>' +
+      '<p>Please ask your child to collect their pizza from the back of the courtyard at lunchtime.</p>' +
+      '<p><strong>STAY UPDATED</strong></p>' +
+      '<p>Join our WhatsApp group for updates: <a href="https://chat.whatsapp.com/H6UKHyWuVHnCJWNu7f83ZO">Click here to join</a></p>' +
+      '<p>Thank you.</p>' +
+      '<p>Kind regards,<br><br>Marlow, Louis, and Quinton</p>';
+
     MailApp.sendEmail({
       to: payerEmail,
       subject: CONFIRMATION_SUBJECT + ' (' + formattedOrderId + ')',
       body: body,
       htmlBody: htmlBody
     });
-    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
   } catch (e) {
     Logger.log('MailApp error for row ' + rowNum + ': ' + e);
-    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('FAILED: ' + e.toString().substring(0, 50));
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
+      if (raw) {
+        raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('FAILED: ' + e.toString().substring(0, 50));
+      }
+    } catch (innerErr) {}
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (lockErr) {}
   }
 }
 

@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Admin Dashboard — Artisan Oven</title>
   <meta name="description" content="Artisan Oven Operations and Administration Dashboard" />
   <link rel="apple-touch-icon" sizes="180x180" href="admin-assets/admin-apple-touch-icon.png" />
   <link rel="manifest" href="admin-manifest.json" />
   <meta name="theme-color" content="#1f3a2e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="AO Admin" />
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -114,50 +115,63 @@
       color: var(--text-main);
     }
     
-    .resend-btn-inline {
+    .inline-action-btn {
       background: transparent;
-      border: 1px solid var(--sage);
+      border: 1px solid transparent;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .inline-action-btn:disabled { opacity: 0.5; cursor: wait; }
+    .inline-action-btn.is-sage { border-color: var(--sage); color: var(--forest); }
+    .inline-action-btn.is-sage:hover { background: var(--sage); color: white; }
+    .inline-action-btn.is-danger { border-color: var(--danger); color: var(--danger); }
+    .inline-action-btn.is-danger:hover { background: var(--danger); color: white; }
+
+    .order-action-toggle {
+      background: transparent;
+      border: 1px solid rgba(31, 58, 46, 0.2);
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       color: var(--forest);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
       transition: all 0.2s;
     }
-    .resend-btn-inline:hover {
-      background: var(--sage);
-      color: white;
+    .order-action-toggle:hover {
+      background: var(--cream-warm);
     }
-    .resend-btn-inline:disabled {
-      opacity: 0.5;
-      cursor: wait;
+    .order-action-menu {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      padding: 8px;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 150px;
+      border: 1px solid rgba(31, 58, 46, 0.15);
     }
-    
-    .delete-btn-inline {
-      background: transparent;
-      border: 1px solid #ff4d4f;
-      color: #ff4d4f;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: all 0.2s;
+    .order-action-menu[hidden] {
+      display: none !important;
     }
-    .delete-btn-inline:hover {
-      background: #ff4d4f;
-      color: white;
-    }
-    .delete-btn-inline:disabled {
-      opacity: 0.5;
-      cursor: wait;
+    .order-action-menu button {
+      width: 100%;
+      justify-content: flex-start !important;
+      text-align: left;
     }
 
     /* Dashboard Re-grouping Headings */
@@ -729,7 +743,7 @@
           </form>
         </div>
 
-        <!-- 5. RECENT AUDIT LOGS (COLLAPSED BY DEFAULT) -->
+        <!-- 5. RECENT AUDIT LOGS (EXPANDED ON LOAD) -->
         <div class="admin-card collapsible-card" id="card-audit-logs">
           <div class="card-header card-header-clickable" id="header-audit-logs" role="button" tabindex="0" aria-expanded="true" aria-controls="admin-logs-wrapper">
             <div class="card-header-main">
@@ -1286,149 +1300,175 @@
         <button type="button" id="btn-email-modal-close" style="background: none; border: none; font-size: 1.5rem; color: var(--text-soft); cursor: pointer; padding: 4px 8px; line-height: 1;" title="Close modal">&times;</button>
       </div>
 
-      <!-- Mode Toggle: Customer vs Internal -->
-      <div class="email-toggle-group">
-        <button type="button" class="email-toggle-btn active" id="btn-email-mode-customer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          <span>Specific Customer</span>
-        </button>
-        <button type="button" class="email-toggle-btn" id="btn-email-mode-internal">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-          <span>Internal Team &amp; Organisers</span>
-        </button>
+      <!-- STEP 1: WHO THIS GOES TO -->
+      <div id="dispatch-step-1">
+        <!-- Mode Toggle: Customer vs Internal -->
+        <div class="email-toggle-group">
+          <button type="button" class="email-toggle-btn active" id="btn-email-mode-customer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Specific Customer</span>
+          </button>
+          <button type="button" class="email-toggle-btn" id="btn-email-mode-internal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            <span>Internal Team &amp; Organisers</span>
+          </button>
+        </div>
+
+        <!-- PANEL 1: CUSTOMER EMAILS -->
+        <div id="email-panel-customer" style="display: block;">
+          <p class="email-section-desc">Select an active customer from loaded orders or choose a manual email recipient to send automated order notifications.</p>
+          
+          <div class="email-form-grid">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="email-field">
+                <label for="email-customer-source-filter">Filter Source</label>
+                <select id="email-customer-source-filter" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px;">
+                  <option value="all">All Orders (Lunches, Parents &amp; Events)</option>
+                  <option value="lunch">School Lunch Orders Only</option>
+                  <option value="parent">Internal Parent Orders Only</option>
+                  <option value="event">Special Event Orders Only</option>
+                  <option value="manual">Manual / Unlisted Recipient</option>
+                </select>
+              </div>
+
+              <div class="email-field">
+                <label for="email-customer-template">Automated Email Type</label>
+                <select id="email-customer-template" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px;">
+                  <option value="confirmation">Order Confirmation &amp; Receipt</option>
+                  <option value="ready">Order Ready for Collection</option>
+                  <option value="reminder">Payment Reminder Notice</option>
+                  <option value="custom">Custom Update Message</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Select Customer from Dropdown -->
+            <div class="email-field" id="email-customer-select-wrap">
+              <label for="email-customer-select">Select Customer</label>
+              <select id="email-customer-select" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px; width: 100%;">
+                <option value="">-- Choose a Customer / Order --</option>
+              </select>
+            </div>
+
+            <!-- Manual / Selected Customer Details Row -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;" id="email-customer-details-row">
+              <div class="email-field">
+                <label for="email-customer-target-email">Recipient Email Address *</label>
+                <input type="email" id="email-customer-target-email" class="admin-input" placeholder="e.g. parent@example.com" style="font-size: 0.88rem;" required />
+              </div>
+              <div class="email-field">
+                <label for="email-customer-target-order-id">Associated Order #</label>
+                <input type="text" id="email-customer-target-order-id" class="admin-input" placeholder="e.g. 14 or P-003" style="font-size: 0.88rem;" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 2: INTERNAL TEAM EMAILS -->
+        <div id="email-panel-internal" style="display: none;">
+          <p class="email-section-desc">Generate and dispatch the live, up-to-date spreadsheet snapshot or operational status summary directly to organisers.</p>
+          
+          <div class="email-form-grid">
+            <div class="email-field">
+              <label for="email-internal-recipient-select">Select Organiser / Recipient *</label>
+              <select id="email-internal-recipient-select" class="admin-select" style="font-size: 0.88rem; padding: 8px 10px;">
+                <option value="louis@benne.co.uk">louis@benne.co.uk (Louis Benne)</option>
+                <option value="marlowb11@icloud.com">marlowb11@icloud.com (Marlow)</option>
+                <option value="louis@benne.co.uk, marlowb11@icloud.com">Both Organisers (louis@benne.co.uk &amp; marlowb11@icloud.com)</option>
+                <option value="custom">Other / Custom Email Address...</option>
+              </select>
+            </div>
+
+            <div class="email-field" id="email-internal-custom-wrap" style="display: none;">
+              <label for="email-internal-custom-email">Custom Recipient Email</label>
+              <input type="email" id="email-internal-custom-email" class="admin-input" placeholder="e.g. organiser@example.com" style="font-size: 0.88rem;" />
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <button type="button" id="btn-dispatch-continue" class="admin-primary-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--forest); color: #fff; padding: 11px 20px; font-weight: 700;">
+            Continue to Message &amp; Preview &rarr;
+          </button>
+        </div>
       </div>
 
-      <!-- PANEL 1: CUSTOMER EMAILS -->
-      <div id="email-panel-customer" style="display: block;">
-        <p class="email-section-desc">Select an active customer from loaded orders or choose a manual email recipient to send automated order notifications.</p>
-        
-        <div class="email-form-grid">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <!-- STEP 2: MESSAGE, PREVIEW & SEND -->
+      <div id="dispatch-step-2" style="display: none;">
+        <button type="button" id="btn-dispatch-back" style="background: none; border: none; color: var(--forest); font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 14px; display: inline-flex; align-items: center; gap: 6px;">
+          &larr; Back to Recipient Selection
+        </button>
+
+        <!-- Customer Step 2 Fields -->
+        <div id="email-panel-customer-step2" style="display: block;">
+          <div class="email-form-grid">
             <div class="email-field">
-              <label for="email-customer-source-filter">Filter Source</label>
-              <select id="email-customer-source-filter" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px;">
-                <option value="all">All Orders (Lunches, Parents &amp; Events)</option>
-                <option value="lunch">School Lunch Orders Only</option>
-                <option value="parent">Internal Parent Orders Only</option>
-                <option value="event">Special Event Orders Only</option>
-                <option value="manual">Manual / Unlisted Recipient</option>
+              <label for="email-customer-subject">Email Subject</label>
+              <input type="text" id="email-customer-subject" class="admin-input" value="Artisan Oven — Pizza Order Update" style="font-size: 0.88rem;" />
+            </div>
+
+            <div class="email-field">
+              <label for="email-customer-notes">Custom Message / Personal Note (Optional)</label>
+              <textarea id="email-customer-notes" class="admin-input" rows="3" placeholder="Add an optional note to include in the automated email..." style="font-size: 0.85rem; resize: vertical;"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Internal Step 2 Fields -->
+        <div id="email-panel-internal-step2" style="display: none;">
+          <div class="email-form-grid">
+            <div class="email-field">
+              <label for="email-internal-type-select">Email Content / Report Type</label>
+              <select id="email-internal-type-select" class="admin-select" style="font-size: 0.88rem; padding: 8px 10px;">
+                <option value="spreadsheet">Live Orders Spreadsheet (.xlsx Excel Snapshot)</option>
+                <option value="summary">Operational Summary &amp; Capacity Report</option>
               </select>
             </div>
 
             <div class="email-field">
-              <label for="email-customer-template">Automated Email Type</label>
-              <select id="email-customer-template" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px;">
-                <option value="confirmation">Order Confirmation &amp; Receipt</option>
-                <option value="ready">Order Ready for Collection</option>
-                <option value="reminder">Payment Reminder Notice</option>
-                <option value="custom">Custom Update Message</option>
-              </select>
+              <label for="email-internal-notes">Internal Notes for Team (Optional)</label>
+              <textarea id="email-internal-notes" class="admin-input" rows="2" placeholder="e.g. Service begins at 12:30. Note dough preparation..." style="font-size: 0.85rem; resize: vertical;"></textarea>
             </div>
           </div>
+        </div>
 
-          <!-- Select Customer from Dropdown -->
-          <div class="email-field" id="email-customer-select-wrap">
-            <label for="email-customer-select">Select Customer</label>
-            <select id="email-customer-select" class="admin-select" style="font-size: 0.85rem; padding: 8px 10px; width: 100%;">
-              <option value="">-- Choose a Customer / Order --</option>
-            </select>
+        <!-- Live Dispatch Summary & Safe Notice -->
+        <div class="email-preview-card" id="email-dispatch-preview-card" style="margin-top: 16px;">
+          <div class="email-preview-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>Dispatch Preview</span>
           </div>
-
-          <!-- Manual / Selected Customer Details Row -->
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;" id="email-customer-details-row">
-            <div class="email-field">
-              <label for="email-customer-target-email">Recipient Email Address *</label>
-              <input type="email" id="email-customer-target-email" class="admin-input" placeholder="e.g. parent@example.com" style="font-size: 0.88rem;" required />
-            </div>
-            <div class="email-field">
-              <label for="email-customer-target-order-id">Associated Order #</label>
-              <input type="text" id="email-customer-target-order-id" class="admin-input" placeholder="e.g. 14 or P-003" style="font-size: 0.88rem;" />
-            </div>
+          <div class="email-preview-row">
+            <span class="email-preview-label">To:</span>
+            <span class="email-preview-value" id="preview-recipient-text">Select recipient</span>
           </div>
-
-          <div class="email-field">
-            <label for="email-customer-subject">Email Subject</label>
-            <input type="text" id="email-customer-subject" class="admin-input" value="Artisan Oven — Pizza Order Update" style="font-size: 0.88rem;" />
+          <div class="email-preview-row">
+            <span class="email-preview-label">Subject:</span>
+            <span class="email-preview-value" id="preview-subject-text">Artisan Oven — Pizza Order Update</span>
           </div>
-
-          <div class="email-field">
-            <label for="email-customer-notes">Custom Message / Personal Note (Optional)</label>
-            <textarea id="email-customer-notes" class="admin-input" rows="3" placeholder="Add an optional note to include in the automated email..." style="font-size: 0.85rem; resize: vertical;"></textarea>
+          <div class="email-preview-row">
+            <span class="email-preview-label">Payload:</span>
+            <span class="email-preview-value" id="preview-payload-text">Order confirmation notice</span>
           </div>
         </div>
-      </div>
 
-      <!-- PANEL 2: INTERNAL TEAM EMAILS -->
-      <div id="email-panel-internal" style="display: none;">
-        <p class="email-section-desc">Generate and dispatch the live, up-to-date spreadsheet snapshot or operational status summary directly to organisers.</p>
-        
-        <div class="email-form-grid">
-          <div class="email-field">
-            <label for="email-internal-recipient-select">Select Organiser / Recipient *</label>
-            <select id="email-internal-recipient-select" class="admin-select" style="font-size: 0.88rem; padding: 8px 10px;">
-              <option value="louis@benne.co.uk">louis@benne.co.uk (Louis Benne)</option>
-              <option value="marlowb11@icloud.com">marlowb11@icloud.com (Marlow)</option>
-              <option value="louis@benne.co.uk, marlowb11@icloud.com">Both Organisers (louis@benne.co.uk &amp; marlowb11@icloud.com)</option>
-              <option value="custom">Other / Custom Email Address...</option>
-            </select>
-          </div>
-
-          <div class="email-field" id="email-internal-custom-wrap" style="display: none;">
-            <label for="email-internal-custom-email">Custom Recipient Email</label>
-            <input type="email" id="email-internal-custom-email" class="admin-input" placeholder="e.g. organiser@example.com" style="font-size: 0.88rem;" />
-          </div>
-
-          <div class="email-field">
-            <label for="email-internal-type-select">Email Content / Report Type</label>
-            <select id="email-internal-type-select" class="admin-select" style="font-size: 0.88rem; padding: 8px 10px;">
-              <option value="spreadsheet">Live Orders Spreadsheet (.xlsx Excel Snapshot)</option>
-              <option value="summary">Operational Summary &amp; Capacity Report</option>
-            </select>
-          </div>
-
-          <div class="email-field">
-            <label for="email-internal-notes">Internal Notes for Team (Optional)</label>
-            <textarea id="email-internal-notes" class="admin-input" rows="2" placeholder="e.g. Service begins at 12:30. Note dough preparation..." style="font-size: 0.85rem; resize: vertical;"></textarea>
-          </div>
+        <div class="email-security-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>Manual dispatch control: Emails are sent strictly when you click the button below. No automated emails are ever dispatched in the background.</span>
         </div>
-      </div>
 
-      <!-- Live Dispatch Summary & Safe Notice -->
-      <div class="email-preview-card" id="email-dispatch-preview-card">
-        <div class="email-preview-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          <span>Dispatch Preview</span>
-        </div>
-        <div class="email-preview-row">
-          <span class="email-preview-label">To:</span>
-          <span class="email-preview-value" id="preview-recipient-text">Select recipient</span>
-        </div>
-        <div class="email-preview-row">
-          <span class="email-preview-label">Subject:</span>
-          <span class="email-preview-value" id="preview-subject-text">Artisan Oven — Pizza Order Update</span>
-        </div>
-        <div class="email-preview-row">
-          <span class="email-preview-label">Payload:</span>
-          <span class="email-preview-value" id="preview-payload-text">Order confirmation notice</span>
-        </div>
-      </div>
+        <!-- Alert Banners -->
+        <div id="email-modal-error" style="display: none; background: #fff5f2; border: 1px solid rgba(198,93,59,0.3); color: var(--terracotta-deep); padding: 10px 14px; border-radius: 8px; margin-top: 14px; font-size: 0.85rem; font-weight: 600;"></div>
+        <div id="email-modal-success" style="display: none; background: #f0f7f2; border: 1px solid rgba(46,105,48,0.3); color: #2e6930; padding: 10px 14px; border-radius: 8px; margin-top: 14px; font-size: 0.85rem; font-weight: 600;"></div>
 
-      <div class="email-security-banner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-        <span>Manual dispatch control: Emails are sent strictly when you click the button below. No automated emails are ever dispatched in the background.</span>
-      </div>
-
-      <!-- Alert Banners -->
-      <div id="email-modal-error" style="display: none; background: #fff5f2; border: 1px solid rgba(198,93,59,0.3); color: var(--terracotta-deep); padding: 10px 14px; border-radius: 8px; margin-top: 14px; font-size: 0.85rem; font-weight: 600;"></div>
-      <div id="email-modal-success" style="display: none; background: #f0f7f2; border: 1px solid rgba(46,105,48,0.3); color: #2e6930; padding: 10px 14px; border-radius: 8px; margin-top: 14px; font-size: 0.85rem; font-weight: 600;"></div>
-
-      <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="button" id="btn-email-modal-cancel" class="admin-secondary-btn">Cancel</button>
-        <button type="button" id="btn-dispatch-email-submit" class="admin-primary-btn" style="display: inline-flex; align-items: center; gap: 8px; background: var(--forest); color: #fff; padding: 10px 20px; font-weight: 700;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          <span class="btn-text">Send Email Now</span>
-          <span class="btn-spinner" aria-hidden="true"></span>
-        </button>
+        <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="btn-email-modal-cancel" class="admin-secondary-btn">Cancel</button>
+          <button type="button" id="btn-dispatch-email-submit" class="admin-primary-btn" style="display: inline-flex; align-items: center; gap: 8px; background: var(--forest); color: #fff; padding: 10px 20px; font-weight: 700;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            <span class="btn-text">Send Email Now</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -1911,6 +1951,23 @@
         });
       }
 
+      // Order Action Menus helper
+      window.toggleOrderMenu = function(btn) {
+        const menu = btn.nextElementSibling;
+        document.querySelectorAll('.order-action-menu').forEach(m => {
+          if (m !== menu) m.hidden = true;
+        });
+        menu.hidden = !menu.hidden;
+      };
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.order-action-toggle') && !e.target.closest('.order-action-menu')) {
+          document.querySelectorAll('.order-action-menu').forEach(m => {
+            m.hidden = true;
+          });
+        }
+      });
+
       if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
           loadDashboardData();
@@ -2151,6 +2208,98 @@
         }
       }
 
+      // Shared Order Card Component
+      function renderOrderCard(order, options) {
+        const isParent = options.isParent;
+        const orderId = escapeHtml(order.orderId || '');
+        const customerName = escapeHtml(isParent ? (order.parentName || 'Parent') : ((order.customer && order.customer.name) || 'Unknown'));
+        const customerEmail = escapeHtml(isParent ? (order.parentEmail || '') : ((order.customer && order.customer.email) || ''));
+        const source = isParent ? 'parent' : 'lunch';
+        const isPaid = isParent ? (String(order.paymentStatus || '').toLowerCase() === 'paid') : (order.paymentStatus === 'Paid');
+        const statusLabel = isPaid ? 'PAID' : (isParent ? 'PENDING' : 'UNPAID');
+        const statusClass = isParent ? (isPaid ? 'status-paid' : 'status-pending') : '';
+
+        const statusHeaderHtml = isParent ? `
+          <div class="order-card-status ${statusClass}">${statusLabel}</div>
+        ` : `
+          <div class="paid-toggle-wrap">
+            <span>${statusLabel}</span>
+            <label class="switch">
+              <input type="checkbox" class="paid-toggle" data-order-id="${orderId}" data-order-source="${escapeHtml(order.source || '')}" ${isPaid ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        `;
+
+        const deleteButtonHtml = isParent ? `
+          <button type="button" class="inline-action-btn is-danger delete-btn-inline" data-order-id="${orderId}" data-order-source="${escapeHtml(order.source || '')}" onclick="event.stopPropagation(); window.deleteParentOrder(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+            DELETE
+          </button>
+        ` : `
+          <button type="button" class="inline-action-btn is-danger delete-btn-inline" data-order-id="${orderId}" data-order-source="${escapeHtml(order.source || '')}" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+            DELETE
+          </button>
+        `;
+
+        return `
+          <div class="order-card" data-order-id="${orderId}">
+            <div class="order-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+              <div>
+                <div class="order-card-title">${options.titlePrefix || 'Order #'}${orderId}</div>
+                <div class="order-card-customer" style="font-weight: 600;">${customerName}</div>
+                <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${customerEmail}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;" onclick="event.stopPropagation()">
+                ${statusHeaderHtml}
+                <div style="position: relative;">
+                  <button type="button" class="order-action-toggle" aria-label="Order actions" aria-haspopup="true" onclick="event.stopPropagation(); toggleOrderMenu(this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                  </button>
+                  <div class="order-action-menu" hidden onclick="event.stopPropagation()">
+                    <button type="button" class="admin-secondary-btn" onclick="event.stopPropagation(); window.openEmailDispatcher('customer', { orderId: '${orderId}', customerEmail: '${customerEmail}', customerName: '${customerName}', source: '${source}' });" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 6px 12px; font-weight: 700; color: var(--forest); background: #fff;" title="Send automated email">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                      EMAIL
+                    </button>
+                    ${isParent ? `
+                      <button type="button" class="admin-secondary-btn" data-parent-order-id="${orderId}" data-parent-status="${isPaid ? 'Paid' : 'Pending Payment'}" onclick="event.stopPropagation(); window.updateParentPaymentStatus(this)">
+                        ${isPaid ? 'Mark Pending' : 'Mark Paid'}
+                      </button>
+                    ` : ''}
+                    <button type="button" class="inline-action-btn is-sage resend-btn-inline" data-order-id="${orderId}" data-order-source="${escapeHtml(order.source || '')}" onclick="event.stopPropagation()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                      </svg>
+                      RESEND EMAIL
+                    </button>
+                    ${deleteButtonHtml}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;" onclick="this.parentElement.classList.toggle('expanded')">
+              <span>${options.summaryLeftText}</span>
+              <span style="font-weight: 700; color: var(--forest);">Total: £${Number(order.total || order.finalTotal || 0).toFixed(2)}</span>
+            </div>
+            <div class="order-card-details">
+              ${options.detailsHtml}
+            </div>
+          </div>
+        `;
+      }
+
       function renderOrders(orders) {
         console.log("Admin: Rendering " + (orders ? orders.length : 0) + " orders");
         const container = document.getElementById('orders-list-container');
@@ -2198,9 +2347,6 @@
 
         let html = '';
         filtered.forEach(order => {
-          const isPaid = order.paymentStatus === 'Paid';
-          const statusLabel = isPaid ? 'PAID' : 'UNPAID';
-          
           let pizzasHtml = '';
           if (order.pizzas) {
             order.pizzas.forEach(p => {
@@ -2216,69 +2362,29 @@
             });
           }
 
-          const customerName = (order.customer && order.customer.name) || 'Unknown';
-          const customerEmail = (order.customer && order.customer.email) || '';
           const orderCalc = calculateOrderPizzas(order);
           const formattedOrderPizzas = formatPizzaAmount(orderCalc.fullPizzas);
           const pizzaSummaryText = `${formattedOrderPizzas} pizza${orderCalc.fullPizzas === 1 ? '' : 's'}` + 
             (orderCalc.itemsCount > 1 ? ` (${orderCalc.itemsCount} items)` : '');
 
-          html += `
-            <div class="order-card" data-order-id="${order.orderId}">
-              <div class="order-card-header" onclick="this.parentElement.classList.toggle('expanded')">
-                <div>
-                  <div class="order-card-title">Order #${order.orderId}</div>
-                  <div class="order-card-customer" style="font-weight: 600;">${escapeHtml(customerName)}</div>
-                  <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(customerEmail)}</div>
-                </div>
-                <div class="paid-toggle-wrap" onclick="event.stopPropagation()">
-                  <span>${statusLabel}</span>
-                  <label class="switch">
-                    <input type="checkbox" class="paid-toggle" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" ${isPaid ? 'checked' : ''}>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-              </div>
-              <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;" onclick="this.parentElement.classList.toggle('expanded')">
-                <span>${pizzaSummaryText}</span>
-                <span style="font-weight: 700; color: var(--forest);">Total: £${(order.total || 0).toFixed(2)}</span>
-              </div>
-              
-              <div class="order-card-details">
-                <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp)}</div>
-                ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600; border: 1px solid rgba(133, 100, 4, 0.2);">⚠️ Allergy Info: ${escapeHtml(order.allergy)}</div>` : ''}
-                <div class="pizzas-list">${pizzasHtml}</div>
-                <div class="order-card-total" style="display: flex; justify-content: space-between; padding-top: 12px; margin-top: 12px; border-top: 2px solid #eee; font-weight: 800; color: var(--forest); align-items: center;">
-                  <div>
-                    <span style="display: block; font-size: 0.8rem; color: var(--text-soft); font-weight: 400; margin-bottom: 2px;">Order Total</span>
-                    <span>£${(order.total || 0).toFixed(2)}</span>
-                  </div>
-                  <div style="display: flex; gap: 8px;">
-                    <button type="button" class="admin-secondary-btn" onclick="event.stopPropagation(); window.openEmailDispatcher('customer', { orderId: '${order.orderId}', customerEmail: '${escapeHtml(customerEmail)}', customerName: '${escapeHtml(customerName)}', source: 'lunch' });" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 6px 12px; font-weight: 700; color: var(--forest); background: #fff;" title="Send automated email to this customer">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                      EMAIL
-                    </button>
-                    <button type="button" class="resend-btn-inline" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" onclick="event.stopPropagation()">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-                        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-                      </svg>
-                      RESEND EMAIL
-                    </button>
-                    <button type="button" class="delete-btn-inline" data-order-id="${order.orderId}" data-order-source="${order.source || ''}" onclick="event.stopPropagation()">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                      </svg>
-                      DELETE
-                    </button>
-                  </div>
-                </div>
+          const detailsHtml = `
+            <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp || '')}</div>
+            ${order.allergy ? `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600; border: 1px solid rgba(133, 100, 4, 0.2);">⚠️ Allergy Info: ${escapeHtml(order.allergy)}</div>` : ''}
+            <div class="pizzas-list">${pizzasHtml}</div>
+            <div class="order-card-total" style="padding-top: 12px; margin-top: 12px; border-top: 2px solid #eee; font-weight: 800; color: var(--forest); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="display: block; font-size: 0.8rem; color: var(--text-soft); font-weight: 400; margin-bottom: 2px;">Order Total</span>
+                <span>£${(order.total || 0).toFixed(2)}</span>
               </div>
             </div>
           `;
+
+          html += renderOrderCard(order, {
+            isParent: false,
+            titlePrefix: 'Order #',
+            summaryLeftText: pizzaSummaryText,
+            detailsHtml: detailsHtml
+          });
         });
 
         container.innerHTML = html;
@@ -2533,9 +2639,6 @@
 
         let html = '';
         filtered.forEach(order => {
-          const isPaid = String(order.paymentStatus || '').toLowerCase() === 'paid';
-          const statusClass = isPaid ? 'status-paid' : 'status-pending';
-          const statusText = isPaid ? 'PAID' : 'PENDING';
           const itemsHtml = (order.items || []).map(item => `
             <div class="order-pizza-item">
               <div class="order-pizza-recipient" style="font-weight: 600;">${escapeHtml(item.size || 'Pizza')}</div>
@@ -2546,56 +2649,35 @@
             </div>
           `).join('');
 
-          html += `
-            <div class="order-card" data-order-id="${escapeHtml(order.orderId || '')}">
-              <div class="order-card-header" onclick="this.parentElement.classList.toggle('expanded')">
-                <div>
-                  <div class="order-card-title">Parent Order #${escapeHtml(order.orderId || '')}</div>
-                  <div class="order-card-customer" style="font-weight: 600;">${escapeHtml(order.parentName || 'Parent')}</div>
-                  <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(order.parentEmail || '')}</div>
-                </div>
-                <div class="order-card-status ${statusClass}">${statusText}</div>
+          const detailsHtml = `
+            <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp || '')}</div>
+            <div class="order-pizza-item">
+              <div class="order-pizza-recipient" style="font-weight: 700;">Child</div>
+              <div class="order-pizza-meta" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(order.childName || 'Not provided')} — ${escapeHtml(order.className || 'Class not provided')}</div>
+            </div>
+            ${itemsHtml}
+            <div class="order-card-total" style="display:flex; justify-content:space-between; padding-top:12px; margin-top:12px; border-top:2px solid #eee; font-weight:800; color:var(--forest); align-items:center;">
+              <div>
+                <span style="display:block; font-size:0.8rem; color:var(--text-soft); font-weight:400; margin-bottom:2px;">Original</span>
+                <span>£${Number(order.originalTotal || 0).toFixed(2)}</span>
               </div>
-              <div class="order-card-summary" style="display: flex; justify-content: space-between; font-size: 0.9rem;" onclick="this.parentElement.classList.toggle('expanded')">
-                <span>${escapeHtml(order.childName || 'Child')} (${escapeHtml(order.className || 'Class')})</span>
-                <span style="font-weight: 700; color: var(--forest);">Total: £${Number(order.finalTotal || 0).toFixed(2)}</span>
+              <div>
+                <span style="display:block; font-size:0.8rem; color:var(--text-soft); font-weight:400; margin-bottom:2px;">Discount</span>
+                <span>-£${Number(order.discountAmount || 0).toFixed(2)}</span>
               </div>
-              <div class="order-card-details">
-                <div style="font-size: 0.8rem; color: var(--text-soft); margin-bottom: 12px; background: #f8f8f8; padding: 4px 8px; border-radius: 4px;">Placed: ${escapeHtml(order.timestamp || '')}</div>
-                <div class="order-pizza-item">
-                  <div class="order-pizza-recipient" style="font-weight: 700;">Child</div>
-                  <div class="order-pizza-meta" style="font-size: 0.85rem; color: var(--text-soft);">${escapeHtml(order.childName || 'Not provided')} — ${escapeHtml(order.className || 'Class not provided')}</div>
-                </div>
-                ${itemsHtml}
-                <div class="order-card-total" style="display:flex; justify-content:space-between; padding-top:12px; margin-top:12px; border-top:2px solid #eee; font-weight:800; color:var(--forest); align-items:center;">
-                  <div>
-                    <span style="display:block; font-size:0.8rem; color:var(--text-soft); font-weight:400; margin-bottom:2px;">Original</span>
-                    <span>£${Number(order.originalTotal || 0).toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span style="display:block; font-size:0.8rem; color:var(--text-soft); font-weight:400; margin-bottom:2px;">Discount</span>
-                    <span>-£${Number(order.discountAmount || 0).toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span style="display:block; font-size:0.8rem; color:var(--text-soft); font-weight:400; margin-bottom:2px;">Total</span>
-                    <span>£${Number(order.finalTotal || 0).toFixed(2)}</span>
-                  </div>
-                </div>
-                <div style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
-                  <button type="button" class="admin-secondary-btn" onclick="event.stopPropagation(); window.openEmailDispatcher('customer', { orderId: '${escapeHtml(order.orderId || '')}', customerEmail: '${escapeHtml(order.parentEmail || '')}', customerName: '${escapeHtml(order.parentName || '')}', source: 'parent' });" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 7px 14px; font-weight: 700; color: var(--forest); background: #fff;" title="Send automated email to this parent">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    EMAIL
-                  </button>
-                  <button type="button" class="admin-secondary-btn" data-parent-order-id="${escapeHtml(order.orderId || '')}" data-parent-status="${isPaid ? 'Paid' : 'Pending Payment'}" onclick="event.stopPropagation(); window.updateParentPaymentStatus(this)">
-                    ${isPaid ? 'Mark Pending' : 'Mark Paid'}
-                  </button>
-                  <button type="button" class="delete-btn-inline" data-order-id="${escapeHtml(order.orderId || '')}" onclick="event.stopPropagation(); window.deleteParentOrder(this)">
-                    DELETE
-                  </button>
-                </div>
+              <div>
+                <span style="display:block; font-size:0.8rem; color:var(--text-soft); font-weight:400; margin-bottom:2px;">Total</span>
+                <span>£${Number(order.finalTotal || 0).toFixed(2)}</span>
               </div>
             </div>
           `;
+
+          html += renderOrderCard(order, {
+            isParent: true,
+            titlePrefix: 'Parent Order #',
+            summaryLeftText: `${escapeHtml(order.childName || 'Child')} (${escapeHtml(order.className || 'Class')})`,
+            detailsHtml: detailsHtml
+          });
         });
 
         container.innerHTML = html;
@@ -2875,7 +2957,13 @@
       const btnEmailModeCustomer = document.getElementById("btn-email-mode-customer");
       const btnEmailModeInternal = document.getElementById("btn-email-mode-internal");
       const emailPanelCustomer = document.getElementById("email-panel-customer");
+      const emailPanelCustomerStep2 = document.getElementById("email-panel-customer-step2");
       const emailPanelInternal = document.getElementById("email-panel-internal");
+      const emailPanelInternalStep2 = document.getElementById("email-panel-internal-step2");
+      const dispatchStep1 = document.getElementById("dispatch-step-1");
+      const dispatchStep2 = document.getElementById("dispatch-step-2");
+      const btnDispatchContinue = document.getElementById("btn-dispatch-continue");
+      const btnDispatchBack = document.getElementById("btn-dispatch-back");
       const emailCustomerSourceFilter = document.getElementById("email-customer-source-filter");
       const emailCustomerTemplate = document.getElementById("email-customer-template");
       const emailCustomerSelect = document.getElementById("email-customer-select");
@@ -2899,8 +2987,25 @@
       let currentEmailMode = "customer";
       let selectedCustomerSource = "lunch";
 
+      if (btnDispatchContinue) {
+        btnDispatchContinue.addEventListener("click", () => {
+          if (dispatchStep1) dispatchStep1.style.display = "none";
+          if (dispatchStep2) dispatchStep2.style.display = "block";
+          updateEmailPreview();
+        });
+      }
+
+      if (btnDispatchBack) {
+        btnDispatchBack.addEventListener("click", () => {
+          if (dispatchStep2) dispatchStep2.style.display = "none";
+          if (dispatchStep1) dispatchStep1.style.display = "block";
+        });
+      }
+
       function openEmailDispatcher(mode = "customer", preselected = null) {
         setEmailModalMode(mode);
+        if (dispatchStep1) dispatchStep1.style.display = "block";
+        if (dispatchStep2) dispatchStep2.style.display = "none";
         if (emailModalError) emailModalError.style.display = "none";
         if (emailModalSuccess) emailModalSuccess.style.display = "none";
         
@@ -2927,12 +3032,16 @@
           if (btnEmailModeCustomer) btnEmailModeCustomer.classList.add("active");
           if (btnEmailModeInternal) btnEmailModeInternal.classList.remove("active");
           if (emailPanelCustomer) emailPanelCustomer.style.display = "block";
+          if (emailPanelCustomerStep2) emailPanelCustomerStep2.style.display = "block";
           if (emailPanelInternal) emailPanelInternal.style.display = "none";
+          if (emailPanelInternalStep2) emailPanelInternalStep2.style.display = "none";
         } else {
           if (btnEmailModeInternal) btnEmailModeInternal.classList.add("active");
           if (btnEmailModeCustomer) btnEmailModeCustomer.classList.remove("active");
           if (emailPanelInternal) emailPanelInternal.style.display = "block";
+          if (emailPanelInternalStep2) emailPanelInternalStep2.style.display = "block";
           if (emailPanelCustomer) emailPanelCustomer.style.display = "none";
+          if (emailPanelCustomerStep2) emailPanelCustomerStep2.style.display = "none";
         }
         updateEmailPreview();
       }
