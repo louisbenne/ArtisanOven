@@ -3044,9 +3044,18 @@ function rebuildCleanSheets() {
       pizzaDetailsParts.push(pickupId + ': ' + pizza.childName + ' (' + pizza.class + ') - ' + pizza.size);
     }
 
+    var discountInfo = getOrderDiscountInfo(row, headers, orderTotal);
+    var discountCodeStr = '';
+    var orderTotalAfterDiscount = orderTotal;
+    if (discountInfo && discountInfo.valid) {
+      discountCodeStr = discountInfo.code + (discountInfo.value ? ' (' + discountInfo.value + (discountInfo.type === 'percent' ? '%' : '') + ')' : '');
+      orderTotalAfterDiscount = discountInfo.totalAfterDiscount;
+    }
+
     orderSummaryRows.push([
       formattedOrderId,
       payerName,
+      discountCodeStr,
       paymentMethod,
       paymentMethod ? 'Yes' : 'No',
       allergyYN,
@@ -3059,24 +3068,24 @@ function rebuildCleanSheets() {
       var pizza = pizzas[p];
       var pickupId = orderId + '-' + pizza.pizzaNum;
       pizzaOrdersRows.push([
-        formattedOrderId, payerName, paymentMethod, paymentMethod ? 'Yes' : 'No', allergyYN, allergyText,
-        pizza.pizzaNum, pickupId, pizza.childName, pizza.class, pizza.size
+        formattedOrderId, payerName, discountCodeStr, paymentMethod, paymentMethod ? 'Yes' : 'No', allergyYN, allergyText,
+        pizza.pizzaNum, pickupId, pizza.childName, pizza.class, size
       ]);
     }
 
     var confirmSent = raw.getRange(r + 1, CONFIRMATION_SENT_COL).getValue() === 'SENT' ? 'Yes' : 'No';
-    orderTotalsRows.push([formattedOrderId, payerName, payerEmail || '(no valid email)', orderTotal, confirmSent]);
+    orderTotalsRows.push([formattedOrderId, payerName, discountCodeStr, payerEmail || '(no valid email)', orderTotalAfterDiscount, confirmSent]);
   }
 
   var currentRow = 1;
-  writeSectionTitle(sheet, currentRow, 'CURRENT ACTIVE SESSION: ' + settings.serviceDate, 8);
+  writeSectionTitle(sheet, currentRow, 'CURRENT ACTIVE SESSION: ' + settings.serviceDate, 9);
   currentRow += 2;
 
-  writeSectionTitle(sheet, currentRow, 'ORDER SUMMARY', 8);
+  writeSectionTitle(sheet, currentRow, 'ORDER SUMMARY', 9);
   currentRow++;
 
   var orderSummaryHeader = [
-    'Order ID', 'Payer Name', 'Payment Method', 'Paid', 'Allergy Flag',
+    'Order ID', 'Payer Name', 'Discount Code', 'Payment Method', 'Paid', 'Allergy Flag',
     'Allergy Details', 'No. of Pizzas', 'Pizza Details (Pickup ID - Child - Class - Size)'
   ];
 
@@ -3089,11 +3098,11 @@ function rebuildCleanSheets() {
   if (orderSummaryRows.length > 0) {
     sheet.getRange(currentRow, 1, orderSummaryRows.length, orderSummaryHeader.length)
       .setValues(orderSummaryRows);
-    sheet.getRange(currentRow, 8, orderSummaryRows.length, 1)
+    sheet.getRange(currentRow, 9, orderSummaryRows.length, 1)
       .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
 
     for (var i = 0; i < orderSummaryRows.length; i++) {
-      var detailsText = orderSummaryRows[i][7];
+      var detailsText = orderSummaryRows[i][8];
       var numLines = (detailsText.match(/\n/g) || []).length + 1;
       var rowHeight = Math.max(21, numLines * 15);
       sheet.setRowHeight(currentRow + i, rowHeight);
@@ -3103,11 +3112,11 @@ function rebuildCleanSheets() {
 
   currentRow += 2;
 
-  writeSectionTitle(sheet, currentRow, 'PIZZA ORDERS', 11);
+  writeSectionTitle(sheet, currentRow, 'PIZZA ORDERS', 12);
   currentRow++;
 
   var pizzaOrdersHeader = [
-    'Order ID', 'Payer Name', 'Payment Method', 'Paid', 'Allergy Flag',
+    'Order ID', 'Payer Name', 'Discount Code', 'Payment Method', 'Paid', 'Allergy Flag',
     'Allergy Details', 'Pizza Item ID', 'Pickup ID', 'Child Name', 'Class', 'Size'
   ];
 
@@ -3151,10 +3160,10 @@ function rebuildCleanSheets() {
   currentRow += summaryRows.length;
   currentRow += 2;
 
-  writeSectionTitle(sheet, currentRow, 'ORDER TOTALS & PAYMENT STATUS', 5);
+  writeSectionTitle(sheet, currentRow, 'ORDER TOTALS & PAYMENT STATUS', 6);
   currentRow++;
 
-  var orderTotalsHeader = ['Order ID', 'Payer Name', 'Email', 'Amount Owed (£)', 'Confirmation Emailed'];
+  var orderTotalsHeader = ['Order ID', 'Payer Name', 'Discount Code', 'Email', 'Amount Owed (£)', 'Confirmation Emailed'];
   sheet.getRange(currentRow, 1, 1, orderTotalsHeader.length)
     .setValues([orderTotalsHeader])
     .setFontWeight('bold')
@@ -3167,7 +3176,7 @@ function rebuildCleanSheets() {
     currentRow += orderTotalsRows.length;
   }
 
-  sheet.autoResizeColumns(1, 11);
+  sheet.autoResizeColumns(1, 12);
   appendParentOrdersToUpdateSheet(sheet);
   SpreadsheetApp.flush();
 }
@@ -3190,6 +3199,7 @@ function appendParentOrdersToUpdateSheet(sheet) {
     var childClasses = safeTrim(String(row[5] || '')).split(/\s*,\s*/).filter(Boolean);
     var items = [];
     try { items = JSON.parse(String(row[6] || '[]')); } catch (e) {}
+    var discountCodeStr = 'MUTTI (50%)';
     var details = [];
     var pizzaNumber = 0;
     items.forEach(function(item) {
@@ -3200,29 +3210,29 @@ function appendParentOrdersToUpdateSheet(sheet) {
         var childClass = childClasses[pizzaNumber - 1] || childClasses[0] || '';
         var size = formatSizeLabel(item.size || '');
         details.push(orderId + '-' + pizzaNumber + ': ' + childName + ' (' + childClass + ') - ' + size);
-        pizzaRows.push([orderId, parentName, mapPaymentMethod(row[10]), row[11] === 'Paid' ? 'Yes' : 'No', '', '', pizzaNumber, orderId + '-' + pizzaNumber, childName, childClass, size]);
+        pizzaRows.push([orderId, parentName, discountCodeStr, mapPaymentMethod(row[10]), row[11] === 'Paid' ? 'Yes' : 'No', '', '', pizzaNumber, orderId + '-' + pizzaNumber, childName, childClass, size]);
       }
     });
-    summaryRows.push([orderId, parentName, mapPaymentMethod(row[10]), row[11] === 'Paid' ? 'Yes' : 'No', '', '', pizzaNumber, details.join('\n')]);
-    totalRows.push([orderId, parentName, parentEmail, Number(row[9]) || 0, row[13] === 'SENT' ? 'Yes' : 'No']);
+    summaryRows.push([orderId, parentName, discountCodeStr, mapPaymentMethod(row[10]), row[11] === 'Paid' ? 'Yes' : 'No', '', '', pizzaNumber, details.join('\n')]);
+    totalRows.push([orderId, parentName, discountCodeStr, parentEmail, Number(row[9]) || 0, row[13] === 'SENT' ? 'Yes' : 'No']);
   }
 
   if (!summaryRows.length) return;
   var start = sheet.getLastRow() + 2;
-  writeSectionTitle(sheet, start, 'INTERNAL PARENT ORDERS', 11);
+  writeSectionTitle(sheet, start, 'INTERNAL PARENT ORDERS', 12);
   start += 2;
-  sheet.getRange(start, 1, 1, 8).setValues([['Order ID', 'Payer Name', 'Payment Method', 'Paid', 'Allergy Flag', 'Allergy Details', 'No. of Pizzas', 'Pizza Details']]).setFontWeight('bold').setBackground('#E8E8E8');
+  sheet.getRange(start, 1, 1, 9).setValues([['Order ID', 'Payer Name', 'Discount Code', 'Payment Method', 'Paid', 'Allergy Flag', 'Allergy Details', 'No. of Pizzas', 'Pizza Details']]).setFontWeight('bold').setBackground('#E8E8E8');
   start++;
-  sheet.getRange(start, 1, summaryRows.length, 8).setValues(summaryRows);
+  sheet.getRange(start, 1, summaryRows.length, 9).setValues(summaryRows);
   start += summaryRows.length + 2;
-  sheet.getRange(start, 1, 1, 11).setValues([['Order ID', 'Payer Name', 'Payment Method', 'Paid', 'Allergy Flag', 'Allergy Details', 'Pizza Item ID', 'Pickup ID', 'Child Name', 'Class', 'Size']]).setFontWeight('bold').setBackground('#E8E8E8');
+  sheet.getRange(start, 1, 1, 12).setValues([['Order ID', 'Payer Name', 'Discount Code', 'Payment Method', 'Paid', 'Allergy Flag', 'Allergy Details', 'Pizza Item ID', 'Pickup ID', 'Child Name', 'Class', 'Size']]).setFontWeight('bold').setBackground('#E8E8E8');
   start++;
-  sheet.getRange(start, 1, pizzaRows.length, 11).setValues(pizzaRows);
+  sheet.getRange(start, 1, pizzaRows.length, 12).setValues(pizzaRows);
   start += pizzaRows.length + 2;
-  sheet.getRange(start, 1, 1, 5).setValues([['Order ID', 'Payer Name', 'Email', 'Amount Owed (£)', 'Confirmation Emailed']]).setFontWeight('bold').setBackground('#E8E8E8');
+  sheet.getRange(start, 1, 1, 6).setValues([['Order ID', 'Payer Name', 'Discount Code', 'Email', 'Amount Owed (£)', 'Confirmation Emailed']]).setFontWeight('bold').setBackground('#E8E8E8');
   start++;
-  sheet.getRange(start, 1, totalRows.length, 5).setValues(totalRows);
-  sheet.autoResizeColumns(1, 11);
+  sheet.getRange(start, 1, totalRows.length, 6).setValues(totalRows);
+  sheet.autoResizeColumns(1, 12);
 }
 
 function writeSectionTitle(sheet, row, titleText, mergeAcross) {
