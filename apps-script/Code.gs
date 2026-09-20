@@ -81,7 +81,11 @@ var PAYMENT_INFO_BLOCK =
   'Cash payments may be sent with your child. \n' +
   'Please ensure that the exact amount is provided, as we are unable to give change.';
 
-var INTERNAL_PARENT_DISCOUNT_CODE = 'INTERNAL_PARENT_50';
+var INTERNAL_PARENT_DISCOUNT_CODE = 'MUTTI';
+var PARENT_EMAILS = [
+  'lornajbouwer@hotmail.com',
+  'lisa@garrettgirl.com'
+];
 var PARENT_ACCESS_CODE_PROP = 'PARENT_ACCESS_CODE';
 var ADMIN_ACCESS_CODE_PROP = 'ADMIN_ACCESS_CODE';
 var DEFAULT_ADMIN_ACCESS_CODE = 'ArtisanOvenAdmin2026!';
@@ -2150,6 +2154,13 @@ function ensureDiscountCodeSheet() {
     if (!hasDefaultCode) {
       sheet.appendRow(['STMSCS', 'percent', 15, '', 0, true, '']);
     }
+    var hasMuttiCode = codeValues.some(function(row) {
+      var c = safeTrim(row[0]).toUpperCase();
+      return c === 'MUTTI' || c === 'INTERNAL_PARENT_50';
+    });
+    if (!hasMuttiCode) {
+      sheet.appendRow(['MUTTI', 'percent', 50, '', 0, true, '']);
+    }
   }
 
   return sheet;
@@ -2244,10 +2255,17 @@ function getOrderDiscountInfo(row, headers, subtotal) {
   var rawCode = codeCol === -1 ? '' : safeTrim(row[codeCol]);
   if (!rawCode) {
     for (var i = 0; i < row.length; i++) {
-      if (safeTrim(row[i]).toUpperCase() === 'STMSCS') {
-        rawCode = 'STMSCS';
+      var val = safeTrim(row[i]).toUpperCase();
+      if (val === 'STMSCS' || val === 'INTERNAL_PARENT_50' || val === 'INTERNAL_PARENT') {
+        rawCode = val === 'INTERNAL_PARENT' ? INTERNAL_PARENT_DISCOUNT_CODE : val;
         break;
       }
+    }
+  }
+  if (!rawCode) {
+    var email = extractPayerEmail(row).toLowerCase();
+    if (email && PARENT_EMAILS.indexOf(email) !== -1) {
+      rawCode = INTERNAL_PARENT_DISCOUNT_CODE;
     }
   }
   if (!rawCode) return null;
@@ -2262,7 +2280,7 @@ function getOrderDiscountInfo(row, headers, subtotal) {
     code: discount.code,
     discountAmount: roundCurrency(discount.discountAmount),
     totalAfterDiscount: roundCurrency(discount.newTotal),
-    discountReason: ''
+    discountReason: discount.code === INTERNAL_PARENT_DISCOUNT_CODE ? '50% internal parent discount' : ''
   };
 }
 
@@ -2324,15 +2342,15 @@ function getDiscount(rawCode, subtotal) {
     };
   }
 
-  if (code === INTERNAL_PARENT_DISCOUNT_CODE) {
-    var parentDiscountAmount = roundCurrency((Number(subtotal) || 0) * 0.5);
+  if (code === 'MUTTI' || code === 'INTERNAL_PARENT_50' || code === 'INTERNAL_PARENT') {
+    var muttiDiscountAmount = roundCurrency((Number(subtotal) || 0) * 0.50);
     return {
       valid: true,
-      code: code,
+      code: 'MUTTI',
       type: 'percent',
       value: 50,
-      discountAmount: parentDiscountAmount,
-      newTotal: Math.max(0, roundCurrency((Number(subtotal) || 0) - parentDiscountAmount))
+      discountAmount: muttiDiscountAmount,
+      newTotal: Math.max(0, roundCurrency((Number(subtotal) || 0) - muttiDiscountAmount))
     };
   }
 
