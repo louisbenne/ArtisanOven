@@ -42,6 +42,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// API route to provide public configuration to the client
+app.get('/config.js', (req, res) => {
+  const config = {
+    ORDER_API_URL: process.env.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec"
+  };
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(`window.ORDER_API_URL = ${JSON.stringify(config.ORDER_API_URL)};`);
+});
+
 // Explicit route aliases for HTML pages
 app.get(['/payment', '/payment.html', '/Payment', '/Payment.html'], (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');

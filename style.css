@@ -40,6 +40,12 @@
   --radius-md: 18px;
   --shadow-soft: 0 12px 30px rgba(31, 58, 46, 0.12);
   --shadow-lift: 0 18px 40px rgba(31, 58, 46, 0.18);
+  
+  /* iOS Safe Area Insets */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
 }
 
 /* ---------- Reset & base ---------- */
@@ -59,6 +65,12 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  padding-top: max(0px, var(--sat));
+  padding-left: max(0px, var(--sal));
+  padding-right: max(0px, var(--sar));
+  padding-bottom: max(68px, calc(var(--sab) + 50px));
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 h1, h2, h3 {
@@ -2667,5 +2679,57 @@ button:focus-visible,
   margin-top: 2px;
   color: #2e6930;
 }
+
+/* ---------- iOS App Bottom Navigation Bar ---------- */
+.ios-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: rgba(247, 243, 236, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 0.5px solid rgba(31, 58, 46, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 9999;
+  box-shadow: 0 -4px 20px rgba(31, 58, 46, 0.08);
+}
+
+.ios-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  gap: 2px;
+  flex: 1;
+  height: 100%;
+  transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.ios-nav-item svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.ios-nav-item.active {
+  color: var(--terracotta);
+}
+
+.ios-nav-item:active {
+  transform: scale(0.92);
+}
+
 
 

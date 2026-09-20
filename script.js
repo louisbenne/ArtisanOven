@@ -6,7 +6,7 @@
 // CONFIGURATION: Replace with your deployed Google Apps Script Web App URL
 // Example: "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec"
 // ----------------------------------------------------------------------------
-var ORDER_API_URL = "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
+var ORDER_API_URL = window.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
 
 document.addEventListener("DOMContentLoaded", function () {
   // Keep footer year updated
@@ -23,6 +23,9 @@ document.addEventListener("DOMContentLoaded", function () {
   initOrderEventsBanner();
   // Setup Quick Copy Buttons
   initCopyButtons();
+  // Setup iOS Bottom Navigation Bar & PWA Service Worker
+  initIOSBottomNav();
+  initPWAServiceWorker();
 });
 
 function initAvailabilityTracker() {
@@ -646,5 +649,46 @@ function formatPizzaAmount(value) {
   }
 
   return String(rounded);
+}
+
+function initPWAServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('./parent-sw.js').catch(function(err) {
+        console.debug('Service worker registration error:', err);
+      });
+    });
+  }
+}
+
+function initIOSBottomNav() {
+  if (document.getElementById('ios-bottom-nav')) return;
+
+  const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+
+  const nav = document.createElement('nav');
+  nav.id = 'ios-bottom-nav';
+  nav.className = 'ios-bottom-nav';
+  nav.setAttribute('aria-label', 'iOS App Navigation');
+
+  const items = [
+    { name: 'Home', href: 'index.html', icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>' },
+    { name: 'Order', href: 'order.html', icon: '<circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>' },
+    { name: 'Pay', href: 'Payment.html', icon: '<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line>' },
+    { name: 'Kitchen', href: 'kitchen.html', icon: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1z"></path>' },
+    { name: 'Admin', href: 'admin.html', icon: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>' }
+  ];
+
+  let html = '';
+  items.forEach(item => {
+    const isActive = (currentPath === item.href || (currentPath === '' && item.href === 'index.html'));
+    html += `<a href="${item.href}" class="ios-nav-item ${isActive ? 'active' : ''}">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">${item.icon}</svg>
+      <span>${item.name}</span>
+    </a>`;
+  });
+
+  nav.innerHTML = html;
+  document.body.appendChild(nav);
 }
 
