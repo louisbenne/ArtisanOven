@@ -2342,6 +2342,8 @@ function getOrderDiscountInfo(row, headers, subtotal) {
 
   return {
     code: discount.code,
+    type: discount.type,
+    value: discount.value,
     discountAmount: roundCurrency(discount.discountAmount),
     totalAfterDiscount: roundCurrency(discount.newTotal),
     discountReason: discount.code === INTERNAL_PARENT_DISCOUNT_CODE ? '50% internal parent discount' : ''
