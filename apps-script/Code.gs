@@ -1051,6 +1051,7 @@ function doGet(e) {
           totalCapacity: normalizePizzaCapacity(capacity),
           itemCount: pizzaItems.length,
           paymentStatus: parentOrder.paymentStatus || 'Pending Payment',
+          paymentMethod: parentOrder.paymentMethod || 'Bank Transfer',
           source: 'parent'
         });
       });
@@ -2431,6 +2432,15 @@ function calculateCurrentSessionStats(settings) {
     var totalHistoricalPizzaSelections = 0;
     
     var currentCashIncome = 0;
+    var currentCashOrders = 0;
+    var currentCashPaidIncome = 0;
+    var currentCashPaidOrders = 0;
+
+    var currentBankIncome = 0;
+    var currentBankOrders = 0;
+    var currentBankPaidIncome = 0;
+    var currentBankPaidOrders = 0;
+
     var currentTotalIncome = 0;
     var headers = data.length > 0 ? data[0] : [];
 
@@ -2451,8 +2461,9 @@ function calculateCurrentSessionStats(settings) {
         if (stats.pizzaSelections > 0) {
           totalOrders++;
           
-          var paymentRaw = firstNonEmpty(row[49], row[51]);
-          var paymentMethod = mapPaymentMethod(paymentRaw);
+          var paymentMethod = detectPaymentMethodFromRow(row, headers);
+          var manualPaymentStatus = safeTrim(row[PAYMENT_STATUS_COL]);
+          var isPaid = resolvePaymentStatus(row, headers, manualPaymentStatus) === 'Paid';
           
           var qtyDigit = extractDigit(safeTrim(row[3])) || '0';
           var blocks = BRANCHES[qtyDigit] || [];
@@ -2472,11 +2483,62 @@ function calculateCurrentSessionStats(settings) {
           var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
           
           currentTotalIncome += totalAfterDiscount;
-          if (paymentMethod === 'Cash') {
+          if (String(paymentMethod).toLowerCase().indexOf('cash') !== -1) {
             currentCashIncome += totalAfterDiscount;
+            currentCashOrders++;
+            if (isPaid) {
+              currentCashPaidIncome += totalAfterDiscount;
+              currentCashPaidOrders++;
+            }
+          } else {
+            currentBankIncome += totalAfterDiscount;
+            currentBankOrders++;
+            if (isPaid) {
+              currentBankPaidIncome += totalAfterDiscount;
+              currentBankPaidOrders++;
+            }
           }
         }
       }
+    }
+
+    // Also include active Parent Orders in the session stats if the sheet exists
+    try {
+      var parentSheet = ss.getSheetByName('Internal Parent Orders');
+      if (parentSheet && parentSheet.getLastRow() >= 2) {
+        var parentRows = parentSheet.getDataRange().getValues();
+        for (var p = 1; p < parentRows.length; p++) {
+          var pRow = parentRows[p];
+          if (!pRow || rowIsBlank(pRow)) continue;
+          if (safeTrim(String(pRow[16] || '')).toUpperCase() === 'TRUE') continue; // deleted
+          
+          var pTotal = parseFloat(pRow[9]) || 0;
+          var pMethod = mapPaymentMethod(pRow[10]);
+          var pStatus = safeTrim(String(pRow[11] || '')).toLowerCase();
+          if (/^(failed|declined|rejected|cancelled|canceled|refunded|void)$/.test(pStatus)) continue;
+          var pIsPaid = (pStatus === 'paid');
+          
+          currentTotalIncome += pTotal;
+          totalOrders++;
+          if (String(pMethod).toLowerCase().indexOf('cash') !== -1) {
+            currentCashIncome += pTotal;
+            currentCashOrders++;
+            if (pIsPaid) {
+              currentCashPaidIncome += pTotal;
+              currentCashPaidOrders++;
+            }
+          } else {
+            currentBankIncome += pTotal;
+            currentBankOrders++;
+            if (pIsPaid) {
+              currentBankPaidIncome += pTotal;
+              currentBankPaidOrders++;
+            }
+          }
+        }
+      }
+    } catch (parentErr) {
+      Logger.log('Parent orders stats note: ' + parentErr);
     }
 
     totalPizzas = normalizePizzaCapacity(totalPizzas);
@@ -2487,14 +2549,27 @@ function calculateCurrentSessionStats(settings) {
     var isPastDeadline = isPastAutoClosingDeadline(settings);
     var isOpen = (settings.orderingEnabled === true) && !isPastDeadline && (remaining > 0);
 
+    var currentActualIncome = currentBankPaidIncome + currentCashIncome;
+    var currentActualOrders = currentBankPaidOrders + currentCashOrders;
+
     return {
       success: true,
       currentPizzas: totalPizzas,
       maxPizzas: maxLimit,
       remainingPizzas: remaining,
       currentOrders: totalOrders,
-      currentCashIncome: currentCashIncome,
-      currentTotalIncome: currentTotalIncome,
+      currentCashIncome: Math.round(currentCashIncome * 100) / 100,
+      currentCashOrders: currentCashOrders,
+      currentCashPaidIncome: Math.round(currentCashPaidIncome * 100) / 100,
+      currentCashPaidOrders: currentCashPaidOrders,
+      currentBankIncome: Math.round(currentBankIncome * 100) / 100,
+      currentBankOrders: currentBankOrders,
+      currentBankPaidIncome: Math.round(currentBankPaidIncome * 100) / 100,
+      currentBankPaidOrders: currentBankPaidOrders,
+      currentTotalIncome: Math.round(currentTotalIncome * 100) / 100,
+      currentTotalOrders: totalOrders,
+      currentActualIncome: Math.round(currentActualIncome * 100) / 100,
+      currentActualOrders: currentActualOrders,
       orderingOpen: isOpen,
       orderingEnabled: (settings.orderingEnabled === true),
       isPastDeadline: isPastDeadline,
@@ -2510,6 +2585,11 @@ function calculateCurrentSessionStats(settings) {
       maxPizzas: 20,
       remainingPizzas: 20,
       currentOrders: 0,
+      currentCashIncome: 0,
+      currentCashOrders: 0,
+      currentBankIncome: 0,
+      currentBankOrders: 0,
+      currentTotalIncome: 0,
       orderingOpen: true
     };
   }
@@ -3513,9 +3593,60 @@ function extractDigit(text) {
 }
 
 function mapPaymentMethod(raw) {
-  if (!raw) return '';
+  if (!raw) return 'Bank Transfer';
   var key = String(raw).trim().replace(/\s+/g, ' ');
-  return PAYMENT_MAP[key] || (key === '' ? '' : key);
+  var lower = key.toLowerCase();
+  if (lower.indexOf('cash') !== -1) return 'Cash';
+  if (lower.indexOf('card') !== -1) return 'Card';
+  if (lower.indexOf('paypal') !== -1) return 'PayPal';
+  if (lower.indexOf('bank') !== -1 || lower.indexOf('transfer') !== -1) return 'Bank Transfer';
+  return PAYMENT_MAP[key] || (key === '' ? 'Bank Transfer' : key);
+}
+
+function detectPaymentMethodFromRow(row, headers) {
+  if (!row || !row.length) return 'Bank Transfer';
+
+  // 1. Look for known payment method headers in spreadsheet
+  if (headers && headers.length) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = String(headers[i] || '').trim().toLowerCase();
+      if (!h) continue;
+      if (h.indexOf('payment method') !== -1 ||
+          h.indexOf('preferred payment') !== -1 ||
+          h.indexOf('method of payment') !== -1 ||
+          h.indexOf('cash or card') !== -1 ||
+          h.indexOf('how will you pay') !== -1 ||
+          h.indexOf('how do you plan to pay') !== -1 ||
+          h.indexOf('payment type') !== -1 ||
+          h.indexOf('payment option') !== -1) {
+        var val = safeTrim(row[i]);
+        if (val) return mapPaymentMethod(val);
+      }
+    }
+  }
+
+  // 2. Check standard Google Form columns 49 and 51
+  var paymentRaw = firstNonEmpty(row[49], row[51]);
+  if (paymentRaw) return mapPaymentMethod(paymentRaw);
+
+  // 3. Fallback: inspect each cell for explicit keywords
+  for (var c = 0; c < row.length; c++) {
+    var cell = String(row[c] || '').trim().toLowerCase();
+    if (cell === 'cash' || cell.indexOf('cash via') !== -1 || cell.indexOf('cash on') !== -1) {
+      return 'Cash';
+    }
+    if (cell === 'card' || cell.indexOf('debit card') !== -1 || cell.indexOf('credit card') !== -1) {
+      return 'Card';
+    }
+    if (cell === 'paypal') {
+      return 'PayPal';
+    }
+    if (cell === 'bank transfer' || cell === 'banktransfer') {
+      return 'Bank Transfer';
+    }
+  }
+
+  return 'Bank Transfer';
 }
 
 function customerReportedPaid(row, headers) {
@@ -3766,9 +3897,8 @@ function getAllOrdersForAdmin() {
     
     var qtyRaw = safeTrim(row[3]);
     var qtyDigit = extractDigit(qtyRaw) || '0';
-    var paymentRaw = firstNonEmpty(row[49], row[51]);
+    var paymentMethod = detectPaymentMethodFromRow(row, headers);
     var payerRaw = firstNonEmpty(row[50], row[52]);
-    var paymentMethod = mapPaymentMethod(paymentRaw);
     var payerName = safeTrim(payerRaw) || 'Valued Customer';
     var payerEmail = extractPayerEmail(row);
     var allergyYN = safeTrim(row[1]);
@@ -3826,7 +3956,8 @@ function getAllOrdersForAdmin() {
         pizzaCount: normalizePizzaCapacity(orderCapacity),
         totalCapacity: normalizePizzaCapacity(orderCapacity),
         itemCount: pizzas.length,
-        paymentStatus: resolvePaymentStatus(row, headers, manualPaymentStatus)
+        paymentStatus: resolvePaymentStatus(row, headers, manualPaymentStatus),
+        paymentMethod: paymentMethod
       });
     }
   }

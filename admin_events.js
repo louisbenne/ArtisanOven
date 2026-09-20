@@ -539,13 +539,7 @@ window.renderEventOrders = function(orders) {
 
   const searchInputEl = document.getElementById('event-orders-search-input');
   const searchTerm = (searchInputEl && searchInputEl.value || '').toLowerCase();
-
-  let totalOrders = 0;
-  let totalPizzas = 0;
-  let pendingCount = 0;
-  let paidCount = 0;
-  let totalRevenue = 0;
-
+  
   if (!orders || orders.length === 0) {
     container.innerHTML = `
       <div style="background: var(--white); border: 1.5px dashed rgba(31,58,46,0.15); border-radius: var(--radius-md); padding: 44px 20px; text-align: center;">
@@ -572,20 +566,40 @@ window.renderEventOrders = function(orders) {
   });
 
   // Calculate stats for current filter selection
+  let totalEventOrdersCount = 0;
+  let totalPizzas = 0;
+  let pendingCount = 0;
+  let paidCount = 0;
+  let totalRevenue = 0;
+  let cashAmount = 0;
+  let cashCount = 0;
+  let bankAmount = 0;
+  let bankCount = 0;
+
   filtered.forEach(o => {
-    totalOrders++;
+    totalEventOrdersCount++;
     if (o.pizzas && Array.isArray(o.pizzas)) {
       o.pizzas.forEach(p => {
         totalPizzas += (parseInt(p.quantity, 10) || 1);
       });
     }
-    totalRevenue += (parseFloat(o.total) || 0);
+    const orderTotal = (parseFloat(o.total) || 0);
+    totalRevenue += orderTotal;
     const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid';
     if (isPaid) paidCount++;
     else pendingCount++;
+
+    const isCash = String(o.paymentMethod || '').toLowerCase().includes('cash');
+    if (isCash) {
+      cashCount++;
+      cashAmount += orderTotal;
+    } else {
+      bankCount++;
+      bankAmount += orderTotal;
+    }
   });
 
-  updateEventOrderStats(totalOrders, totalPizzas, pendingCount, paidCount, totalRevenue);
+  updateEventOrderStats(totalEventOrdersCount, totalPizzas, pendingCount, paidCount, totalRevenue, cashAmount, cashCount, bankAmount, bankCount);
 
   if (filtered.length === 0) {
     container.innerHTML = `
@@ -602,6 +616,21 @@ window.renderEventOrders = function(orders) {
     const statusLabel = isPaid ? 'PAID' : 'UNPAID';
     const customerName = (order.customer && order.customer.name) || 'Customer';
     const customerEmail = (order.customer && order.customer.email) || '';
+    const paymentMethod = order.paymentMethod || 'Bank Transfer';
+    const isCashOrder = String(paymentMethod).toLowerCase().includes('cash');
+    const paymentFlagHtml = `
+      <div style="margin-top: 5px;">
+        <span class="payment-method-flag ${isCashOrder ? 'flag-cash' : 'flag-digital'}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${isCashOrder ? '#fff2ed' : '#edf7ee'}; color: ${isCashOrder ? 'var(--terracotta-deep)' : '#1e6624'}; border: 1.5px solid ${isCashOrder ? 'rgba(198,93,59,0.35)' : 'rgba(30,102,36,0.35)'}; text-transform: uppercase; letter-spacing: 0.03em;">
+          ${isCashOrder ? `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
+            Cash on Collection
+          ` : `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            Digital / Bank
+          `}
+        </span>
+      </div>
+    `;
     const eventDisplayName = order.eventName || (order.eventId ? `Event (${order.eventId})` : 'Special Event');
 
     let pizzasHtml = '';
@@ -637,6 +666,7 @@ window.renderEventOrders = function(orders) {
             </div>
             <div class="order-card-customer" style="font-weight: 700; color: var(--forest); margin-top: 4px; font-size: 0.95rem;">${escapeAdminHtml(customerName)}</div>
             <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${escapeAdminHtml(customerEmail)}</div>
+            ${paymentFlagHtml}
           </div>
           <div class="paid-toggle-wrap" onclick="event.stopPropagation()" style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 0.82rem; font-weight: 800; letter-spacing: 0.05em; color: ${isPaid ? '#2D5832' : 'var(--terracotta-deep)'};">${statusLabel}</span>
@@ -832,18 +862,26 @@ window.renderEventOrders = function(orders) {
   });
 };
 
-function updateEventOrderStats(total, pizzas, pending, paid, revenue) {
+function updateEventOrderStats(total, pizzas, pending, paid, revenue, cashAmount = 0, cashCount = 0, bankAmount = 0, bankCount = 0) {
   const elTotal = document.getElementById('stat-event-total-orders');
   const elPizzas = document.getElementById('stat-event-total-pizzas');
   const elPending = document.getElementById('stat-event-pending');
   const elPaid = document.getElementById('stat-event-paid');
   const elRevenue = document.getElementById('stat-event-revenue');
+  const elCash = document.getElementById('stat-event-cash');
+  const elCashCount = document.getElementById('stat-event-cash-count');
+  const elBank = document.getElementById('stat-event-bank');
+  const elBankCount = document.getElementById('stat-event-bank-count');
 
   if (elTotal) elTotal.textContent = total;
   if (elPizzas) elPizzas.textContent = pizzas;
   if (elPending) elPending.textContent = pending;
   if (elPaid) elPaid.textContent = paid;
   if (elRevenue) elRevenue.textContent = `£${revenue.toFixed(2)}`;
+  if (elCash) elCash.textContent = `£${Number(cashAmount || 0).toFixed(2)}`;
+  if (elCashCount) elCashCount.textContent = `${cashCount} ${cashCount === 1 ? 'person' : 'people'}`;
+  if (elBank) elBank.textContent = `£${Number(bankAmount || 0).toFixed(2)}`;
+  if (elBankCount) elBankCount.textContent = `${bankCount} ${bankCount === 1 ? 'person' : 'people'}`;
 }
 
 // ----------------------------------------------------------------------------

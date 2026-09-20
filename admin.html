@@ -567,13 +567,40 @@
             <p class="metric-hint" id="metric-total-hint">Active responses this session</p>
           </div>
 
-          <!-- Metric: Expected Cash -->
-          <div class="metric-card">
-            <span class="metric-label">Income (Live Session)</span>
+          <!-- Metric: Predicted Cash -->
+          <div class="metric-card" id="card-metric-cash">
+            <span class="metric-label">Predicted Cash</span>
             <div class="metric-value-wrap">
-              <span class="metric-number" id="metric-cash-income" style="color: var(--forest);">£0.00</span>
+              <span class="metric-number" id="metric-cash-income" style="color: var(--terracotta-deep);">£0.00</span>
             </div>
-            <p class="metric-hint" id="metric-income-hint">Cash & Bank to be collected</p>
+            <p class="metric-hint" id="metric-cash-hint">0 people paying cash</p>
+          </div>
+
+          <!-- Metric: Money in the Bank -->
+          <div class="metric-card" id="card-metric-bank">
+            <span class="metric-label">Money in the Bank</span>
+            <div class="metric-value-wrap">
+              <span class="metric-number" id="metric-bank-income" style="color: var(--forest);">£0.00</span>
+            </div>
+            <p class="metric-hint" id="metric-bank-hint">0 orders ticked off as paid</p>
+          </div>
+
+          <!-- Metric: Predicted Total -->
+          <div class="metric-card" id="card-metric-total">
+            <span class="metric-label">Predicted Total</span>
+            <div class="metric-value-wrap">
+              <span class="metric-number" id="metric-total-income" style="color: var(--forest);">£0.00</span>
+            </div>
+            <p class="metric-hint" id="metric-income-hint">If everyone pays (0 orders)</p>
+          </div>
+
+          <!-- Metric: Current Total (Ticked Off Bank + Cash) -->
+          <div class="metric-card" id="card-metric-current" style="border: 1.5px solid rgba(31, 58, 46, 0.22); background: #fbfdfb;">
+            <span class="metric-label" style="color: var(--forest);">Current Total</span>
+            <div class="metric-value-wrap">
+              <span class="metric-number" id="metric-current-income" style="color: var(--forest); font-weight: 800;">£0.00</span>
+            </div>
+            <p class="metric-hint" id="metric-current-hint">Bank ticked off + cash combined</p>
           </div>
 
         </div>
@@ -967,6 +994,26 @@
               <span class="stat-label">Paid</span>
               <span class="stat-value" id="stat-paid-payment">-</span>
             </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Predicted Cash</span>
+              <span class="stat-value" id="stat-lunch-cash" style="color: var(--terracotta-deep);">£0.00</span>
+              <span class="stat-sub" id="stat-lunch-cash-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">0 people</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Money in the Bank</span>
+              <span class="stat-value" id="stat-lunch-bank" style="color: var(--forest);">£0.00</span>
+              <span class="stat-sub" id="stat-lunch-bank-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">0 ticked off</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Current Total</span>
+              <span class="stat-value" id="stat-lunch-current" style="color: var(--forest); font-weight: 800;">£0.00</span>
+              <span class="stat-sub" id="stat-lunch-current-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">Bank + Cash</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Predicted Total</span>
+              <span class="stat-value" id="stat-lunch-total" style="color: var(--forest); font-weight: 800;">£0.00</span>
+              <span class="stat-sub" id="stat-lunch-total-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">If all pay</span>
+            </div>
           </div>
           
           <div class="orders-search-bar">
@@ -1008,8 +1055,24 @@
               <span class="stat-value" id="stat-parent-paid">-</span>
             </div>
             <div class="order-summary-stat">
-              <span class="stat-label">Revenue</span>
-              <span class="stat-value" id="stat-parent-revenue" style="color: var(--forest);">-</span>
+              <span class="stat-label">Predicted Cash</span>
+              <span class="stat-value" id="stat-parent-cash" style="color: var(--terracotta-deep);">£0.00</span>
+              <span class="stat-sub" id="stat-parent-cash-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">0 people</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Money in the Bank</span>
+              <span class="stat-value" id="stat-parent-bank" style="color: var(--forest);">£0.00</span>
+              <span class="stat-sub" id="stat-parent-bank-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">0 ticked off</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Current Total</span>
+              <span class="stat-value" id="stat-parent-current" style="color: var(--forest); font-weight: 800;">£0.00</span>
+              <span class="stat-sub" id="stat-parent-current-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">Bank + Cash</span>
+            </div>
+            <div class="order-summary-stat">
+              <span class="stat-label">Predicted Total</span>
+              <span class="stat-value" id="stat-parent-revenue" style="color: var(--forest); font-weight: 800;">-</span>
+              <span class="stat-sub" id="stat-parent-revenue-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">If all pay</span>
             </div>
           </div>
 
@@ -1083,8 +1146,18 @@
                   <span class="stat-value" id="stat-event-paid">-</span>
                 </div>
                 <div class="order-summary-stat">
+                  <span class="stat-label">Cash on Collection</span>
+                  <span class="stat-value" id="stat-event-cash" style="color: var(--terracotta-deep);">£0.00</span>
+                  <span class="stat-sub" id="stat-event-cash-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">0 people</span>
+                </div>
+                <div class="order-summary-stat">
+                  <span class="stat-label">Money in the Bank</span>
+                  <span class="stat-value" id="stat-event-bank" style="color: var(--forest);">£0.00</span>
+                  <span class="stat-sub" id="stat-event-bank-count" style="font-size: 0.72rem; color: var(--text-soft); display: block; margin-top: 2px;">0 people</span>
+                </div>
+                <div class="order-summary-stat">
                   <span class="stat-label">Total Revenue</span>
-                  <span class="stat-value" id="stat-event-revenue" style="color: var(--forest);">-</span>
+                  <span class="stat-value" id="stat-event-revenue" style="color: var(--forest); font-weight: 800;">-</span>
                 </div>
               </div>
 
@@ -1569,6 +1642,7 @@
       const STORAGE_KEY_TOKEN = "ao_admin_session_token";
       let currentAdminToken = localStorage.getItem(STORAGE_KEY_TOKEN) || sessionStorage.getItem(STORAGE_KEY_TOKEN) || "";
       let cachedSettings = null;
+      let cachedStats = null;
 
       // Elements
       const loginSection = document.getElementById("login-section");
@@ -2214,6 +2288,21 @@
         const orderId = escapeHtml(order.orderId || '');
         const customerName = escapeHtml(isParent ? (order.parentName || 'Parent') : ((order.customer && order.customer.name) || 'Unknown'));
         const customerEmail = escapeHtml(isParent ? (order.parentEmail || '') : ((order.customer && order.customer.email) || ''));
+        const paymentMethod = order.paymentMethod || 'Bank Transfer';
+        const isCash = String(paymentMethod).toLowerCase().includes('cash');
+        const paymentFlagHtml = `
+          <div style="margin-top: 5px;">
+            <span class="payment-method-flag ${isCash ? 'flag-cash' : 'flag-digital'}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${isCash ? '#fff2ed' : '#edf7ee'}; color: ${isCash ? 'var(--terracotta-deep)' : '#1e6624'}; border: 1.5px solid ${isCash ? 'rgba(198,93,59,0.35)' : 'rgba(30,102,36,0.35)'}; text-transform: uppercase; letter-spacing: 0.03em;">
+              ${isCash ? `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
+                Cash on Collection
+              ` : `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                Digital / Bank
+              `}
+            </span>
+          </div>
+        `;
         const source = isParent ? 'parent' : 'lunch';
         const isPaid = isParent ? (String(order.paymentStatus || '').toLowerCase() === 'paid') : (order.paymentStatus === 'Paid');
         const statusLabel = isPaid ? 'PAID' : (isParent ? 'PENDING' : 'UNPAID');
@@ -2260,6 +2349,7 @@
                 <div class="order-card-title">${options.titlePrefix || 'Order #'}${orderId}</div>
                 <div class="order-card-customer" style="font-weight: 600;">${customerName}</div>
                 <div class="order-card-email" style="font-size: 0.85rem; color: var(--text-soft);">${customerEmail}</div>
+                ${paymentFlagHtml}
               </div>
               <div style="display: flex; align-items: center; gap: 10px;" onclick="event.stopPropagation()">
                 ${statusHeaderHtml}
@@ -2271,6 +2361,9 @@
                     <button type="button" class="admin-secondary-btn" onclick="event.stopPropagation(); window.openEmailDispatcher('customer', { orderId: '${orderId}', customerEmail: '${customerEmail}', customerName: '${customerName}', source: '${source}' });" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 6px 12px; font-weight: 700; color: var(--forest); background: #fff;" title="Send automated email">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                       EMAIL
+                    </button>
+                    <button type="button" class="admin-secondary-btn" data-order-id="${orderId}" data-current-method="${escapeHtml(paymentMethod)}" onclick="event.stopPropagation(); window.updateOrderPaymentMethod(this)">
+                      CHANGE PAYMENT
                     </button>
                     ${isParent ? `
                       <button type="button" class="admin-secondary-btn" data-parent-order-id="${orderId}" data-parent-status="${isPaid ? 'Paid' : 'Pending Payment'}" onclick="event.stopPropagation(); window.updateParentPaymentStatus(this)">
@@ -2308,15 +2401,22 @@
         const searchInputEl = document.getElementById('orders-search-input');
         const searchTerm = (searchInputEl && searchInputEl.value || "").toLowerCase();
         
-        let totalOrders = 0;
+        let totalSessionOrders = 0;
         let totalFullPizzas = 0;
         let totalPizzaItems = 0;
         let pendingCount = 0;
         let paidCount = 0;
+        let cashCount = 0;
+        let cashAmount = 0;
+        let bankTotalCount = 0;
+        let bankTotalAmount = 0;
+        let bankPaidCount = 0;
+        let bankPaidAmount = 0;
 
         if (!orders || orders.length === 0) {
           container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No orders found in this session.</p>';
-          updateOrderStats(0, 0, 0, 0, 0);
+          updateOrderStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+          recalculateAllIncomeMetrics();
           return;
         }
 
@@ -2329,16 +2429,35 @@
         });
 
         orders.forEach(o => {
-          totalOrders++;
+          totalSessionOrders++;
           const calc = calculateOrderPizzas(o);
           totalFullPizzas += calc.fullPizzas;
           totalPizzaItems += calc.itemsCount;
-          if (o.paymentStatus === 'Paid') paidCount++;
+          const isPaid = String(o.paymentStatus || '').toLowerCase() === 'paid';
+          if (isPaid) paidCount++;
           else pendingCount++;
+
+          const amt = getOrderAmount(o);
+          const pType = normalizePaymentType(o.paymentMethod);
+          if (pType === 'cash') {
+            cashCount++;
+            cashAmount += amt;
+          } else {
+            bankTotalCount++;
+            bankTotalAmount += amt;
+            if (isPaid) {
+              bankPaidCount++;
+              bankPaidAmount += amt;
+            }
+          }
         });
 
         totalFullPizzas = Math.round(totalFullPizzas * 100) / 100;
-        updateOrderStats(totalOrders, totalFullPizzas, pendingCount, paidCount, totalPizzaItems);
+        const currentTotal = bankPaidAmount + cashAmount;
+        const predictedTotal = bankTotalAmount + cashAmount;
+
+        updateOrderStats(totalSessionOrders, totalFullPizzas, pendingCount, paidCount, totalPizzaItems, cashAmount, cashCount, bankPaidAmount, bankPaidCount, bankTotalCount, currentTotal, predictedTotal);
+        recalculateAllIncomeMetrics();
 
         if (filtered.length === 0) {
           container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No matches found for your search.</p>';
@@ -2395,9 +2514,24 @@
             const orderId = this.getAttribute('data-order-id');
             const isChecked = this.checked;
             const newStatus = isChecked ? 'Paid' : 'Pending Payment';
-            const label = this.parentElement.previousElementSibling;
+            const label = this.parentElement.querySelector('.paid-label-text') || this.parentElement.previousElementSibling;
             
-            label.textContent = isChecked ? 'PAID' : 'UNPAID';
+            if (label) label.textContent = isChecked ? 'PAID' : 'UNPAID';
+
+            // Optimistically update cached orders
+            if (Array.isArray(cachedOrders)) {
+              const o = cachedOrders.find(item => String(item.orderId) === String(orderId));
+              if (o) o.paymentStatus = newStatus;
+              try { sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(cachedOrders)); } catch (e) {}
+            }
+            if (Array.isArray(cachedParentOrders)) {
+              const po = cachedParentOrders.find(item => String(item.orderId) === String(orderId));
+              if (po) po.paymentStatus = newStatus;
+              try { sessionStorage.setItem("AO_CACHED_PARENT_ORDERS", JSON.stringify(cachedParentOrders)); } catch (e) {}
+            }
+
+            // Immediately recalculate summary metrics so the bank ticked off total updates instantly!
+            recalculateAllIncomeMetrics();
             
             try {
               const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
@@ -2416,13 +2550,25 @@
               } else {
                 showToast("Error: " + data.message, "error");
                 this.checked = !isChecked; // Revert
-                label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+                if (label) label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+                if (Array.isArray(cachedOrders)) {
+                  const o = cachedOrders.find(item => String(item.orderId) === String(orderId));
+                  if (o) o.paymentStatus = !isChecked ? 'Paid' : 'Pending Payment';
+                  try { sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(cachedOrders)); } catch (e) {}
+                }
+                recalculateAllIncomeMetrics();
               }
             } catch (err) {
               console.warn("Update status note:", err.message || err);
               showToast("Failed to update status.", "error");
               this.checked = !isChecked; // Revert
-              label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+              if (label) label.textContent = !isChecked ? 'PAID' : 'UNPAID';
+              if (Array.isArray(cachedOrders)) {
+                const o = cachedOrders.find(item => String(item.orderId) === String(orderId));
+                if (o) o.paymentStatus = !isChecked ? 'Paid' : 'Pending Payment';
+                try { sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(cachedOrders)); } catch (e) {}
+              }
+              recalculateAllIncomeMetrics();
             }
           });
         });
@@ -2574,18 +2720,38 @@
         }
       }
 
-      function updateParentOrderStats(total, pizzas, pending, paid, revenue) {
+      function updateParentOrderStats(total, pizzas, pending, paid, revenue, cashAmount = 0, cashCount = 0, bankAmount = 0, bankCount = 0, bankTotalCount = 0, currentAmount = 0) {
         const elTotal = document.getElementById('stat-parent-total-orders');
         const elPizzas = document.getElementById('stat-parent-total-pizzas');
         const elPending = document.getElementById('stat-parent-pending');
         const elPaid = document.getElementById('stat-parent-paid');
         const elRevenue = document.getElementById('stat-parent-revenue');
+        const elRevenueCount = document.getElementById('stat-parent-revenue-count');
+        const elCash = document.getElementById('stat-parent-cash');
+        const elCashCount = document.getElementById('stat-parent-cash-count');
+        const elBank = document.getElementById('stat-parent-bank');
+        const elBankCount = document.getElementById('stat-parent-bank-count');
+        const elCurrent = document.getElementById('stat-parent-current');
+        const elCurrentCount = document.getElementById('stat-parent-current-count');
 
         if (elTotal) elTotal.textContent = total;
         if (elPizzas) elPizzas.textContent = pizzas;
         if (elPending) elPending.textContent = pending;
         if (elPaid) elPaid.textContent = paid;
+        if (elCash) elCash.textContent = '£' + Number(cashAmount || 0).toFixed(2);
+        if (elCashCount) elCashCount.textContent = `${cashCount} ${cashCount === 1 ? 'person' : 'people'}`;
+        if (elBank) elBank.textContent = '£' + Number(bankAmount || 0).toFixed(2);
+        if (elBankCount) {
+          if (bankTotalCount > 0) {
+            elBankCount.textContent = `${bankCount} of ${bankTotalCount} ticked off`;
+          } else {
+            elBankCount.textContent = `${bankCount} ticked off`;
+          }
+        }
+        if (elCurrent) elCurrent.textContent = '£' + Number(currentAmount || 0).toFixed(2);
+        if (elCurrentCount) elCurrentCount.textContent = 'Bank + Cash';
         if (elRevenue) elRevenue.textContent = '£' + Number(revenue || 0).toFixed(2);
+        if (elRevenueCount) elRevenueCount.textContent = 'If all pay';
       }
 
       function renderParentOrders(orders) {
@@ -2595,15 +2761,21 @@
         const searchInput = document.getElementById('parent-orders-search-input');
         const searchTerm = (searchInput && searchInput.value || '').toLowerCase();
 
-        let totalOrders = 0;
+        let totalParentOrdersCount = 0;
         let totalPizzas = 0;
         let pendingCount = 0;
         let paidCount = 0;
-        let revenue = 0;
+        let cashCount = 0;
+        let cashAmount = 0;
+        let bankTotalCount = 0;
+        let bankTotalAmount = 0;
+        let bankPaidCount = 0;
+        let bankPaidAmount = 0;
 
         if (!orders || orders.length === 0) {
           container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No parent orders found.</p>';
-          updateParentOrderStats(0, 0, 0, 0, 0);
+          updateParentOrderStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+          recalculateAllIncomeMetrics();
           return;
         }
 
@@ -2620,17 +2792,35 @@
         });
 
         orders.forEach(order => {
-          totalOrders++;
+          totalParentOrdersCount++;
           totalPizzas += (order.items || []).reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
-          if (String(order.paymentStatus || '').toLowerCase() === 'paid') {
+          const orderRev = Number(order.finalTotal || order.total || 0);
+          const isPaid = String(order.paymentStatus || '').toLowerCase() === 'paid';
+          if (isPaid) {
             paidCount++;
-            revenue += Number(order.finalTotal || 0);
           } else {
             pendingCount++;
           }
+
+          const pType = normalizePaymentType(order.paymentMethod);
+          if (pType === 'cash') {
+            cashCount++;
+            cashAmount += orderRev;
+          } else {
+            bankTotalCount++;
+            bankTotalAmount += orderRev;
+            if (isPaid) {
+              bankPaidCount++;
+              bankPaidAmount += orderRev;
+            }
+          }
         });
 
-        updateParentOrderStats(totalOrders, totalPizzas, pendingCount, paidCount, revenue);
+        const currentTotal = bankPaidAmount + cashAmount;
+        const predictedTotal = bankTotalAmount + cashAmount;
+
+        updateParentOrderStats(totalParentOrdersCount, totalPizzas, pendingCount, paidCount, predictedTotal, cashAmount, cashCount, bankPaidAmount, bankPaidCount, bankTotalCount, currentTotal);
+        recalculateAllIncomeMetrics();
 
         if (filtered.length === 0) {
           container.innerHTML = '<p style="color: var(--text-soft); text-align: center; padding: 40px 0;">No parent orders match your current search.</p>';
@@ -2683,9 +2873,73 @@
         container.innerHTML = html;
       }
 
+      window.updateOrderPaymentMethod = async function(button) {
+        const orderId = button.getAttribute('data-order-id');
+        const currentMethod = button.getAttribute('data-current-method');
+        
+        const newMethod = await promptAction({
+          title: 'Update Payment Method',
+          body: `Change payment method for Order #${orderId}? Current: ${currentMethod}`,
+          options: [
+            { label: 'Cash on Collection', value: 'Cash' },
+            { label: 'Bank Transfer', value: 'Bank Transfer' },
+            { label: 'PayPal', value: 'PayPal' }
+          ]
+        });
+        
+        if (!newMethod) return;
+        
+        try {
+          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          const url = new URL(apiUrl);
+          url.searchParams.set('action', 'adminUpdatePaymentMethod');
+          url.searchParams.set('token', currentAdminToken);
+          url.searchParams.set('orderId', orderId);
+          url.searchParams.set('paymentMethod', newMethod);
+
+          const res = await fetch(url.toString());
+          const data = await res.json();
+          if (data.success) {
+            showToast('Payment method updated to ' + newMethod, 'success');
+            // Optimistic update in cache
+            if (cachedOrders) {
+              const o = cachedOrders.find(ord => String(ord.orderId) === String(orderId));
+              if (o) o.paymentMethod = newMethod;
+            }
+            if (cachedParentOrders) {
+              const p = cachedParentOrders.find(ord => String(ord.orderId) === String(orderId));
+              if (p) p.paymentMethod = newMethod;
+            }
+            recalculateAllIncomeMetrics();
+            loadOrdersData(true);
+            loadParentOrdersData(true);
+          } else {
+            showToast(data.message || 'Failed to update payment method.', 'error');
+          }
+        } catch (err) {
+          console.error('Update payment method error:', err);
+          showToast('Failed to update payment method.', 'error');
+        }
+      };
+
       window.updateParentPaymentStatus = async function(button) {
         const orderId = button.getAttribute('data-parent-order-id');
         const nextStatus = button.getAttribute('data-parent-status') === 'Paid' ? 'Pending Payment' : 'Paid';
+
+        // Optimistically update cached parent orders
+        if (Array.isArray(cachedParentOrders)) {
+          const po = cachedParentOrders.find(item => String(item.orderId) === String(orderId));
+          if (po) po.paymentStatus = nextStatus;
+          try { sessionStorage.setItem("AO_CACHED_PARENT_ORDERS", JSON.stringify(cachedParentOrders)); } catch (e) {}
+        }
+        if (Array.isArray(cachedOrders)) {
+          const o = cachedOrders.find(item => String(item.orderId) === String(orderId));
+          if (o) o.paymentStatus = nextStatus;
+          try { sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(cachedOrders)); } catch (e) {}
+        }
+        renderParentOrders(cachedParentOrders);
+        recalculateAllIncomeMetrics();
+
         try {
           const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
           const url = new URL(apiUrl);
@@ -2702,10 +2956,12 @@
             loadParentOrdersData(true);
           } else {
             showToast(data.message || 'Failed to update parent order payment.', 'error');
+            loadParentOrdersData(true);
           }
         } catch (err) {
           console.warn('Parent payment update note:', err.message || err);
           showToast('Failed to update parent order payment.', 'error');
+          loadParentOrdersData(true);
         }
       };
 
@@ -2744,11 +3000,192 @@
         });
       }
 
-      function updateOrderStats(total, pizzas, pending, paid, itemsCount) {
+      function normalizePaymentType(methodStr) {
+        if (!methodStr) return 'bank';
+        const str = String(methodStr).toLowerCase().trim();
+        // Be very inclusive of "cash" as requested by user
+        if (str.indexOf('cash') !== -1 || str === 'cash') return 'cash';
+        if (str.indexOf('paypal') !== -1) return 'paypal';
+        return 'bank';
+      }
+
+      function getOrderAmount(order) {
+        if (!order) return 0;
+        if (order.totalAfterDiscount !== undefined && order.totalAfterDiscount !== null && !isNaN(order.totalAfterDiscount)) {
+          return Number(order.totalAfterDiscount);
+        }
+        if (order.finalTotal !== undefined && order.finalTotal !== null && !isNaN(order.finalTotal)) {
+          return Number(order.finalTotal);
+        }
+        if (order.total !== undefined && order.total !== null && !isNaN(order.total)) {
+          return Number(order.total);
+        }
+        return 0;
+      }
+
+      function updateIncomeMetricBoxes(statsData) {
+        if (!statsData) return;
+        const metricCashIncomeEl = document.getElementById("metric-cash-income");
+        const metricCashHintEl = document.getElementById("metric-cash-hint");
+        const metricBankIncomeEl = document.getElementById("metric-bank-income");
+        const metricBankHintEl = document.getElementById("metric-bank-hint");
+        const metricTotalIncomeEl = document.getElementById("metric-total-income");
+        const metricIncomeHintEl = document.getElementById("metric-income-hint");
+        const metricCurrentIncomeEl = document.getElementById("metric-current-income");
+        const metricCurrentHintEl = document.getElementById("metric-current-hint");
+
+        const cashTotal = Number(statsData.cashTotal || 0);
+        const cashCount = Number(statsData.cashCount || 0);
+
+        const bankPaidTotal = Number(statsData.bankPaidTotal !== undefined ? statsData.bankPaidTotal : (statsData.bankTotal || 0));
+        const bankPaidCount = Number(statsData.bankPaidCount !== undefined ? statsData.bankPaidCount : (statsData.bankCount || 0));
+        const bankTotalCount = Number(statsData.bankTotalCount !== undefined ? statsData.bankTotalCount : bankPaidCount);
+
+        const predictedTotal = statsData.predictedTotal !== undefined ? Number(statsData.predictedTotal) : Number(statsData.totalIncome || 0);
+        const metricTotalOrdersCount = statsData.totalOrders !== undefined ? Number(statsData.totalOrders) : (cashCount + bankTotalCount);
+
+        const currentTotal = statsData.currentTotal !== undefined ? Number(statsData.currentTotal) : (bankPaidTotal + cashTotal);
+
+        if (metricCashIncomeEl) {
+          metricCashIncomeEl.textContent = "£" + cashTotal.toFixed(2);
+        }
+        if (metricCashHintEl) {
+          metricCashHintEl.textContent = `${cashCount} ${cashCount === 1 ? 'person paying cash' : 'people paying cash'}`;
+        }
+
+        if (metricBankIncomeEl) {
+          metricBankIncomeEl.textContent = "£" + bankPaidTotal.toFixed(2);
+        }
+        if (metricBankHintEl) {
+          if (bankTotalCount > 0) {
+            metricBankHintEl.textContent = `${bankPaidCount} of ${bankTotalCount} orders ticked off as paid`;
+          } else {
+            metricBankHintEl.textContent = `${bankPaidCount} orders ticked off as paid`;
+          }
+        }
+
+        if (metricTotalIncomeEl) {
+          metricTotalIncomeEl.textContent = "£" + predictedTotal.toFixed(2);
+        }
+        if (metricIncomeHintEl) {
+          metricIncomeHintEl.textContent = `If everyone pays (${metricTotalOrdersCount} ${metricTotalOrdersCount === 1 ? 'order' : 'orders'})`;
+        }
+
+        if (metricCurrentIncomeEl) {
+          metricCurrentIncomeEl.textContent = "£" + currentTotal.toFixed(2);
+        }
+        if (metricCurrentHintEl) {
+          metricCurrentHintEl.textContent = `Bank ticked off + cash combined`;
+        }
+      }
+
+      function recalculateAllIncomeMetrics() {
+        let cashCount = 0;
+        let cashAmount = 0;
+        let cashPaidCount = 0;
+        let cashPaidAmount = 0;
+
+        let bankTotalCount = 0;
+        let bankTotalAmount = 0;
+        let bankPaidCount = 0;
+        let bankPaidAmount = 0;
+
+        let totalCount = 0;
+
+        function processList(list) {
+          if (!list || !Array.isArray(list)) return;
+          list.forEach(o => {
+            const status = String(o.paymentStatus || '').toLowerCase();
+            if (status === 'cancelled' || status === 'canceled' || status === 'refunded' || status === 'void') return;
+
+            totalCount++;
+            const amt = getOrderAmount(o);
+            const pType = normalizePaymentType(o.paymentMethod);
+            const isPaid = (status === 'paid');
+
+            if (pType === 'cash') {
+              cashCount++;
+              cashAmount += amt;
+              if (isPaid) {
+                cashPaidCount++;
+                cashPaidAmount += amt;
+              }
+            } else {
+              bankTotalCount++;
+              bankTotalAmount += amt;
+              if (isPaid) {
+                bankPaidCount++;
+                bankPaidAmount += amt;
+              }
+            }
+          });
+        }
+
+        if (Array.isArray(cachedOrders) && cachedOrders.length > 0) {
+          processList(cachedOrders);
+          if (Array.isArray(cachedParentOrders) && cachedParentOrders.length > 0) {
+            const hasCombined = cachedOrders.some(o => o.source === 'parent' || String(o.orderId).startsWith('PAR-'));
+            if (!hasCombined) {
+              processList(cachedParentOrders);
+            }
+          }
+        } else if (Array.isArray(cachedParentOrders) && cachedParentOrders.length > 0) {
+          processList(cachedParentOrders);
+        }
+
+        if (totalCount > 0) {
+          const predictedTotal = Math.round((cashAmount + bankTotalAmount) * 100) / 100;
+          const currentTotal = Math.round((bankPaidAmount + cashAmount) * 100) / 100;
+
+          updateIncomeMetricBoxes({
+            cashTotal: Math.round(cashAmount * 100) / 100,
+            cashCount: cashCount,
+            bankPaidTotal: Math.round(bankPaidAmount * 100) / 100,
+            bankPaidCount: bankPaidCount,
+            bankTotalCount: bankTotalCount,
+            bankTotalAmount: Math.round(bankTotalAmount * 100) / 100,
+            predictedTotal: predictedTotal,
+            totalOrders: totalCount,
+            currentTotal: currentTotal
+          });
+        } else if (cachedStats) {
+          const cIncome = Number(cachedStats.currentCashIncome || 0);
+          const cOrders = Number(cachedStats.currentCashOrders || 0);
+          const bTotalIncome = Number(cachedStats.currentBankIncome !== undefined ? cachedStats.currentBankIncome : 0);
+          const bTotalOrders = Number(cachedStats.currentBankOrders !== undefined ? cachedStats.currentBankOrders : 0);
+          const bPaidIncome = Number(cachedStats.currentBankPaidIncome !== undefined ? cachedStats.currentBankPaidIncome : 0);
+          const bPaidOrders = Number(cachedStats.currentBankPaidOrders !== undefined ? cachedStats.currentBankPaidOrders : 0);
+          const tIncome = Number(cachedStats.currentTotalIncome || (cIncome + bTotalIncome));
+          const tOrders = Number(cachedStats.currentTotalOrders || cachedStats.currentOrders || (cOrders + bTotalOrders));
+          const curIncome = Number(cachedStats.currentActualIncome !== undefined ? cachedStats.currentActualIncome : (bPaidIncome + cIncome));
+
+          updateIncomeMetricBoxes({
+            cashTotal: cIncome,
+            cashCount: cOrders,
+            bankPaidTotal: bPaidIncome,
+            bankPaidCount: bPaidOrders,
+            bankTotalCount: bTotalOrders,
+            bankTotalAmount: bTotalIncome,
+            predictedTotal: tIncome,
+            totalOrders: tOrders,
+            currentTotal: curIncome
+          });
+        }
+      }
+
+      function updateOrderStats(total, pizzas, pending, paid, itemsCount, cashAmount = 0, cashCount = 0, bankAmount = 0, bankCount = 0, bankTotalCount = 0, currentAmount = 0, predictedTotal = 0) {
         const elTotal = document.getElementById('stat-total-orders');
         const elPizzas = document.getElementById('stat-total-pizzas');
         const elPending = document.getElementById('stat-pending-payment');
         const elPaid = document.getElementById('stat-paid-payment');
+        const elCash = document.getElementById('stat-lunch-cash');
+        const elCashCount = document.getElementById('stat-lunch-cash-count');
+        const elBank = document.getElementById('stat-lunch-bank');
+        const elBankCount = document.getElementById('stat-lunch-bank-count');
+        const elLunchCurrent = document.getElementById('stat-lunch-current');
+        const elLunchCurrentCount = document.getElementById('stat-lunch-current-count');
+        const elLunchTotal = document.getElementById('stat-lunch-total');
+        const elLunchTotalCount = document.getElementById('stat-lunch-total-count');
         
         if (elTotal) elTotal.textContent = total;
         if (elPizzas) {
@@ -2761,6 +3198,20 @@
         }
         if (elPending) elPending.textContent = pending;
         if (elPaid) elPaid.textContent = paid;
+        if (elCash) elCash.textContent = '£' + Number(cashAmount || 0).toFixed(2);
+        if (elCashCount) elCashCount.textContent = `${cashCount} ${cashCount === 1 ? 'person' : 'people'}`;
+        if (elBank) elBank.textContent = '£' + Number(bankAmount || 0).toFixed(2);
+        if (elBankCount) {
+          if (bankTotalCount > 0) {
+            elBankCount.textContent = `${bankCount} of ${bankTotalCount} ticked off`;
+          } else {
+            elBankCount.textContent = `${bankCount} ticked off`;
+          }
+        }
+        if (elLunchCurrent) elLunchCurrent.textContent = '£' + Number(currentAmount || 0).toFixed(2);
+        if (elLunchCurrentCount) elLunchCurrentCount.textContent = 'Bank + Cash';
+        if (elLunchTotal) elLunchTotal.textContent = '£' + Number(predictedTotal !== undefined ? predictedTotal : ((cashAmount || 0) + (bankAmount || 0))).toFixed(2);
+        if (elLunchTotalCount) elLunchTotalCount.textContent = 'If all pay';
       }
       async function loadDashboardData(silent = false) {
         if (!currentAdminToken) {
@@ -2773,8 +3224,11 @@
           const cachedSet = sessionStorage.getItem("AO_CACHED_SETTINGS");
           const cachedSt = sessionStorage.getItem("AO_CACHED_STATS");
           const cachedLg = sessionStorage.getItem("AO_CACHED_LOGS");
+          if (cachedSt) {
+            try { cachedStats = JSON.parse(cachedSt); } catch (e) {}
+          }
           if (cachedSet) {
-            renderDashboard(JSON.parse(cachedSet), cachedSt ? JSON.parse(cachedSt) : null, cachedLg ? JSON.parse(cachedLg) : []);
+            renderDashboard(JSON.parse(cachedSet), cachedStats, cachedLg ? JSON.parse(cachedLg) : []);
             showDashboardView();
           }
         } catch (e) {}
@@ -2796,7 +3250,8 @@
           // Concurrently fetch settings and orders for 2x faster performance
           const [settingsRes] = await Promise.all([
             fetch(url.toString(), { method: "GET", mode: "cors" }),
-            loadOrdersData(true)
+            loadOrdersData(true),
+            loadParentOrdersData(true)
           ]);
 
           if (!settingsRes.ok) throw new Error("HTTP error " + settingsRes.status);
@@ -2809,6 +3264,7 @@
 
           if (data.success && data.settings) {
             cachedSettings = data.settings;
+            if (data.stats) cachedStats = data.stats;
             sessionStorage.setItem("AO_CACHED_SETTINGS", JSON.stringify(data.settings));
             if (data.stats) sessionStorage.setItem("AO_CACHED_STATS", JSON.stringify(data.stats));
             if (data.logs) sessionStorage.setItem("AO_CACHED_LOGS", JSON.stringify(data.logs));
@@ -2875,15 +3331,32 @@
           metricOrdersCount.textContent = stats.currentOrders + " orders";
           if (metricTotalHint) metricTotalHint.textContent = "Historical total: " + (stats.totalHistoricalOrders || stats.currentOrders) + " orders";
         }
-        if (metricCashIncome && stats) {
-          metricCashIncome.textContent = "£" + (stats.currentCashIncome || 0).toFixed(2);
-          const incomeHint = document.getElementById("metric-income-hint");
-          if (incomeHint) {
-             const expectedBank = (stats.currentTotalIncome || 0) - (stats.currentCashIncome || 0);
-             incomeHint.textContent = "Cash: £" + (stats.currentCashIncome || 0).toFixed(2) + " | Bank: £" + expectedBank.toFixed(2);
-             metricCashIncome.textContent = "£" + (stats.currentTotalIncome || 0).toFixed(2);
-          }
+        if (stats) {
+          cachedStats = stats;
+          const cashIncome = Number(stats.currentCashIncome || 0);
+          const totalIncome = Number(stats.currentTotalIncome || 0);
+          const bankTotalIncome = Number(stats.currentBankIncome !== undefined ? stats.currentBankIncome : Math.max(0, totalIncome - cashIncome));
+          const cashOrders = Number(stats.currentCashOrders || 0);
+          const bankOrders = Number(stats.currentBankOrders || 0);
+          const dashTotalOrdersCount = Number(stats.currentTotalOrders || stats.currentOrders || (cashOrders + bankOrders));
+
+          const bankPaidIncome = Number(stats.currentBankPaidIncome !== undefined ? stats.currentBankPaidIncome : 0);
+          const bankPaidOrders = Number(stats.currentBankPaidOrders !== undefined ? stats.currentBankPaidOrders : 0);
+          const currentIncome = Number(stats.currentActualIncome !== undefined ? stats.currentActualIncome : (bankPaidIncome + cashIncome));
+
+          updateIncomeMetricBoxes({
+            cashTotal: cashIncome,
+            cashCount: cashOrders,
+            bankPaidTotal: bankPaidIncome,
+            bankPaidCount: bankPaidOrders,
+            bankTotalCount: bankOrders,
+            bankTotalAmount: bankTotalIncome,
+            predictedTotal: totalIncome,
+            totalOrders: dashTotalOrdersCount,
+            currentTotal: currentIncome
+          });
         }
+        recalculateAllIncomeMetrics();
 
         // Populate Order Settings Form
         document.getElementById("setting-max-pizzas").value = maxPizzas;

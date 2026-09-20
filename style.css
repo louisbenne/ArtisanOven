@@ -2256,6 +2256,38 @@ button:focus-visible,
   font-weight: 700;
   color: var(--forest);
 }
+.order-summary-stat .stat-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.payment-method-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.payment-method-flag.flag-cash {
+  background-color: #fff2ed;
+  color: var(--terracotta-deep, #b54728);
+  border: 1.5px solid rgba(198, 93, 59, 0.4);
+}
+
+.payment-method-flag.flag-digital {
+  background-color: #edf7ee;
+  color: #1e6624;
+  border: 1.5px solid rgba(30, 102, 36, 0.4);
+}
 
 .orders-search-bar {
   margin-bottom: 24px;

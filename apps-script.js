@@ -1051,6 +1051,7 @@ function doGet(e) {
           totalCapacity: normalizePizzaCapacity(capacity),
           itemCount: pizzaItems.length,
           paymentStatus: parentOrder.paymentStatus || 'Pending Payment',
+          paymentMethod: parentOrder.paymentMethod || 'Bank Transfer',
           source: 'parent'
         });
       });
@@ -1592,6 +1593,70 @@ function doGet(e) {
       logAdminAction('Payment Updated', 'Order #' + orderId + ' set to ' + status);
       
       return createJsonResponse({ success: true, message: 'Order #' + orderId + ' status updated to ' + status });
+    }
+
+    // 8b. ADMIN: UPDATE PAYMENT METHOD (ROOTED IN PIZZA ORDER UPDATE SHEET)
+    if (action === 'adminUpdatePaymentMethod' || actionLower === 'adminupdatepaymentmethod') {
+      var token = safeTrim(params.token || '');
+      if (!verifyAdminToken(token)) {
+        return createJsonResponse({
+          success: false,
+          unauthorized: true,
+          message: 'Access denied. Incorrect password.'
+        });
+      }
+
+      var orderId = safeTrim(params.orderId || '');
+      var method = safeTrim(params.paymentMethod || params.method || '');
+      if (!orderId || !method) {
+        return createJsonResponse({ success: false, message: 'Order ID and Payment Method are required.' });
+      }
+
+      var normalizedMethod = mapPaymentMethod(method);
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      // 1. Update in Pizza Order Update sheet if present
+      try {
+        var updateSheet = ss.getSheetByName('Pizza Order Update');
+        if (updateSheet) {
+          var uData = updateSheet.getDataRange().getValues();
+          var idIdx = -1;
+          var methodIdx = -1;
+          if (uData.length > 0) {
+            var uHeaders = uData[0];
+            for (var h = 0; h < uHeaders.length; h++) {
+              var ut = String(uHeaders[h]).toLowerCase();
+              if (ut === 'order id') idIdx = h;
+              if (ut === 'payment method') methodIdx = h;
+            }
+          }
+          if (idIdx !== -1 && methodIdx !== -1) {
+            var found = false;
+            for (var i = 1; i < uData.length; i++) {
+              if (String(uData[i][idIdx]) === orderId) {
+                updateSheet.getRange(i + 1, methodIdx + 1).setValue(normalizedMethod);
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              // Append new override row
+              var newRow = [];
+              for (var c = 0; c < uHeaders.length; c++) {
+                if (c === idIdx) newRow.push(orderId);
+                else if (c === methodIdx) newRow.push(normalizedMethod);
+                else newRow.push('');
+              }
+              updateSheet.appendRow(newRow);
+            }
+          }
+        }
+      } catch (e) {
+        Logger.log('adminUpdatePaymentMethod update sheet sync error: ' + e);
+      }
+
+      logAdminAction('Payment Method Updated', 'Order #' + orderId + ' method set to ' + normalizedMethod);
+      return createJsonResponse({ success: true, message: 'Order #' + orderId + ' payment method updated to ' + normalizedMethod });
     }
 
     // 9. ADMIN: DELETE ORDER
@@ -2429,6 +2494,52 @@ function calculateCurrentSessionStats(settings) {
     var totalHistoricalOrders = 0;
     var totalHistoricalPizzas = 0;
     var totalHistoricalPizzaSelections = 0;
+    
+    var currentCashIncome = 0;
+    var currentCashOrders = 0;
+    var currentCashPaidIncome = 0;
+    var currentCashPaidOrders = 0;
+
+    var currentBankIncome = 0;
+    var currentBankOrders = 0;
+    var currentBankPaidIncome = 0;
+    var currentBankPaidOrders = 0;
+
+    var currentTotalIncome = 0;
+    var headers = data.length > 0 ? data[0] : [];
+
+    // Optional: Load overrides from Pizza Order Update sheet
+    var methodOverrides = {};
+    try {
+      var updateSheet = ss.getSheetByName('Pizza Order Update');
+      if (updateSheet) {
+        var uData = updateSheet.getDataRange().getValues();
+        if (uData.length > 1) {
+          var uHeaders = uData[0];
+          var idCol = -1, methodCol = -1;
+          for (var h = 0; h < uHeaders.length; h++) {
+            var ut = String(uHeaders[h] || '').toLowerCase().trim();
+            if (ut === 'order id' || ut === 'id') idCol = h;
+            if (ut === 'payment method' || ut === 'method') methodCol = h;
+          }
+          if (idCol !== -1 && methodCol !== -1) {
+            for (var i = 1; i < uData.length; i++) {
+              var rawId = uData[i][idCol];
+              var mth = String(uData[i][methodCol] || '').trim();
+              if (rawId !== '' && mth !== '') {
+                var oid = String(rawId).trim();
+                methodOverrides[oid] = mth;
+                // Add integer version to handle numeric cell formatting (e.g. 123.0)
+                var pId = parseInt(oid, 10);
+                if (!isNaN(pId)) methodOverrides[String(pId)] = mth;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      Logger.log('Stats override note: ' + e);
+    }
 
     for (var r = 1; r < data.length; r++) {
       var row = data[r];
@@ -2444,8 +2555,87 @@ function calculateCurrentSessionStats(settings) {
 
       if (r >= startRow) {
         totalPizzas += stats.pizzaCapacity;
-        if (stats.pizzaSelections > 0) totalOrders++;
+        if (stats.pizzaSelections > 0) {
+          totalOrders++;
+          
+          var paymentMethod = methodOverrides[String(r)] || detectPaymentMethodFromRow(row, headers);
+          var manualPaymentStatus = safeTrim(row[PAYMENT_STATUS_COL]);
+          var isPaid = resolvePaymentStatus(row, headers, manualPaymentStatus) === 'Paid';
+          
+          var qtyDigit = extractDigit(safeTrim(row[3])) || '0';
+          var blocks = BRANCHES[qtyDigit] || [];
+          var orderTotal = 0;
+          for (var b = 0; b < blocks.length; b++) {
+            var cols = blocks[b];
+            var sizeRaw = safeTrim(row[cols[0]]);
+            var childName = safeTrim(row[cols[1]]);
+            if (sizeRaw || childName) {
+              var size = mapSize(sizeRaw);
+              var price = PRICE_MAP[size] || 0;
+              orderTotal += price;
+            }
+          }
+          
+          var discountInfo = getOrderDiscountInfo(row, headers, orderTotal);
+          var totalAfterDiscount = discountInfo && discountInfo.totalAfterDiscount !== undefined ? discountInfo.totalAfterDiscount : orderTotal;
+          
+          currentTotalIncome += totalAfterDiscount;
+          if (String(paymentMethod).toLowerCase().indexOf('cash') !== -1) {
+            currentCashIncome += totalAfterDiscount;
+            currentCashOrders++;
+            if (isPaid) {
+              currentCashPaidIncome += totalAfterDiscount;
+              currentCashPaidOrders++;
+            }
+          } else {
+            currentBankIncome += totalAfterDiscount;
+            currentBankOrders++;
+            if (isPaid) {
+              currentBankPaidIncome += totalAfterDiscount;
+              currentBankPaidOrders++;
+            }
+          }
+        }
       }
+    }
+
+    // Also include active Parent Orders in the session stats if the sheet exists
+    try {
+      var parentSheet = ss.getSheetByName('Internal Parent Orders');
+      if (parentSheet && parentSheet.getLastRow() >= 2) {
+        var parentRows = parentSheet.getDataRange().getValues();
+        for (var p = 1; p < parentRows.length; p++) {
+          var pRow = parentRows[p];
+          if (!pRow || rowIsBlank(pRow)) continue;
+          if (safeTrim(String(pRow[16] || '')).toUpperCase() === 'TRUE') continue; // deleted
+          
+          var pTotal = parseFloat(pRow[9]) || 0;
+          var pMethod = mapPaymentMethod(pRow[10]);
+          var pStatus = safeTrim(String(pRow[11] || '')).toLowerCase();
+          if (/^(failed|declined|rejected|cancelled|canceled|refunded|void)$/.test(pStatus)) continue;
+          var pIsPaid = (pStatus === 'paid');
+          
+          currentTotalIncome += pTotal;
+          totalOrders++;
+          if (String(pMethod).toLowerCase().indexOf('cash') !== -1) {
+            currentCashIncome += pTotal;
+            currentCashOrders++;
+            if (pIsPaid) {
+              currentCashPaidIncome += pTotal;
+              currentCashPaidOrders++;
+            }
+          } else {
+            currentBankIncome += pTotal;
+            currentBankOrders++;
+            if (pIsPaid) {
+              currentBankPaidIncome += pTotal;
+              currentBankPaidOrders++;
+            }
+          }
+        }
+      }
+    } catch (parentErr) {
+      Logger.log('Parent orders stats note: ' + parentErr);
     }
 
     totalPizzas = normalizePizzaCapacity(totalPizzas);
@@ -2456,12 +2646,27 @@ function calculateCurrentSessionStats(settings) {
     var isPastDeadline = isPastAutoClosingDeadline(settings);
     var isOpen = (settings.orderingEnabled === true) && !isPastDeadline && (remaining > 0);
 
+    var currentActualIncome = currentBankPaidIncome + currentCashIncome;
+    var currentActualOrders = currentBankPaidOrders + currentCashOrders;
+
     return {
       success: true,
       currentPizzas: totalPizzas,
       maxPizzas: maxLimit,
       remainingPizzas: remaining,
       currentOrders: totalOrders,
+      currentCashIncome: Math.round(currentCashIncome * 100) / 100,
+      currentCashOrders: currentCashOrders,
+      currentCashPaidIncome: Math.round(currentCashPaidIncome * 100) / 100,
+      currentCashPaidOrders: currentCashPaidOrders,
+      currentBankIncome: Math.round(currentBankIncome * 100) / 100,
+      currentBankOrders: currentBankOrders,
+      currentBankPaidIncome: Math.round(currentBankPaidIncome * 100) / 100,
+      currentBankPaidOrders: currentBankPaidOrders,
+      currentTotalIncome: Math.round(currentTotalIncome * 100) / 100,
+      currentTotalOrders: totalOrders,
+      currentActualIncome: Math.round(currentActualIncome * 100) / 100,
+      currentActualOrders: currentActualOrders,
       orderingOpen: isOpen,
       orderingEnabled: (settings.orderingEnabled === true),
       isPastDeadline: isPastDeadline,
@@ -2477,6 +2682,11 @@ function calculateCurrentSessionStats(settings) {
       maxPizzas: 20,
       remainingPizzas: 20,
       currentOrders: 0,
+      currentCashIncome: 0,
+      currentCashOrders: 0,
+      currentBankIncome: 0,
+      currentBankOrders: 0,
+      currentTotalIncome: 0,
       orderingOpen: true
     };
   }
@@ -2762,10 +2972,9 @@ function rebuildCleanSheets() {
     var allergyText = stripHtml(safeTrim(row[2]));
     var qtyRaw = safeTrim(row[3]);
     var qtyDigit = extractDigit(qtyRaw) || '0';
-    var paymentRaw = firstNonEmpty(row[49], row[51]);
     var payerRaw = firstNonEmpty(row[50], row[52]);
 
-    var paymentMethod = mapPaymentMethod(paymentRaw);
+    var paymentMethod = detectPaymentMethodFromRow(row, headers);
     var payerName = safeTrim(payerRaw) || 'Unknown';
     var payerEmail = extractPayerEmail(row);
 
@@ -3480,9 +3689,68 @@ function extractDigit(text) {
 }
 
 function mapPaymentMethod(raw) {
-  if (!raw) return '';
+  if (!raw) return 'Bank Transfer';
   var key = String(raw).trim().replace(/\s+/g, ' ');
-  return PAYMENT_MAP[key] || (key === '' ? '' : key);
+  var lower = key.toLowerCase();
+  if (lower.indexOf('cash') !== -1) return 'Cash';
+  if (lower.indexOf('card') !== -1) return 'Card';
+  if (lower.indexOf('paypal') !== -1) return 'PayPal';
+  if (lower.indexOf('bank') !== -1 || lower.indexOf('transfer') !== -1) return 'Bank Transfer';
+  return PAYMENT_MAP[key] || (key === '' ? 'Bank Transfer' : key);
+}
+
+function detectPaymentMethodFromRow(row, headers) {
+  if (!row || !row.length) return 'Bank Transfer';
+
+  // 1. Look for known payment method headers in spreadsheet
+  if (headers && headers.length) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = String(headers[i] || '').trim().toLowerCase();
+      if (!h) continue;
+      if (h.indexOf('payment method') !== -1 ||
+          h.indexOf('preferred payment') !== -1 ||
+          h.indexOf('method of payment') !== -1 ||
+          h.indexOf('cash or card') !== -1 ||
+          h.indexOf('how will you pay') !== -1 ||
+          h.indexOf('how do you plan to pay') !== -1 ||
+          h.indexOf('payment type') !== -1 ||
+          h.indexOf('payment option') !== -1) {
+        var val = safeTrim(row[i]);
+        if (val) return mapPaymentMethod(val);
+      }
+    }
+  }
+
+  // 2. Scan row values for obvious payment method strings if no header found
+  for (var j = 0; j < row.length; j++) {
+    var cellVal = String(row[j] || '').toLowerCase().trim();
+    if (cellVal === 'cash' || cellVal.indexOf('cash via child') !== -1 || cellVal === 'paypal' || cellVal === 'bank transfer') {
+      return mapPaymentMethod(row[j]);
+    }
+  }
+
+  // 3. Check standard Google Form columns 49 and 51
+  var paymentRaw = firstNonEmpty(row[49], row[51]);
+  if (paymentRaw) return mapPaymentMethod(paymentRaw);
+
+  // 3. Fallback: inspect each cell for explicit keywords
+  for (var c = 0; c < row.length; c++) {
+    var cell = String(row[c] || '').trim().toLowerCase();
+    if (cell === 'cash' || cell.indexOf('cash via') !== -1 || cell.indexOf('cash on') !== -1) {
+      return 'Cash';
+    }
+    if (cell === 'card' || cell.indexOf('debit card') !== -1 || cell.indexOf('credit card') !== -1) {
+      return 'Card';
+    }
+    if (cell === 'paypal') {
+      return 'PayPal';
+    }
+    if (cell === 'bank transfer' || cell === 'banktransfer') {
+      return 'Bank Transfer';
+    }
+  }
+
+  return 'Bank Transfer';
 }
 
 function customerReportedPaid(row, headers) {
@@ -3717,6 +3985,39 @@ function getAllOrdersForAdmin() {
 
   var allOrders = [];
 
+  // Optional: Load overrides from Pizza Order Update sheet
+  var methodOverrides = {};
+  try {
+    var updateSheet = ss.getSheetByName('Pizza Order Update');
+    if (updateSheet) {
+      var uData = updateSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0];
+        var idCol = -1, methodCol = -1;
+        for (var h = 0; h < uHeaders.length; h++) {
+          var ut = String(uHeaders[h] || '').toLowerCase().trim();
+          if (ut === 'order id' || ut === 'id') idCol = h;
+          if (ut === 'payment method' || ut === 'method') methodCol = h;
+        }
+        if (idCol !== -1 && methodCol !== -1) {
+          for (var i = 1; i < uData.length; i++) {
+            var rawId = uData[i][idCol];
+            var mth = String(uData[i][methodCol] || '').trim();
+            if (rawId !== '' && mth !== '') {
+              var oid = String(rawId).trim();
+              methodOverrides[oid] = mth;
+              // Add integer version to handle numeric cell formatting (e.g. 123.0)
+              var pId = parseInt(oid, 10);
+              if (!isNaN(pId)) methodOverrides[String(pId)] = mth;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    Logger.log('Order list override note: ' + e);
+  }
+
   // Read from the bottom to get newest orders first. Limit to 250 orders for performance.
   var start = data.length - 1;
   var end = Math.max(1, data.length - 250);
@@ -3733,9 +4034,8 @@ function getAllOrdersForAdmin() {
     
     var qtyRaw = safeTrim(row[3]);
     var qtyDigit = extractDigit(qtyRaw) || '0';
-    var paymentRaw = firstNonEmpty(row[49], row[51]);
+    var paymentMethod = methodOverrides[formattedId] || detectPaymentMethodFromRow(row, headers);
     var payerRaw = firstNonEmpty(row[50], row[52]);
-    var paymentMethod = mapPaymentMethod(paymentRaw);
     var payerName = safeTrim(payerRaw) || 'Valued Customer';
     var payerEmail = extractPayerEmail(row);
     var allergyYN = safeTrim(row[1]);
@@ -3793,7 +4093,8 @@ function getAllOrdersForAdmin() {
         pizzaCount: normalizePizzaCapacity(orderCapacity),
         totalCapacity: normalizePizzaCapacity(orderCapacity),
         itemCount: pizzas.length,
-        paymentStatus: resolvePaymentStatus(row, headers, manualPaymentStatus)
+        paymentStatus: resolvePaymentStatus(row, headers, manualPaymentStatus),
+        paymentMethod: paymentMethod
       });
     }
   }
