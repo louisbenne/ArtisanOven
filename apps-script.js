@@ -2940,6 +2940,15 @@ function rebuildCleanSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
 
+  ensureDiscountCodeSheet();
+  ensureDiscountColumns(raw);
+  var lastRawRow = raw.getLastRow();
+  for (var rIdx = 2; rIdx <= lastRawRow; rIdx++) {
+    try {
+      applyDiscountToResponseRow(raw, rIdx);
+    } catch (e) {}
+  }
+
   var sheet = ss.getSheetByName('Pizza Order Update');
   if (sheet) {
     sheet.clear();
