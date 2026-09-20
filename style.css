@@ -54,10 +54,15 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100vw;
   background: var(--cream);
   color: var(--text);
   font-family: var(--font-body);
@@ -2686,17 +2691,19 @@ button:focus-visible,
   bottom: 0;
   left: 0;
   right: 0;
-  height: 60px;
-  background: rgba(247, 243, 236, 0.94);
+  height: 56px;
+  background: rgba(247, 243, 236, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 0.5px solid rgba(31, 58, 46, 0.15);
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  padding-bottom: env(safe-area-inset-bottom);
+  justify-content: space-evenly;
+  padding: 0 4px calc(env(safe-area-inset-bottom) + 2px);
   z-index: 9999;
   box-shadow: 0 -4px 20px rgba(31, 58, 46, 0.08);
+  width: 100%;
+  max-width: 100vw;
 }
 
 .ios-nav-item {
@@ -2706,21 +2713,24 @@ button:focus-visible,
   justify-content: center;
   text-decoration: none;
   color: var(--text-soft);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  gap: 2px;
+  letter-spacing: 0.01em;
+  gap: 3px;
   flex: 1;
-  height: 100%;
-  transition: color 0.2s ease, transform 0.1s ease;
+  max-width: 75px;
+  height: 48px;
+  border-radius: 8px;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.1s ease;
 }
 
 .ios-nav-item svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
+  flex-shrink: 0;
 }
 
 .ios-nav-item.active {
@@ -2728,7 +2738,8 @@ button:focus-visible,
 }
 
 .ios-nav-item:active {
-  transform: scale(0.92);
+  transform: scale(0.95);
+  background: rgba(31, 58, 46, 0.05);
 }
 
 
