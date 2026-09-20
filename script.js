@@ -23,8 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initOrderEventsBanner();
   // Setup Quick Copy Buttons
   initCopyButtons();
-  // Setup iOS Bottom Navigation Bar & PWA Service Worker
-  initIOSBottomNav();
+  // Setup PWA Service Worker
   initPWAServiceWorker();
 });
 
