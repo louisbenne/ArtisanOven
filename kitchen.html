@@ -12,13 +12,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="AO Progress" />
   <link rel="stylesheet" href="style.css" />
+  <script src="/config.js"></script>
   <style>
     html, body { overscroll-behavior-y: none; }
-    body { background: var(--cream); -webkit-user-select: none; user-select: none; }
+    body { background: var(--cream); -webkit-user-select: auto; user-select: auto; }
+    .kitchen-topbar, .kitchen-controls, .kitchen-item, .kitchen-stats {
+      -webkit-user-select: none;
+      user-select: none;
+    }
     input, textarea, select {
       -webkit-user-select: text !important;
       user-select: text !important;
       -webkit-touch-callout: default !important;
+      touch-action: auto !important;
     }
     .kitchen-shell { max-width: 760px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 18px max(70px, env(safe-area-inset-bottom)); }
     .kitchen-topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
@@ -43,8 +49,8 @@
       -webkit-user-select: text !important;
       user-select: text !important;
       -webkit-touch-callout: default !important;
-      touch-action: manipulation;
-      cursor: text;
+      touch-action: auto !important;
+      cursor: text !important;
       pointer-events: auto !important;
       -webkit-appearance: none;
       appearance: none;
@@ -137,7 +143,7 @@
       <p style="color: var(--text-soft); font-size: 0.92rem; margin-bottom: 16px;">Enter the admin passcode to securely retrieve current week orders from the backend server.</p>
       <form id="kitchen-auth-form" class="kitchen-form">
         <input type="text" name="username" value="admin" autocomplete="username" style="display:none !important;" aria-hidden="true" tabindex="-1" />
-        <input id="kitchen-auth-password" name="password" type="password" placeholder="Admin passcode" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" />
+        <input id="kitchen-auth-password" name="password" type="password" placeholder="Admin passcode" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" />
         <div id="kitchen-auth-error" class="kitchen-error" hidden></div>
         <button id="kitchen-auth-submit" class="kitchen-primary" type="submit" style="margin-top: 8px;">Verify & Import Orders</button>
       </form>

@@ -1503,7 +1503,7 @@ input, textarea, select {
   -webkit-user-select: text !important;
   user-select: text !important;
   -webkit-touch-callout: default !important;
-  touch-action: manipulation;
+  touch-action: auto !important;
   cursor: text;
   pointer-events: auto !important;
   -webkit-appearance: none;

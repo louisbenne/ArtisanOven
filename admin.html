@@ -12,6 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="AO Admin" />
   <link rel="stylesheet" href="style.css" />
+  <script src="/config.js"></script>
   <style>
     /* Order Card Detail Styling */
     .order-card {
@@ -346,8 +347,8 @@
       -webkit-user-select: text !important;
       user-select: text !important;
       -webkit-touch-callout: default !important;
-      touch-action: manipulation;
-      cursor: text;
+      touch-action: auto !important;
+      cursor: text !important;
       pointer-events: auto !important;
       -webkit-appearance: none;
       appearance: none;
@@ -477,7 +478,7 @@
         <div class="tagline">Restricted administrative access for Artisan Oven organisers</div>
 
         <form id="admin-login-form" class="admin-form" novalidate>
-          <label class="form-label" for="admin-password-input">Admin access code</label>
+          <label class="form-label" for="admin-password-input" style="cursor: pointer;">Admin access code</label>
           <!-- Hidden username field for browser password manager & Keychain autofill popup support -->
           <input type="text" name="username" value="admin" autocomplete="username" style="display:none !important;" aria-hidden="true" tabindex="-1" />
           <div class="password-input-wrapper">
@@ -492,7 +493,6 @@
               autocapitalize="none"
               autocorrect="off"
               spellcheck="false"
-              inputmode="text"
               enterkeyhint="go"
             />
             <button type="button" id="btn-toggle-password" class="password-toggle-btn" aria-label="Toggle password visibility">
@@ -1788,15 +1788,15 @@
           try { passwordInput.focus(); } catch (err) {}
         });
 
-        // Dedicated tap / touch events for instant keyboard focus on mobile PWA
-        passwordInput.addEventListener('click', function(e) {
-          e.stopPropagation();
-          passwordInput.focus();
-        });
-        passwordInput.addEventListener('touchend', function(e) {
-          e.stopPropagation();
-          passwordInput.focus();
-        }, { passive: true });
+        // Allow wrapper clicks outside the toggle button to focus the password field
+        const passWrapper = passwordInput.closest('.password-input-wrapper');
+        if (passWrapper) {
+          passWrapper.addEventListener('click', function(e) {
+            if (e.target !== togglePasswordBtn && !togglePasswordBtn.contains(e.target) && document.activeElement !== passwordInput) {
+              passwordInput.focus();
+            }
+          });
+        }
       }
 
       // Initialize session check & pre-warm backend
@@ -3994,7 +3994,9 @@
         if (dashboardSection) dashboardSection.style.display = "none";
         if (headerLogoutBtn) headerLogoutBtn.style.display = "none";
         if (kitchenLink) kitchenLink.style.display = "none";
-        if (passwordInput) {
+        // Only autofocus on desktop pointer/mouse devices to prevent iOS ghost-focus blocking the virtual keyboard
+        const isDesktop = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        if (passwordInput && isDesktop) {
           setTimeout(function() {
             try { passwordInput.focus(); } catch (e) {}
           }, 150);

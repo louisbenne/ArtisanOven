@@ -422,11 +422,10 @@
       }
       $('kitchen-auth-error').hidden = true;
       $('kitchen-auth-modal').hidden = false;
-      if (pwdInput) {
-        pwdInput.focus();
-        setTimeout(() => {
-          pwdInput.focus();
-        }, 80);
+      // Only autofocus on desktop pointer/mouse devices to prevent iOS ghost-focus blocking the virtual keyboard
+      const isDesktop = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (pwdInput && isDesktop) {
+        try { pwdInput.focus(); } catch (e) {}
       }
     }
 
@@ -476,19 +475,14 @@
       if (event.target === $('kitchen-auth-modal')) $('kitchen-auth-modal').hidden = true;
     });
     const pwdInput = $('kitchen-auth-password');
-    if (pwdInput) {
-      pwdInput.addEventListener('click', (e) => {
-        e.stopPropagation();
-        pwdInput.focus();
-      });
-      pwdInput.addEventListener('touchend', (e) => {
-        e.stopPropagation();
-        pwdInput.focus();
-      }, { passive: true });
-    }
     const authPanel = $('kitchen-auth-modal').querySelector('.kitchen-detail-panel');
     if (authPanel) {
-      authPanel.addEventListener('click', (e) => e.stopPropagation());
+      authPanel.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && pwdInput && document.activeElement !== pwdInput) {
+          pwdInput.focus();
+        }
+      });
     }
     $('kitchen-detail-close').addEventListener('click', () => { $('kitchen-detail').hidden = true; });
     $('kitchen-detail').addEventListener('click', (event) => {
