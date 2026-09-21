@@ -91,45 +91,41 @@ function initAvailabilityTracker() {
   }
 
   let isFetching = false;
+  let pollTimer = null;
+
+  function scheduleNextPoll(delayMs) {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = setTimeout(() => {
+      fetchStatus();
+    }, delayMs);
+  }
 
   async function fetchStatus(force = false) {
     if (isFetching) return;
-    try {
-      // Client-side cache: if we fetched successfully in the last 15 seconds, reuse unless forced
-      const cachedStatus = sessionStorage.getItem('STATUS_CACHE_DATA');
-      const cachedTime = sessionStorage.getItem('STATUS_CACHE_TIME');
-      if (!force && cachedStatus && cachedTime && (Date.now() - parseInt(cachedTime, 10) < 15000)) {
-        try {
-          updateTrackerUI(JSON.parse(cachedStatus));
-          return;
-        } catch (e) {}
-      }
 
-      const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
-      if (!apiUrl || apiUrl.indexOf('http') !== 0 || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
-        fallbackToOpen();
-        return;
-      }
+    const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+    const statusApiUrl = (typeof window.STATUS_API_URL !== 'undefined') ? window.STATUS_API_URL : "";
 
-      isFetching = true;
-      const url = new URL(apiUrl);
-      url.searchParams.set("action", "getStatus");
-      url.searchParams.set("_t", Date.now().toString()); // Cache busting query parameter
+    if (!statusApiUrl && (!apiUrl || apiUrl.indexOf('http') !== 0 || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE")) {
+      fallbackToOpen();
+      return;
+    }
 
+    isFetching = true;
+    let fetchSucceeded = false;
+
+    // Helper to perform fetch with AbortController timeout
+    const doFetch = async (targetUrl, timeoutMs = 4000) => {
       let controller = null;
       let timeoutId = null;
       if (typeof AbortController !== 'undefined') {
         controller = new AbortController();
         timeoutId = setTimeout(() => {
-          try {
-            controller.abort();
-          } catch (e) {}
-        }, 6000); // Fast 6s timeout to prevent page hanging
+          try { controller.abort(); } catch (e) {}
+        }, timeoutMs);
       }
-
-      let response;
       try {
-        response = await fetch(url.toString(), {
+        return await fetch(targetUrl, {
           method: "GET",
           mode: "cors",
           redirect: "follow",
@@ -138,30 +134,58 @@ function initAvailabilityTracker() {
       } finally {
         if (timeoutId) clearTimeout(timeoutId);
       }
+    };
 
-      if (!response || !response.ok) {
-        fallbackToOpen();
-        return;
+    try {
+      let response = null;
+
+      // 1. Try local status endpoint first if configured (sub-second local cache)
+      if (statusApiUrl) {
+        try {
+          const localUrl = new URL(statusApiUrl, window.location.origin);
+          localUrl.searchParams.set("_t", Date.now().toString());
+          if (force) localUrl.searchParams.set("force", "true");
+          response = await doFetch(localUrl.toString(), 3000);
+        } catch (e) {
+          // Fall back to direct upstream
+        }
       }
 
-      const data = await response.json();
+      // 2. Fall back to upstream Apps Script endpoint if local endpoint not present or failed
+      if ((!response || !response.ok) && apiUrl && apiUrl.indexOf('http') === 0 && apiUrl !== "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+        const url = new URL(apiUrl);
+        url.searchParams.set("action", "getStatus");
+        url.searchParams.set("_t", Date.now().toString());
+        response = await doFetch(url.toString(), 5000);
+      }
 
-      if (data && data.success) {
-        const serialized = JSON.stringify(data);
-        sessionStorage.setItem('STATUS_CACHE_DATA', serialized);
-        sessionStorage.setItem('STATUS_CACHE_TIME', Date.now().toString());
-        try {
-          localStorage.setItem('STATUS_CACHE_DATA', serialized);
-        } catch (e) {}
-        updateTrackerUI(data);
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data && data.success) {
+          fetchSucceeded = true;
+          const serialized = JSON.stringify(data);
+          sessionStorage.setItem('STATUS_CACHE_DATA', serialized);
+          sessionStorage.setItem('STATUS_CACHE_TIME', Date.now().toString());
+          try {
+            localStorage.setItem('STATUS_CACHE_DATA', serialized);
+          } catch (e) {}
+          updateTrackerUI(data);
+        } else {
+          fallbackToOpen();
+        }
       } else {
         fallbackToOpen();
       }
     } catch (err) {
-      // Graceful fallback for network aborts, timeouts, or transient errors without falsely opening
+      // Graceful fallback for network aborts or transient errors
       fallbackToOpen();
     } finally {
       isFetching = false;
+      // Adaptive down-to-the-second polling loop
+      // 1000ms when tab is active and visible; 5000ms when tab is in background; 2500ms on error
+      const isVisible = document.visibilityState === "visible";
+      const nextDelay = !fetchSucceeded ? 2500 : (isVisible ? 1000 : 5000);
+      scheduleNextPoll(nextDelay);
     }
   }
 
@@ -169,19 +193,27 @@ function initAvailabilityTracker() {
     // Dynamic text replacements across the page
     if (data.serviceNoticeDate) {
       const noticeDateEl = document.getElementById("service-notice-date-text");
-      if (noticeDateEl) noticeDateEl.textContent = data.serviceNoticeDate;
+      if (noticeDateEl && noticeDateEl.textContent !== data.serviceNoticeDate) {
+        noticeDateEl.textContent = data.serviceNoticeDate;
+      }
     }
     if (data.serviceTitle) {
       const titleEls = document.querySelectorAll(".tracker-title, #tracker-service-title");
-      titleEls.forEach(el => { el.textContent = data.serviceTitle; });
+      titleEls.forEach(el => {
+        if (el.textContent !== data.serviceTitle) el.textContent = data.serviceTitle;
+      });
     }
     if (data.capacityMessage) {
       const capEls = document.querySelectorAll(".tracker-disclaimer, #tracker-capacity-disclaimer");
-      capEls.forEach(el => { el.textContent = data.capacityMessage; });
+      capEls.forEach(el => {
+        if (el.textContent !== data.capacityMessage) el.textContent = data.capacityMessage;
+      });
     }
     if (data.deadlineMessage) {
       const deadEls = document.querySelectorAll("#tracker-deadline-text");
-      deadEls.forEach(el => { el.innerHTML = data.deadlineMessage; });
+      deadEls.forEach(el => {
+        if (el.innerHTML !== data.deadlineMessage) el.innerHTML = data.deadlineMessage;
+      });
     }
 
     if (trackerEl) {
@@ -193,12 +225,12 @@ function initAvailabilityTracker() {
       const ordersRemaining = document.getElementById("tracker-orders-remaining");
 
       if (data.orderingOpen) {
-        if (statusText) {
+        if (statusText && statusText.textContent !== "Taking Orders") {
           statusText.textContent = "Taking Orders";
           statusText.style.color = "var(--sage)";
         }
       } else {
-        if (statusText) {
+        if (statusText && statusText.textContent !== "Fully Booked") {
           statusText.textContent = "Fully Booked";
           statusText.style.color = "var(--terracotta)";
         }
@@ -218,14 +250,12 @@ function initAvailabilityTracker() {
         const isMaxReached = current >= max || remaining <= 0 || !data.orderingOpen;
 
         if (ordersTaken) {
-          ordersTaken.textContent = formatPizzaAmount(current) + " of " + formatPizzaAmount(max) + " pizzas claimed";
+          const takenText = formatPizzaAmount(current) + " of " + formatPizzaAmount(max) + " pizzas claimed";
+          if (ordersTaken.textContent !== takenText) ordersTaken.textContent = takenText;
         }
         if (ordersRemaining) {
-          if (isMaxReached) {
-            ordersRemaining.textContent = "Fully booked";
-          } else {
-            ordersRemaining.textContent = formatPizzaAmount(Math.max(0, remaining)) + " pizzas remaining";
-          }
+          const remText = isMaxReached ? "Fully booked" : (formatPizzaAmount(Math.max(0, remaining)) + " pizzas remaining");
+          if (ordersRemaining.textContent !== remText) ordersRemaining.textContent = remText;
         }
       }
     }
@@ -235,7 +265,7 @@ function initAvailabilityTracker() {
       orderButtons.forEach(btn => {
         btn.classList.add("btn-disabled");
         const btnText = btn.querySelector('.choice-btn');
-        if (btnText) {
+        if (btnText && btnText.textContent !== "FULLY BOOKED") {
           btnText.textContent = "FULLY BOOKED";
         }
         btn.href = "javascript:void(0)";
@@ -246,7 +276,7 @@ function initAvailabilityTracker() {
       if (closedMessage) {
         closedMessage.style.display = "block";
         const msg = data.closedMessage || data.message;
-        if (msg && closedMessageText) {
+        if (msg && closedMessageText && closedMessageText.textContent !== msg) {
           closedMessageText.textContent = msg;
         }
       }
@@ -267,10 +297,40 @@ function initAvailabilityTracker() {
     }
   }
 
-  // Initial fetch
+  // Real-time visibility and focus triggers for instant status updates
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      fetchStatus(true);
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    fetchStatus(true);
+  });
+
+  // Re-check status immediately on order button click
+  orderButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      fetchStatus(true);
+    });
+  });
+
+  // On order page: when Google Form iframe loads or records a submission, refresh immediately
+  const formIframe = document.querySelector("#order-form-container iframe");
+  if (formIframe) {
+    let iframeLoadCount = 0;
+    formIframe.addEventListener("load", () => {
+      iframeLoadCount++;
+      if (iframeLoadCount > 1) {
+        // Submission completed inside iframe
+        setTimeout(() => fetchStatus(true), 500);
+        setTimeout(() => fetchStatus(true), 2500);
+      }
+    });
+  }
+
+  // Initial fetch triggers the adaptive loop immediately
   fetchStatus();
-  // Poll every 45 seconds
-  setInterval(fetchStatus, 45000);
 }
 
 function initOrderEventsBanner() {
@@ -564,12 +624,13 @@ function initOrderLookup() {
       paypalNcpBtn.href = orderData.paypalNcpUrl;
     }
 
-    // Move methods container into result card
+    // Move methods container into result card if not already there
     const methodsContainer = document.getElementById("payment-methods-container");
     const defaultTear = document.getElementById("default-tear");
     const resultCard = document.querySelector(".order-result-card");
+    const resultSection = document.getElementById("order-result-section");
 
-    if (methodsContainer && resultCard) {
+    if (methodsContainer && resultCard && resultSection) {
       if (defaultTear) defaultTear.style.display = "none";
 
       const methodsPaypalMe = document.getElementById("methods-paypal-me");
@@ -585,11 +646,15 @@ function initOrderLookup() {
 
       methodsContainer.classList.remove("is-merged");
       methodsContainer.style.marginTop = "20px";
-      resultCard.appendChild(methodsContainer);
+      
+      // Only append if it's not already a child of the result card
+      if (methodsContainer.parentNode !== resultCard) {
+        resultCard.appendChild(methodsContainer);
+      }
+      
+      resultSection.hidden = false;
+      resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-
-    resultSection.hidden = false;
-    resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function escapeHtml(str) {

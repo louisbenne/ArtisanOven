@@ -159,6 +159,8 @@
     const accessCodeInput = document.getElementById('parent-access-code');
     if (accessCodeInput) accessCodeInput.value = '';
     setError('');
+    // Populating profile on show to ensure form is ready
+    updateParentProfile();
   }
 
   function showSuccess(data) {

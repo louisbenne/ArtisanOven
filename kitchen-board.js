@@ -186,8 +186,11 @@
     }
 
     function setGateError(message) {
-      $('kitchen-gate-error').textContent = message || '';
-      $('kitchen-gate-error').hidden = !message;
+      const errorEl = $('kitchen-auth-error') || $('kitchen-error');
+      if (errorEl) {
+        errorEl.textContent = message || '';
+        errorEl.hidden = !message;
+      }
     }
 
     function loadSessionState(sessionTitle) {
