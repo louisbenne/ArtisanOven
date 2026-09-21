@@ -6,6 +6,10 @@
   <title>Admin Dashboard — Artisan Oven</title>
   <meta name="description" content="Artisan Oven Operations and Administration Dashboard" />
   <link rel="apple-touch-icon" sizes="180x180" href="admin-assets/admin-apple-touch-icon.png" />
+  <link rel="preconnect" href="https://script.google.com" crossorigin />
+  <link rel="dns-prefetch" href="https://script.google.com" />
+  <link rel="preconnect" href="https://cdn.sheetjs.com" crossorigin />
+  <link rel="preload" href="fonts/BaarSophia.ttf" as="font" type="font/ttf" crossorigin />
   <link rel="manifest" href="admin-manifest.json" />
   <meta name="theme-color" content="#1f3a2e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -4108,18 +4112,30 @@
 
       function startLiveSync() {
         if (syncPollInterval) clearInterval(syncPollInterval);
-        // High-frequency polling (every 3 seconds) for "instant" updates as requested
+        // Ultra-high frequency polling (every 2 seconds) for "instant" updates as requested
         syncPollInterval = setInterval(() => {
           if (currentAdminToken && document.visibilityState === 'visible' && !pollInFlight) {
             loadDashboardData(true);
-            // Also refresh event orders if on that tab
-            if (btnTabEvents && btnTabEvents.classList.contains('active')) {
-              if (typeof window.loadEventOrdersData === 'function') {
-                window.loadEventOrdersData('', true);
+            
+            // Selective background sync based on active tab
+            const activeTabId = currentTab;
+            
+            if (activeTabId === 'orders') {
+              loadOrdersData(true);
+            } else if (activeTabId === 'parent-orders') {
+              loadParentOrdersData(true);
+            } else if (activeTabId === 'events') {
+              if (btnTabEvents && btnTabEvents.classList.contains('active')) {
+                const ordersSubTab = document.getElementById('btn-subtab-events-orders');
+                if (ordersSubTab && ordersSubTab.classList.contains('active')) {
+                  if (typeof window.loadEventOrdersData === 'function') {
+                    window.loadEventOrdersData('', true);
+                  }
+                }
               }
             }
           }
-        }, 3000);
+        }, 2000);
       }
 
       function handleSessionExpiry() {

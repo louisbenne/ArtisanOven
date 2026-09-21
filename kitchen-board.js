@@ -344,24 +344,27 @@
       const url = apiUrl();
       if (!url) throw new Error('Backend URL is not configured.');
       
-      // 1. Fetch settings to get session title
+      // Concurrently fetch settings and orders for maximum performance
       const settingsUrl = new URL(url);
       settingsUrl.searchParams.set('action', 'adminGetSettings');
       settingsUrl.searchParams.set('token', token);
-      const settingsRes = await fetch(settingsUrl.toString(), { mode: 'cors' });
-      const settingsData = await settingsRes.json();
-      if (!settingsData.success) throw new Error(settingsData.message || 'Failed to fetch session settings.');
       
-      const sessionTitle = (settingsData.settings && (settingsData.settings.serviceTitle || settingsData.settings.serviceDate)) || 'Current Week Orders';
-
-      // 2. Fetch orders
       const ordersUrl = new URL(url);
       ordersUrl.searchParams.set('action', 'adminGetOrders');
       ordersUrl.searchParams.set('token', token);
-      const ordersRes = await fetch(ordersUrl.toString(), { mode: 'cors' });
+
+      const [settingsRes, ordersRes] = await Promise.all([
+        fetch(settingsUrl.toString(), { mode: 'cors' }),
+        fetch(ordersUrl.toString(), { mode: 'cors' })
+      ]);
+
+      const settingsData = await settingsRes.json();
+      if (!settingsData.success) throw new Error(settingsData.message || 'Failed to fetch session settings.');
+      
       const ordersData = await ordersRes.json();
       if (!ordersData.success) throw new Error(ordersData.message || 'Failed to fetch backend orders.');
-
+      
+      const sessionTitle = (settingsData.settings && (settingsData.settings.serviceTitle || settingsData.settings.serviceDate)) || 'Current Week Orders';
       const rawOrders = ordersData.orders || [];
       const items = [];
 
@@ -523,7 +526,7 @@
     updateTimer();
     timerHandle = window.setInterval(updateTimer, 1000);
 
-    // Background Polling for "Instant" real-time updates (every 3 seconds)
+    // Background Polling for "Instant" real-time updates (every 2 seconds)
     function startPolling() {
       if (syncPollHandle) clearInterval(syncPollHandle);
       syncPollHandle = setInterval(async () => {
@@ -539,7 +542,7 @@
             remoteLoadInFlight = false;
           }
         }
-      }, 3000);
+      }, 2000);
     }
     startPolling();
 
