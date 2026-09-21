@@ -109,8 +109,10 @@ app.use(express.static(__dirname, {
   maxAge: '1h',
   etag: true,
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+    if (filePath.endsWith('.html') || filePath.endsWith('-sw.js') || filePath.endsWith('-manifest.json')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
     } else if (filePath.endsWith('.ttf') || filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
       res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
     } else {

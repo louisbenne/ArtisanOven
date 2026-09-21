@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Order Progress — Artisan Oven</title>
   <meta name="description" content="Offline fulfilment board for Artisan Oven staff." />
   <link rel="manifest" href="kitchen-manifest.json" />
   <link rel="apple-touch-icon" href="kitchen-assets/kitchen-icon.svg" />
   <meta name="theme-color" content="#1f3a2e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="AO Progress" />
   <link rel="stylesheet" href="style.css" />
   <script src="/config.js"></script>
@@ -142,8 +142,7 @@
       <h3 style="color: var(--forest); margin-top: 0; margin-bottom: 8px;">Secure Backend Import</h3>
       <p style="color: var(--text-soft); font-size: 0.92rem; margin-bottom: 16px;">Enter the admin passcode to securely retrieve current week orders from the backend server.</p>
       <form id="kitchen-auth-form" class="kitchen-form">
-        <input type="text" name="username" value="admin" autocomplete="username" style="display:none !important;" aria-hidden="true" tabindex="-1" />
-        <input id="kitchen-auth-password" name="password" type="password" placeholder="Admin passcode" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" />
+        <input id="kitchen-auth-password" name="password" type="password" placeholder="Admin passcode" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" />
         <div id="kitchen-auth-error" class="kitchen-error" hidden></div>
         <button id="kitchen-auth-submit" class="kitchen-primary" type="submit" style="margin-top: 8px;">Verify & Import Orders</button>
       </form>
@@ -154,7 +153,30 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="kitchen-board.js"></script>
   <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./kitchen-sw.js');
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./kitchen-sw.js?v=5', { scope: './', updateViaCache: 'none' })
+          .then(function(reg) {
+            try { reg.update(); } catch (e) {}
+            document.addEventListener('visibilitychange', function() {
+              if (document.visibilityState === 'visible') {
+                try { reg.update(); } catch (e) {}
+              }
+            });
+          })
+          .catch(function(err) {
+            console.error('AO Kitchen PWA registration failed:', err);
+          });
+
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+      });
+    }
   </script>
 </body>
 </html>

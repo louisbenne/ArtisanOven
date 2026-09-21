@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Admin Dashboard — Artisan Oven</title>
   <meta name="description" content="Artisan Oven Operations and Administration Dashboard" />
   <link rel="apple-touch-icon" sizes="180x180" href="admin-assets/admin-apple-touch-icon.png" />
   <link rel="manifest" href="admin-manifest.json" />
   <meta name="theme-color" content="#1f3a2e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="AO Admin" />
   <link rel="stylesheet" href="style.css" />
   <script src="/config.js"></script>
@@ -479,8 +479,6 @@
 
         <form id="admin-login-form" class="admin-form" novalidate>
           <label class="form-label" for="admin-password-input" style="cursor: pointer;">Admin access code</label>
-          <!-- Hidden username field for browser password manager & Keychain autofill popup support -->
-          <input type="text" name="username" value="admin" autocomplete="username" style="display:none !important;" aria-hidden="true" tabindex="-1" />
           <div class="password-input-wrapper">
             <input 
               type="password" 
@@ -489,7 +487,7 @@
               class="admin-input" 
               placeholder="Enter access code"
               required 
-              autocomplete="current-password"
+              autocomplete="off"
               autocapitalize="none"
               autocorrect="off"
               spellcheck="false"
@@ -512,6 +510,10 @@
 
           <div id="login-error-msg" class="access-error admin-error-banner" aria-live="polite" hidden></div>
         </form>
+
+        <div style="font-size: 0.76rem; color: var(--text-soft); margin-top: 20px; text-align: center; border-top: 1px solid rgba(31, 58, 46, 0.08); padding-top: 14px;">
+          AO Admin v4.0 &bull; <button type="button" id="btn-force-reload-app" style="background: none; border: none; padding: 0; color: var(--forest); text-decoration: underline; font: inherit; font-size: inherit; font-weight: 700; cursor: pointer;">Update &amp; reload app</button>
+        </div>
 
         <div class="login-security-note" style="margin-top: 24px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
@@ -1619,10 +1621,26 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function() {
-        navigator.serviceWorker.register("./admin-sw.js", { scope: "./" })
+        navigator.serviceWorker.register("./admin-sw.js?v=4", { scope: "./", updateViaCache: 'none' })
+          .then(function(reg) {
+            try { reg.update(); } catch (e) {}
+            document.addEventListener("visibilitychange", function() {
+              if (document.visibilityState === "visible") {
+                try { reg.update(); } catch (e) {}
+              }
+            });
+          })
           .catch(function(error) {
             console.error("AO Admin PWA registration failed:", error);
           });
+
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function() {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
       });
     }
   </script>
@@ -1795,6 +1813,36 @@
             if (e.target !== togglePasswordBtn && !togglePasswordBtn.contains(e.target) && document.activeElement !== passwordInput) {
               passwordInput.focus();
             }
+          });
+        }
+
+        const passLabel = document.querySelector('label[for="admin-password-input"]');
+        if (passLabel) {
+          passLabel.addEventListener('click', function() {
+            if (passwordInput && document.activeElement !== passwordInput) {
+              passwordInput.focus();
+            }
+          });
+        }
+
+        // Dedicated reset & reload helper for installed iOS PWAs / cached clients
+        const forceReloadBtn = document.getElementById("btn-force-reload-app");
+        if (forceReloadBtn) {
+          forceReloadBtn.addEventListener("click", async function() {
+            forceReloadBtn.textContent = "Updating...";
+            try {
+              if ("caches" in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              }
+              if ("serviceWorker" in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(r => r.unregister()));
+              }
+            } catch (err) {
+              console.warn("Manual PWA cache clear failed:", err);
+            }
+            window.location.href = window.location.pathname + "?reload=" + Date.now();
           });
         }
       }
