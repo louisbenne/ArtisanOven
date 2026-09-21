@@ -94,6 +94,37 @@
     #kitchen-auth-modal .kitchen-detail-panel { border-radius: 20px; max-width: 440px; width: 100%; margin: auto; box-shadow: 0 20px 48px rgba(0,0,0,0.28); transform: translateZ(0); -webkit-user-select: auto; user-select: auto; }
     .kitchen-detail-panel { background: var(--cream); border-radius: 22px 22px 0 0; padding: 26px 20px max(26px, env(safe-area-inset-bottom)); max-width: 760px; width: 100%; margin: 0 auto; -webkit-user-select: auto; user-select: auto; }
     .kitchen-detail-close { float: right; width: 44px; height: 44px; border: 0; background: transparent; color: var(--forest); font-size: 1.8rem; cursor: pointer; }
+    
+    /* Live Sync Indicator */
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      color: var(--forest);
+      font-weight: 800;
+      font-size: 0.72rem;
+      background: rgba(31, 58, 46, 0.08);
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(31, 58, 46, 0.15);
+      margin-right: 8px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .sync-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: #2D5832;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: sync-pulse 2s infinite;
+    }
+    @keyframes sync-pulse {
+      0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(45, 88, 50, 0.4); }
+      70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(45, 88, 50, 0); }
+      100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(45, 88, 50, 0); }
+    }
     .detail-kicker { color: var(--text-soft); font-weight: 700; margin: 0; }
     .detail-size { color: var(--forest); font-size: 1.15rem; }
     .complete-btn { width: 100%; border: 0; border-radius: 14px; padding: 20px; margin: 18px 0; background: var(--terracotta); color: var(--white); font: inherit; font-weight: 800; letter-spacing: .05em; cursor: pointer; }
@@ -112,10 +143,13 @@
     <section id="kitchen-board">
       <header class="kitchen-header">
         <div class="kitchen-topbar">
-          <span class="kitchen-brand">AO PROGRESS</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="sync-status"><span class="sync-dot"></span> LIVE SYNC</span>
+            <span class="kitchen-brand">AO PROGRESS</span>
+          </div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button id="kitchen-fetch-server" class="kitchen-secondary" type="button" style="padding: 10px 16px; font-size: 0.9rem;">Import from server</button>
-            <label id="kitchen-upload-button" class="upload-button" style="margin-bottom: 0; padding: 10px 16px; font-size: 0.9rem;">Upload file<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label>
+            <button id="kitchen-fetch-server" class="kitchen-secondary" type="button" style="padding: 10px 16px; font-size: 0.9rem;">Import</button>
+            <label id="kitchen-upload-button" class="upload-button" style="margin-bottom: 0; padding: 10px 16px; font-size: 0.9rem;">Upload<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label>
           </div>
         </div>
         <div class="kitchen-stats"><button id="kitchen-timer" class="kitchen-timer" type="button">⏱ Set cutoff</button><strong id="kitchen-progress" class="kitchen-progress">0 / 0 pizzas ready</strong></div>

@@ -522,8 +522,30 @@
     render();
     updateTimer();
     timerHandle = window.setInterval(updateTimer, 1000);
+
+    // Background Polling for "Instant" real-time updates (every 3 seconds)
+    function startPolling() {
+      if (syncPollHandle) clearInterval(syncPollHandle);
+      syncPollHandle = setInterval(async () => {
+        const token = getSyncToken();
+        // Only poll if we have a token, are in the board view, and app is visible
+        if (token && !remoteLoadInFlight && document.visibilityState === 'visible' && !$('kitchen-board').hidden) {
+          remoteLoadInFlight = true;
+          try {
+            await fetchServerOrders(token);
+          } catch (err) {
+            console.warn('Background sync failed:', err.message);
+          } finally {
+            remoteLoadInFlight = false;
+          }
+        }
+      }, 3000);
+    }
+    startPolling();
+
     window.addEventListener('beforeunload', () => {
       window.clearInterval(timerHandle);
+      window.clearInterval(syncPollHandle);
     });
   }
 

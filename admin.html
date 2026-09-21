@@ -251,6 +251,36 @@
       color: var(--cream);
       border-color: var(--forest);
     }
+
+    /* Live Sync Indicator */
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      margin-right: 12px;
+      color: var(--forest);
+      font-weight: 700;
+      font-size: 0.8rem;
+      background: rgba(45, 88, 50, 0.08);
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(45, 88, 50, 0.2);
+      white-space: nowrap;
+    }
+    .sync-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: #2D5832;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      animation: sync-pulse 2s infinite;
+    }
+    @keyframes sync-pulse {
+      0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(45, 88, 50, 0.4); }
+      70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 8px rgba(45, 88, 50, 0); }
+      100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(45, 88, 50, 0); }
+    }
     .badge-count {
       background: var(--terracotta);
       color: white;
@@ -532,7 +562,10 @@
         <div class="dashboard-topbar">
           <div>
             <h1 class="dashboard-heading">Operational Control Center</h1>
-            <p class="dashboard-subheading" id="dashboard-last-updated">Connecting to backend...</p>
+            <p class="dashboard-subheading" id="dashboard-last-updated" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <span class="sync-status"><span class="sync-dot"></span> LIVE SYNC</span>
+              <span id="last-updated-text">Connecting to backend...</span>
+            </p>
           </div>
           <div class="dashboard-actions">
             <button type="button" id="btn-open-email-modal" class="admin-primary-btn" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--forest); color: #fff; padding: 9px 18px; font-size: 0.86rem; box-shadow: 0 2px 8px rgba(31,58,46,0.15);" title="Send automated customer or internal team emails">
@@ -1719,6 +1752,8 @@
       let currentAdminToken = localStorage.getItem(STORAGE_KEY_TOKEN) || sessionStorage.getItem(STORAGE_KEY_TOKEN) || "";
       let cachedSettings = null;
       let cachedStats = null;
+      let syncPollInterval = null;
+      let pollInFlight = false;
 
       // Elements
       const loginSection = document.getElementById("login-section");
@@ -3362,8 +3397,13 @@
         } catch (e) {}
 
         const lastUpdatedEl = document.getElementById("dashboard-last-updated");
-        if (lastUpdatedEl && !cachedSettings) lastUpdatedEl.textContent = "Fetching latest settings & orders...";
+        if (lastUpdatedEl && !cachedSettings) {
+          const lastUpdatedText = document.getElementById("last-updated-text");
+          if (lastUpdatedText) lastUpdatedText.textContent = "Fetching latest settings & orders...";
+        }
 
+        if (pollInFlight) return;
+        pollInFlight = true;
         try {
           const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
           if (!apiUrl || apiUrl.indexOf('http') !== 0) {
@@ -3405,16 +3445,19 @@
         } catch (err) {
           console.warn("Dashboard load note:", err.message || err);
           if (!silent) showToast("Connection error fetching dashboard data.", "error");
-          if (lastUpdatedEl) lastUpdatedEl.textContent = "Offline or connection error.";
+          const lastUpdatedText = document.getElementById("last-updated-text");
+          if (lastUpdatedText) lastUpdatedText.textContent = "Offline or connection error.";
+        } finally {
+          pollInFlight = false;
         }
       }
 
       // Render Dashboard fields
       function renderDashboard(settings, stats, logs) {
-        const lastUpdatedEl = document.getElementById("dashboard-last-updated");
-        if (lastUpdatedEl) {
+        const lastUpdatedText = document.getElementById("last-updated-text");
+        if (lastUpdatedText) {
           const now = new Date();
-          lastUpdatedEl.textContent = "Last updated: " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          lastUpdatedText.textContent = "Last updated: " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
 
         // Metrics
@@ -4060,6 +4103,23 @@
           kitchenLink.style.display = "inline-block";
           localStorage.setItem("ao_admin_session_token", currentAdminToken);
         }
+        startLiveSync();
+      }
+
+      function startLiveSync() {
+        if (syncPollInterval) clearInterval(syncPollInterval);
+        // High-frequency polling (every 3 seconds) for "instant" updates as requested
+        syncPollInterval = setInterval(() => {
+          if (currentAdminToken && document.visibilityState === 'visible' && !pollInFlight) {
+            loadDashboardData(true);
+            // Also refresh event orders if on that tab
+            if (btnTabEvents && btnTabEvents.classList.contains('active')) {
+              if (typeof window.loadEventOrdersData === 'function') {
+                window.loadEventOrdersData('', true);
+              }
+            }
+          }
+        }, 3000);
       }
 
       function handleSessionExpiry() {
