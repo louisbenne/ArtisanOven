@@ -218,6 +218,19 @@
       timer.className = `kitchen-timer${seconds < 120 ? ' is-danger' : seconds < 600 ? ' is-warning' : ''}`;
     }
 
+    function renderItemHtml(item) {
+      const done = completed.has(item.pickupId);
+      return `<div class="kitchen-item${done ? ' is-complete' : ''}" data-pickup-id="${encodeURIComponent(item.pickupId)}">
+        <span class="kitchen-item-main" style="flex:1;"><strong>${escapeHtml(item.childName)}</strong><span>${escapeHtml(item.className)} · ${escapeHtml(item.size)}</span></span>
+        <span class="kitchen-item-meta">
+          <span title="${escapeHtml(item.paymentMethod || 'Other')}">${item.paymentIcon}</span>
+          ${item.allergyFlag ? '<span class="allergy-badge" title="Allergy information available">⚠️</span>' : ''}
+          <button class="info-btn" type="button" data-action="info" title="View details">ℹ️</button>
+          <span class="item-check">${done ? '✓' : '○'}</span>
+        </span>
+      </div>`;
+    }
+
     function render() {
       if (!current) {
         $('kitchen-list').innerHTML = '';
@@ -232,14 +245,25 @@
       visible.sort((a, b) => sort === 'class'
         ? ((a.classNumber ?? 99) - (b.classNumber ?? 99)) || a.childName.localeCompare(b.childName)
         : a.pickupId.localeCompare(b.pickupId, undefined, { numeric: true }));
-      list.innerHTML = visible.map((item) => {
-        const done = completed.has(item.pickupId);
-        return `<button class="kitchen-item${done ? ' is-complete' : ''}" data-pickup-id="${encodeURIComponent(item.pickupId)}">
-          <span class="kitchen-item-main"><strong>${escapeHtml(item.childName)}</strong><span>${escapeHtml(item.className)} · ${escapeHtml(item.size)}</span></span>
-          <span class="kitchen-item-meta"><span title="${escapeHtml(item.paymentMethod || 'Other')}">${item.paymentIcon}</span>${item.allergyFlag ? '<span class="allergy-badge" title="Allergy information available">⚠️</span>' : ''}<span class="item-check">${done ? '✓' : '○'}</span></span>
-        </button>`;
-      }).join('');
-      $('kitchen-empty').hidden = visible.length > 0;
+
+      if (filter === 'all') {
+        const active = visible.filter((item) => !completed.has(item.pickupId));
+        const doneList = visible.filter((item) => completed.has(item.pickupId));
+        let html = '';
+        if (active.length > 0) {
+          html += active.map(renderItemHtml).join('');
+        }
+        if (doneList.length > 0) {
+          html += `<div class="kitchen-section-divider">Completed Orders (${doneList.length})</div>`;
+          html += doneList.map(renderItemHtml).join('');
+        }
+        list.innerHTML = html;
+        $('kitchen-empty').hidden = visible.length > 0;
+      } else {
+        list.innerHTML = visible.map(renderItemHtml).join('');
+        $('kitchen-empty').hidden = visible.length > 0;
+      }
+
       const totalCapacity = current.items.reduce((sum, item) => sum + item.capacity, 0);
       const readyCapacity = current.items.reduce((sum, item) => sum + (completed.has(item.pickupId) ? item.capacity : 0), 0);
       $('kitchen-progress').textContent = `${formatPizzaAmount(readyCapacity)} / ${formatPizzaAmount(totalCapacity)} pizzas ready`;
@@ -439,7 +463,20 @@
       if (!itemEl) return;
       const pickupId = decodeURIComponent(itemEl.dataset.pickupId || '');
       const item = current.items.find((i) => i.pickupId === pickupId);
-      if (item) showDetail(item);
+      if (!item) return;
+
+      if (event.target.closest('[data-action="info"]') || event.target.closest('.info-btn')) {
+        showDetail(item);
+        return;
+      }
+
+      if (completed.has(item.pickupId)) {
+        completed.delete(item.pickupId);
+      } else {
+        completed.add(item.pickupId);
+      }
+      saveSessionState();
+      render();
     });
 
     document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { filter = button.dataset.filter; render(); }));
