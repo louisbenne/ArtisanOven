@@ -450,7 +450,6 @@
       min-height: 1.3em;
     }
   </style>
-  <script src="/config.js"></script>
 </head>
 <body class="admin-body">
 
@@ -1759,6 +1758,15 @@
       let syncPollInterval = null;
       let pollInFlight = false;
 
+      // Canonical backend API URL with robust fallback
+      function getScriptApiUrl() {
+        if (typeof window.ORDER_API_URL !== 'undefined' && window.ORDER_API_URL) return window.ORDER_API_URL;
+        if (typeof ORDER_API_URL !== 'undefined' && ORDER_API_URL) return ORDER_API_URL;
+        return 'https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec';
+      }
+      var ORDER_API_URL = getScriptApiUrl();
+      window.ORDER_API_URL = ORDER_API_URL;
+
       // Elements
       const loginSection = document.getElementById("login-section");
       const dashboardSection = document.getElementById("dashboard-section");
@@ -1888,16 +1896,21 @@
 
       // Initialize session check & pre-warm backend
       if (currentAdminToken) {
+        // Render from cache immediately for instant dashboard opening
+        const hasCachedSettings = sessionStorage.getItem("AO_CACHED_SETTINGS") || localStorage.getItem("AO_CACHED_SETTINGS");
+        if (hasCachedSettings) {
+          try {
+            cachedSettings = JSON.parse(hasCachedSettings);
+            const cachedSt = sessionStorage.getItem("AO_CACHED_STATS") || localStorage.getItem("AO_CACHED_STATS");
+            const cachedLg = sessionStorage.getItem("AO_CACHED_LOGS") || localStorage.getItem("AO_CACHED_LOGS");
+            if (cachedSt) cachedStats = JSON.parse(cachedSt);
+            renderDashboard(cachedSettings, cachedStats, cachedLg ? JSON.parse(cachedLg) : []);
+          } catch (e) {}
+        }
+        showDashboardView();
         loadDashboardData(true);
       } else {
         showLoginView();
-      }
-
-      // Helper to retrieve the script API URL with fallbacks (identical to parent-order.js)
-      function getScriptApiUrl() {
-        if (typeof window.ORDER_API_URL !== 'undefined' && window.ORDER_API_URL) return window.ORDER_API_URL;
-        if (typeof ORDER_API_URL !== 'undefined' && ORDER_API_URL) return ORDER_API_URL;
-        return 'https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec';
       }
 
       // Warm the backend while the login form is visible; authenticated sessions
@@ -1974,7 +1987,7 @@
               passwordInput.value = "";
               showToast("Access granted!", "success");
               showDashboardView();
-              loadDashboardData();
+              loadDashboardData(true);
             } else {
               showLoginError(data.message || "Access denied. Incorrect password.");
             }
@@ -2396,22 +2409,21 @@
         try {
           const STORAGE_KEY_ORDERS = "AO_CACHED_ORDERS";
           
-          if (!silent) {
-            // Check session storage first for instant feedback
-            const cached = sessionStorage.getItem(STORAGE_KEY_ORDERS);
-            if (cached) {
-              try {
-                cachedOrders = JSON.parse(cached);
-                renderOrders(cachedOrders);
-              } catch (e) {}
-            }
-            
-            if (!cachedOrders || !cachedOrders.length) {
-              document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
-            }
+          // Check local or session storage first for instant feedback
+          const cached = sessionStorage.getItem(STORAGE_KEY_ORDERS) || localStorage.getItem(STORAGE_KEY_ORDERS);
+          if (cached && (!cachedOrders || !cachedOrders.length)) {
+            try {
+              cachedOrders = JSON.parse(cached);
+              renderOrders(cachedOrders);
+            } catch (e) {}
+          }
+          
+          if (!silent && (!cachedOrders || !cachedOrders.length)) {
+            const container = document.getElementById('orders-list-container');
+            if (container) container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading orders...</p>';
           }
 
-          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          const apiUrl = getScriptApiUrl();
           if (!apiUrl || apiUrl.indexOf('http') !== 0) {
             console.warn("Admin Orders: ORDER_API_URL missing or invalid:", apiUrl);
             throw new Error("Backend URL not configured.");
@@ -2421,30 +2433,39 @@
           url.searchParams.set("token", currentAdminToken);
           url.searchParams.set("_t", Date.now());
           
-          const response = await fetch(url.toString(), { method: "GET", mode: "cors" });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          const response = await fetch(url.toString(), { method: "GET", mode: "cors", signal: controller.signal });
+          clearTimeout(timeoutId);
+
           if (!response.ok) throw new Error("Network request failed (" + response.status + ")");
-          const data = await response.json();
+          const rawText = await response.text();
+          let data;
+          try {
+            data = JSON.parse(rawText);
+          } catch (e) {
+            throw new Error("Invalid response format from server");
+          }
           
           if (data.unauthorized) {
-            sessionStorage.removeItem(STORAGE_KEY_TOKEN);
-            localStorage.removeItem("ao_admin_session_token");
-            currentAdminToken = "";
-            showLoginView();
-            showLoginError(data.message || "Access denied. Incorrect password.");
+            handleSessionExpiry();
             return;
           }
 
           if (data.success && data.orders) {
             cachedOrders = data.orders;
             sessionStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(data.orders));
+            localStorage.setItem("AO_CACHED_ORDERS", JSON.stringify(data.orders));
             renderOrders(cachedOrders);
           } else {
-            document.getElementById('orders-list-container').innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;
+            const container = document.getElementById('orders-list-container');
+            if (container) container.innerHTML = `<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">${data.message || "Failed to load orders."}</p>`;
           }
         } catch (err) {
           console.warn("Orders load note:", err.message || err);
           if (!cachedOrders || !cachedOrders.length) {
-            document.getElementById('orders-list-container').innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching orders.</p>';
+            const container = document.getElementById('orders-list-container');
+            if (container) container.innerHTML = '<p style="color: var(--terracotta); text-align: center; padding: 40px 0;">Connection error fetching orders.</p>';
           }
         }
       }
@@ -2846,32 +2867,54 @@
         if (!currentAdminToken) return;
 
         try {
+          const STORAGE_KEY_PARENT_ORDERS = "AO_CACHED_PARENT_ORDERS";
           const container = document.getElementById('parent-orders-list-container');
-          if (!silent && container) {
+          
+          const cached = sessionStorage.getItem(STORAGE_KEY_PARENT_ORDERS) || localStorage.getItem(STORAGE_KEY_PARENT_ORDERS);
+          if (cached && (!cachedParentOrders || !cachedParentOrders.length)) {
+            try {
+              cachedParentOrders = JSON.parse(cached);
+              renderParentOrders(cachedParentOrders);
+            } catch (e) {}
+          }
+
+          if (!silent && container && (!cachedParentOrders || !cachedParentOrders.length)) {
             container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px 0;">Loading parent orders...</p>';
           }
 
-          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          const apiUrl = getScriptApiUrl();
+          if (!apiUrl || apiUrl.indexOf('http') !== 0) {
+            console.warn("Admin Parent Orders: ORDER_API_URL missing or invalid:", apiUrl);
+            throw new Error("Backend URL not configured.");
+          }
           const url = new URL(apiUrl);
           url.searchParams.set("action", "adminGetParentOrders");
           url.searchParams.set("token", currentAdminToken);
           url.searchParams.set("_t", Date.now());
 
-          const response = await fetch(url.toString(), { method: "GET", mode: "cors" });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          const response = await fetch(url.toString(), { method: "GET", mode: "cors", signal: controller.signal });
+          clearTimeout(timeoutId);
+
           if (!response.ok) throw new Error("Network request failed (" + response.status + ")");
-          const data = await response.json();
+          const rawText = await response.text();
+          let data;
+          try {
+            data = JSON.parse(rawText);
+          } catch (e) {
+            throw new Error("Invalid response format from server");
+          }
 
           if (data.unauthorized) {
-            sessionStorage.removeItem(STORAGE_KEY_TOKEN);
-            localStorage.removeItem("ao_admin_session_token");
-            currentAdminToken = "";
-            showLoginView();
-            showLoginError(data.message || "Access denied. Incorrect password.");
+            handleSessionExpiry();
             return;
           }
 
           if (data.success && Array.isArray(data.orders)) {
             cachedParentOrders = data.orders;
+            sessionStorage.setItem("AO_CACHED_PARENT_ORDERS", JSON.stringify(data.orders));
+            localStorage.setItem("AO_CACHED_PARENT_ORDERS", JSON.stringify(data.orders));
             renderParentOrders(cachedParentOrders);
           } else {
             if (container) {
@@ -3386,48 +3429,82 @@
           return;
         }
 
-        // Instant render from session cache if available
+        // Instant render from cache (sessionStorage or localStorage) if available
         try {
-          const cachedSet = sessionStorage.getItem("AO_CACHED_SETTINGS");
-          const cachedSt = sessionStorage.getItem("AO_CACHED_STATS");
-          const cachedLg = sessionStorage.getItem("AO_CACHED_LOGS");
-          if (cachedSt) {
+          const cachedSet = sessionStorage.getItem("AO_CACHED_SETTINGS") || localStorage.getItem("AO_CACHED_SETTINGS");
+          const cachedSt = sessionStorage.getItem("AO_CACHED_STATS") || localStorage.getItem("AO_CACHED_STATS");
+          const cachedLg = sessionStorage.getItem("AO_CACHED_LOGS") || localStorage.getItem("AO_CACHED_LOGS");
+          if (cachedSt && !cachedStats) {
             try { cachedStats = JSON.parse(cachedSt); } catch (e) {}
           }
-          if (cachedSet) {
-            renderDashboard(JSON.parse(cachedSet), cachedStats, cachedLg ? JSON.parse(cachedLg) : []);
+          if (cachedSet && !cachedSettings) {
+            cachedSettings = JSON.parse(cachedSet);
+            renderDashboard(cachedSettings, cachedStats, cachedLg ? JSON.parse(cachedLg) : []);
             showDashboardView();
           }
         } catch (e) {}
 
         const lastUpdatedEl = document.getElementById("dashboard-last-updated");
-        if (lastUpdatedEl && !cachedSettings) {
-          const lastUpdatedText = document.getElementById("last-updated-text");
-          if (lastUpdatedText) lastUpdatedText.textContent = "Fetching latest settings & orders...";
+        const lastUpdatedText = document.getElementById("last-updated-text");
+        if (lastUpdatedEl && !cachedSettings && lastUpdatedText) {
+          lastUpdatedText.textContent = "Fetching latest settings & orders...";
         }
 
         if (pollInFlight) return;
         pollInFlight = true;
         try {
-          const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
+          const apiUrl = getScriptApiUrl();
           if (!apiUrl || apiUrl.indexOf('http') !== 0) {
             console.warn("Admin: ORDER_API_URL is missing or invalid:", apiUrl);
             throw new Error("Backend URL not configured correctly.");
           }
-          const url = new URL(apiUrl);
-          url.searchParams.set("action", "adminGetSettings");
-          url.searchParams.set("token", currentAdminToken);
-          url.searchParams.set("_t", Date.now());
 
-          // Concurrently fetch settings and orders for 2x faster performance
-          const [settingsRes] = await Promise.all([
-            fetch(url.toString(), { method: "GET", mode: "cors" }),
-            loadOrdersData(true),
-            loadParentOrdersData(true)
-          ]);
+          let data = null;
+          let success = false;
+          let lastErr = null;
 
-          if (!settingsRes.ok) throw new Error("HTTP error " + settingsRes.status);
-          const data = await settingsRes.json();
+          // Attempt with retry to handle cold starts smoothly
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+              const url = new URL(apiUrl);
+              url.searchParams.set("action", "adminGetSettings");
+              url.searchParams.set("token", currentAdminToken);
+              url.searchParams.set("_t", Date.now());
+
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+              const settingsRes = await fetch(url.toString(), {
+                method: "GET",
+                mode: "cors",
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+
+              if (!settingsRes.ok) throw new Error("HTTP error " + settingsRes.status);
+              
+              const rawText = await settingsRes.text();
+              try {
+                data = JSON.parse(rawText);
+              } catch (parseErr) {
+                console.warn("Non-JSON response from backend:", rawText.slice(0, 120));
+                throw new Error("Invalid response from server");
+              }
+
+              success = true;
+              break;
+            } catch (err) {
+              lastErr = err;
+              console.warn(`Dashboard load attempt ${attempt} note:`, err.message || err);
+              if (attempt === 1) {
+                await new Promise(r => setTimeout(r, 1000));
+              }
+            }
+          }
+
+          if (!success || !data) {
+            throw lastErr || new Error("Failed to connect to backend");
+          }
 
           if (data.unauthorized) {
             handleSessionExpiry();
@@ -3438,19 +3515,36 @@
             cachedSettings = data.settings;
             if (data.stats) cachedStats = data.stats;
             sessionStorage.setItem("AO_CACHED_SETTINGS", JSON.stringify(data.settings));
-            if (data.stats) sessionStorage.setItem("AO_CACHED_STATS", JSON.stringify(data.stats));
-            if (data.logs) sessionStorage.setItem("AO_CACHED_LOGS", JSON.stringify(data.logs));
+            localStorage.setItem("AO_CACHED_SETTINGS", JSON.stringify(data.settings));
+            if (data.stats) {
+              sessionStorage.setItem("AO_CACHED_STATS", JSON.stringify(data.stats));
+              localStorage.setItem("AO_CACHED_STATS", JSON.stringify(data.stats));
+            }
+            if (data.logs) {
+              sessionStorage.setItem("AO_CACHED_LOGS", JSON.stringify(data.logs));
+              localStorage.setItem("AO_CACHED_LOGS", JSON.stringify(data.logs));
+            }
             renderDashboard(data.settings, data.stats, data.logs);
             showDashboardView();
             if (!silent) showToast("Dashboard synced with live database.", "success");
+
+            // After dashboard settings have loaded successfully, load order lists sequentially in background
+            loadOrdersData(true).catch(() => {});
+            loadParentOrdersData(true).catch(() => {});
           } else {
-            showToast(data.message || "Unable to load settings.", "error");
+            if (!silent) showToast(data.message || "Unable to load settings.", "error");
           }
         } catch (err) {
           console.warn("Dashboard load note:", err.message || err);
           if (!silent) showToast("Connection error fetching dashboard data.", "error");
           const lastUpdatedText = document.getElementById("last-updated-text");
-          if (lastUpdatedText) lastUpdatedText.textContent = "Offline or connection error.";
+          if (lastUpdatedText) {
+            if (cachedSettings) {
+              lastUpdatedText.textContent = "Offline or temporary connection issue. Showing cached data.";
+            } else {
+              lastUpdatedText.textContent = "Offline or connection error.";
+            }
+          }
         } finally {
           pollInFlight = false;
         }
@@ -4112,7 +4206,7 @@
 
       function startLiveSync() {
         if (syncPollInterval) clearInterval(syncPollInterval);
-        // Ultra-high frequency polling (every 2 seconds) for "instant" updates as requested
+        // Polling interval (15 seconds) to ensure fresh updates without exceeding Google Apps Script concurrency/rate quotas
         syncPollInterval = setInterval(() => {
           if (currentAdminToken && document.visibilityState === 'visible' && !pollInFlight) {
             loadDashboardData(true);
@@ -4135,14 +4229,14 @@
               }
             }
           }
-        }, 2000);
+        }, 15000);
       }
 
-      function handleSessionExpiry() {
+      function handleSessionExpiry(msg) {
         currentAdminToken = "";
         sessionStorage.removeItem(STORAGE_KEY_TOKEN);
         localStorage.removeItem("ao_admin_session_token");
-        showToast("Access denied. Incorrect password.", "error");
+        showToast(msg || "Session expired. Please enter access password.", "error");
         showLoginView();
       }
 
