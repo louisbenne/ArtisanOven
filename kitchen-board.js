@@ -434,6 +434,14 @@
     $('kitchen-auth-form').addEventListener('submit', handleAuthSubmit);
     $('kitchen-auth-close').addEventListener('click', () => { $('kitchen-auth-modal').hidden = true; });
     $('kitchen-detail-close').addEventListener('click', () => { $('kitchen-detail').hidden = true; });
+    $('kitchen-list').addEventListener('click', (event) => {
+      const itemEl = event.target.closest('.kitchen-item');
+      if (!itemEl) return;
+      const pickupId = decodeURIComponent(itemEl.dataset.pickupId || '');
+      const item = current.items.find((i) => i.pickupId === pickupId);
+      if (item) showDetail(item);
+    });
+
     document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { filter = button.dataset.filter; render(); }));
     document.querySelectorAll('[data-sort]').forEach((button) => button.addEventListener('click', () => { sort = button.dataset.sort; render(); }));
     $('kitchen-timer').addEventListener('click', () => {
