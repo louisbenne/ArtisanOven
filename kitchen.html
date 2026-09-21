@@ -70,7 +70,13 @@
   <main class="kitchen-shell">
     <section id="kitchen-board">
       <header class="kitchen-header">
-        <div class="kitchen-topbar"><span class="kitchen-brand">AO PROGRESS</span><label id="kitchen-upload-button" class="upload-button">Upload data<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label></div>
+        <div class="kitchen-topbar">
+          <span class="kitchen-brand">AO PROGRESS</span>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="kitchen-fetch-server" class="kitchen-secondary" type="button" style="padding: 10px 16px; font-size: 0.9rem;">Import from server</button>
+            <label id="kitchen-upload-button" class="upload-button" style="margin-bottom: 0; padding: 10px 16px; font-size: 0.9rem;">Upload file<input id="kitchen-upload" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label>
+          </div>
+        </div>
         <div class="kitchen-stats"><button id="kitchen-timer" class="kitchen-timer" type="button">⏱ Set cutoff</button><strong id="kitchen-progress" class="kitchen-progress">0 / 0 pizzas ready</strong></div>
         <div id="kitchen-session" class="kitchen-session"></div>
       </header>
@@ -80,9 +86,27 @@
       </div>
       <div id="kitchen-error" class="kitchen-error" hidden></div>
       <div id="kitchen-list" class="kitchen-list"></div>
-      <div id="kitchen-empty" class="kitchen-empty" hidden><p>No items match this view.</p><button id="kitchen-upload-empty" class="kitchen-primary" type="button">Upload data</button></div>
+      <div id="kitchen-empty" class="kitchen-empty" hidden>
+        <p>No items match this view.</p>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px;">
+          <button id="kitchen-fetch-empty" class="kitchen-primary" type="button">Import from server</button>
+          <button id="kitchen-upload-empty" class="kitchen-secondary" type="button">Upload file</button>
+        </div>
+      </div>
     </section>
   </main>
+  <div id="kitchen-auth-modal" class="kitchen-detail" hidden>
+    <section class="kitchen-detail-panel" role="dialog" aria-modal="true" style="max-width: 440px;">
+      <button id="kitchen-auth-close" class="kitchen-detail-close" type="button" aria-label="Close">×</button>
+      <h3 style="color: var(--forest); margin-top: 0; margin-bottom: 8px;">Secure Backend Import</h3>
+      <p style="color: var(--text-soft); font-size: 0.92rem; margin-bottom: 16px;">Enter the admin passcode to securely retrieve current week orders from the backend server.</p>
+      <form id="kitchen-auth-form" class="kitchen-form">
+        <input id="kitchen-auth-password" type="password" placeholder="Admin passcode" required autocomplete="current-password" />
+        <div id="kitchen-auth-error" class="kitchen-error" hidden></div>
+        <button id="kitchen-auth-submit" class="kitchen-primary" type="submit" style="margin-top: 8px;">Verify & Import Orders</button>
+      </form>
+    </section>
+  </div>
   <div id="kitchen-detail" class="kitchen-detail" hidden><section class="kitchen-detail-panel" role="dialog" aria-modal="true"><button id="kitchen-detail-close" class="kitchen-detail-close" type="button" aria-label="Close">×</button><div id="kitchen-detail-content"></div></section></div>
   <script src="script.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>

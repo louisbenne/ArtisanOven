@@ -2889,6 +2889,29 @@ function lookupOrder(searchEmail, searchOrderId, searchToken) {
 // TRIGGER ENTRYPOINT & SPREADSHEET REBUILD
 // ============================================================================
 
+function ensureFormSubmitTrigger() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var triggers = ScriptApp.getProjectTriggers();
+    var hasSubmitTrigger = false;
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'onFormSubmitTrigger') {
+        hasSubmitTrigger = true;
+        break;
+      }
+    }
+    if (!hasSubmitTrigger) {
+      ScriptApp.newTrigger('onFormSubmitTrigger')
+        .forSpreadsheet(ss)
+        .onFormSubmit()
+        .create();
+      Logger.log('Successfully installed missing onFormSubmitTrigger.');
+    }
+  } catch (err) {
+    Logger.log('ensureFormSubmitTrigger note: ' + err);
+  }
+}
+
 function onFormSubmitTrigger(e) {
   // Invalidate cache immediately so public tracker updates
   try { CacheService.getScriptCache().remove('SYSTEM_STATUS_CACHE'); } catch(err) {}
@@ -3562,12 +3585,12 @@ function sendOrderConfirmationForRow(rowNum) {
     var lastCol = Math.max(raw.getLastColumn(), CONFIRMATION_SENT_COL, ORDER_TOKEN_COL);
     var row = raw.getRange(rowNum, 1, 1, lastCol).getValues()[0];
 
-    // Safeguard: Check order timestamp to prevent bulk email dispatch on historical/existing rows during deployment or code updates
+    // Safeguard: Check order timestamp to prevent bulk email dispatch on historical/existing rows during deployment or code updates (extended to 24 hours)
     var timestamp = row[0];
     if (timestamp instanceof Date) {
       var ageMs = new Date().getTime() - timestamp.getTime();
-      if (ageMs > 2 * 60 * 60 * 1000) {
-        Logger.log('Skipping confirmation for historical row ' + rowNum + ' (submitted > 2 hours ago)');
+      if (ageMs > 24 * 60 * 60 * 1000) {
+        Logger.log('Skipping confirmation for historical row ' + rowNum + ' (submitted > 24 hours ago)');
         raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
         return;
       }
@@ -4010,6 +4033,7 @@ function renderOrdersChecklistHtml(checklist, forPdf) {
 }
 
 function getAllOrdersForAdmin() {
+  ensureFormSubmitTrigger();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
   var data = raw.getDataRange().getValues();

@@ -40,12 +40,25 @@ function initAvailabilityTracker() {
   }
 
   function fallbackToOpen() {
-    const hasRendered = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
-    if (!hasRendered) {
-      if (trackerEl) trackerEl.style.display = "none";
-      if (googleFormContainer) googleFormContainer.style.display = "block";
-      if (closedMessage) closedMessage.style.display = "none";
+    if (trackerEl) {
+      trackerEl.style.display = "block";
+      const statusText = document.getElementById("tracker-status-text");
+      const progressFill = document.getElementById("tracker-progress-fill");
+      const ordersTaken = document.getElementById("tracker-orders-taken");
+      const ordersRemaining = document.getElementById("tracker-orders-remaining");
+      if (statusText) {
+        statusText.textContent = "Taking Orders";
+        statusText.style.color = "var(--sage)";
+      }
+      if (ordersTaken) ordersTaken.textContent = "0 of 20 pizzas claimed";
+      if (ordersRemaining) ordersRemaining.textContent = "20 pizzas remaining";
+      if (progressFill) {
+        progressFill.style.width = "0%";
+        progressFill.style.opacity = "1";
+      }
     }
+    if (googleFormContainer) googleFormContainer.style.display = "block";
+    if (closedMessage) closedMessage.style.display = "none";
   }
 
   // Immediate render from cache if available to prevent UI flash

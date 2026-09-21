@@ -380,12 +380,142 @@
       }).catch((error) => { $('kitchen-error').textContent = error.message || 'Could not parse this workbook.'; $('kitchen-error').hidden = false; });
     }
 
+    async function fetchServerOrders(token) {
+      const url = apiUrl();
+      if (!url) throw new Error('Backend URL is not configured.');
+      
+      // 1. Fetch settings to get session title
+      const settingsUrl = new URL(url);
+      settingsUrl.searchParams.set('action', 'adminGetSettings');
+      settingsUrl.searchParams.set('token', token);
+      const settingsRes = await fetch(settingsUrl.toString(), { mode: 'cors' });
+      const settingsData = await settingsRes.json();
+      if (!settingsData.success) throw new Error(settingsData.message || 'Failed to fetch session settings.');
+      
+      const sessionTitle = (settingsData.settings && (settingsData.settings.serviceTitle || settingsData.settings.serviceDate)) || 'Current Week Orders';
+
+      // 2. Fetch orders
+      const ordersUrl = new URL(url);
+      ordersUrl.searchParams.set('action', 'adminGetOrders');
+      ordersUrl.searchParams.set('token', token);
+      const ordersRes = await fetch(ordersUrl.toString(), { mode: 'cors' });
+      const ordersData = await ordersRes.json();
+      if (!ordersData.success) throw new Error(ordersData.message || 'Failed to fetch backend orders.');
+
+      const rawOrders = ordersData.orders || [];
+      const items = [];
+
+      rawOrders.forEach((order) => {
+        const orderId = text(order.orderId);
+        const paymentMethod = text(order.paymentMethod || 'Bank Transfer');
+        const paymentStatus = text(order.paymentStatus || 'Pending');
+        const customerName = text(order.customer && order.customer.name ? order.customer.name : 'Customer');
+        const allergyText = text(order.allergy || '');
+        const allergyFlag = Boolean(allergyText);
+
+        if (order.pizzas && Array.isArray(order.pizzas)) {
+          order.pizzas.forEach((pizza, idx) => {
+            const pickupId = `${orderId}-${idx + 1}`;
+            const className = text(pizza.class || 'Misc');
+            const classData = classInfo(className);
+            const size = text(pizza.size || 'Pizza');
+            const capacity = pizza.capacity !== undefined ? Number(pizza.capacity) : pizzaCapacity(size);
+            items.push({
+              pickupId,
+              orderId,
+              childName: text(pizza.recipient || customerName),
+              className: classData.name,
+              classNumber: classData.number,
+              size,
+              capacity,
+              paymentMethod,
+              paymentIcon: paymentIcon(paymentMethod),
+              paid: paymentStatus,
+              allergyFlag,
+              allergyDetails: allergyText,
+              payerName: customerName
+            });
+          });
+        }
+      });
+
+      if (!items.length) {
+        throw new Error('No active orders found on the backend for this session.');
+      }
+
+      const next = { sessionTitle, items };
+      current = next;
+      loadSessionState(current.sessionTitle);
+      saveSessionState();
+      $('kitchen-error').hidden = true;
+      $('kitchen-upload-button').hidden = true;
+      const fetchServerEl = $('kitchen-fetch-server');
+      if (fetchServerEl) fetchServerEl.hidden = true;
+      render();
+    }
+
+    async function handleServerImportClick() {
+      const token = getSyncToken();
+      if (token) {
+        const button = $('kitchen-fetch-server') || $('kitchen-fetch-empty');
+        if (button) button.disabled = true;
+        try {
+          await fetchServerOrders(token);
+          return;
+        } catch (error) {
+          console.warn('Cached sync token failed, requesting passcode:', error);
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
+      // Show auth modal if no token or token expired
+      $('kitchen-auth-password').value = '';
+      $('kitchen-auth-error').hidden = true;
+      $('kitchen-auth-modal').hidden = false;
+    }
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+      const password = $('kitchen-auth-password').value.trim();
+      const url = apiUrl();
+      const errorEl = $('kitchen-auth-error');
+      const submitBtn = $('kitchen-auth-submit');
+      if (!url) {
+        errorEl.textContent = 'Backend URL is not configured.';
+        errorEl.hidden = false;
+        return;
+      }
+      submitBtn.disabled = true;
+      errorEl.hidden = true;
+      try {
+        const loginUrl = new URL(url);
+        loginUrl.searchParams.set('action', 'adminLogin');
+        loginUrl.searchParams.set('code', password);
+        const res = await fetch(loginUrl.toString(), { mode: 'cors' });
+        const data = await res.json();
+        if (!data.success || !data.token) throw new Error(data.message || 'Incorrect passcode.');
+        
+        // Save token
+        localStorage.setItem(SYNC_TOKEN_KEY, data.token);
+        localStorage.setItem(TOKEN_KEY, data.token);
+        
+        $('kitchen-auth-modal').hidden = true;
+        await fetchServerOrders(data.token);
+      } catch (error) {
+        errorEl.textContent = error.message || 'Authentication failed.';
+        errorEl.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
     $('kitchen-upload').addEventListener('change', handleUpload);
     $('kitchen-upload-empty').addEventListener('click', () => $('kitchen-upload').click());
-    $('kitchen-list').addEventListener('click', (event) => {
-      const button = event.target.closest('[data-pickup-id]');
-      if (button && current) showDetail(current.items.find((item) => item.pickupId === decodeURIComponent(button.dataset.pickupId)));
-    });
+    $('kitchen-fetch-server').addEventListener('click', handleServerImportClick);
+    const fetchEmptyEl = $('kitchen-fetch-empty');
+    if (fetchEmptyEl) fetchEmptyEl.addEventListener('click', handleServerImportClick);
+    $('kitchen-auth-form').addEventListener('submit', handleAuthSubmit);
+    $('kitchen-auth-close').addEventListener('click', () => { $('kitchen-auth-modal').hidden = true; });
     $('kitchen-detail-close').addEventListener('click', () => { $('kitchen-detail').hidden = true; });
     document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { filter = button.dataset.filter; render(); }));
     document.querySelectorAll('[data-sort]').forEach((button) => button.addEventListener('click', () => { sort = button.dataset.sort; render(); }));
