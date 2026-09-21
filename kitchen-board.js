@@ -416,9 +416,18 @@
 
     async function handleServerImportClick() {
       // Always prompt for admin passcode when import is clicked as requested
-      $('kitchen-auth-password').value = '';
+      const pwdInput = $('kitchen-auth-password');
+      if (pwdInput) {
+        pwdInput.value = '';
+      }
       $('kitchen-auth-error').hidden = true;
       $('kitchen-auth-modal').hidden = false;
+      if (pwdInput) {
+        pwdInput.focus();
+        setTimeout(() => {
+          pwdInput.focus();
+        }, 80);
+      }
     }
 
     async function handleAuthSubmit(event) {
@@ -466,6 +475,21 @@
     $('kitchen-auth-modal').addEventListener('click', (event) => {
       if (event.target === $('kitchen-auth-modal')) $('kitchen-auth-modal').hidden = true;
     });
+    const pwdInput = $('kitchen-auth-password');
+    if (pwdInput) {
+      pwdInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pwdInput.focus();
+      });
+      pwdInput.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+        pwdInput.focus();
+      }, { passive: true });
+    }
+    const authPanel = $('kitchen-auth-modal').querySelector('.kitchen-detail-panel');
+    if (authPanel) {
+      authPanel.addEventListener('click', (e) => e.stopPropagation());
+    }
     $('kitchen-detail-close').addEventListener('click', () => { $('kitchen-detail').hidden = true; });
     $('kitchen-detail').addEventListener('click', (event) => {
       if (event.target === $('kitchen-detail')) $('kitchen-detail').hidden = true;

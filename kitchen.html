@@ -15,6 +15,11 @@
   <style>
     html, body { overscroll-behavior-y: none; }
     body { background: var(--cream); -webkit-user-select: none; user-select: none; }
+    input, textarea, select {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default !important;
+    }
     .kitchen-shell { max-width: 760px; margin: 0 auto; padding: max(12px, env(safe-area-inset-top)) 18px max(70px, env(safe-area-inset-bottom)); }
     .kitchen-topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
     .kitchen-brand { color: var(--forest); font-weight: 700; letter-spacing: .05em; }
@@ -24,7 +29,31 @@
     .kitchen-card p { color: var(--text-soft); margin-bottom: 20px; }
     [hidden] { display: none !important; }
     .kitchen-form { display: grid; gap: 12px; }
-    .kitchen-form input { border: 1px solid rgba(31,58,46,.2); border-radius: 10px; padding: 13px; font: inherit; }
+    .kitchen-form input {
+      border: 1px solid rgba(31,58,46,.25);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: inherit;
+      font-size: 16px;
+      line-height: 1.4;
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--white);
+      color: var(--text);
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default !important;
+      touch-action: manipulation;
+      cursor: text;
+      pointer-events: auto !important;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .kitchen-form input:focus {
+      outline: 2px solid var(--forest);
+      outline-offset: 1px;
+      border-color: var(--forest);
+    }
     .kitchen-primary, .upload-button { border: 0; border-radius: 999px; padding: 14px 20px; background: var(--forest); color: var(--white); font: inherit; font-weight: 700; cursor: pointer; }
     .kitchen-secondary { border: 1px solid rgba(31,58,46,.2); border-radius: 999px; padding: 12px 16px; background: transparent; color: var(--forest); font: inherit; font-weight: 700; cursor: pointer; }
     .kitchen-error, .access-error { color: var(--terracotta); font-weight: 700; margin-top: 12px; }
@@ -55,7 +84,9 @@
     .upload-button { display: inline-block; margin-bottom: 16px; text-align: center; }
     .upload-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .kitchen-detail { position: fixed; inset: 0; z-index: 5; background: rgba(22,40,31,.45); display: grid; align-items: end; }
-    .kitchen-detail-panel { background: var(--cream); border-radius: 22px 22px 0 0; padding: 26px 20px max(26px, env(safe-area-inset-bottom)); max-width: 760px; width: 100%; margin: 0 auto; }
+    #kitchen-auth-modal { display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #kitchen-auth-modal .kitchen-detail-panel { border-radius: 20px; max-width: 440px; width: 100%; margin: auto; box-shadow: 0 20px 48px rgba(0,0,0,0.28); transform: translateZ(0); -webkit-user-select: auto; user-select: auto; }
+    .kitchen-detail-panel { background: var(--cream); border-radius: 22px 22px 0 0; padding: 26px 20px max(26px, env(safe-area-inset-bottom)); max-width: 760px; width: 100%; margin: 0 auto; -webkit-user-select: auto; user-select: auto; }
     .kitchen-detail-close { float: right; width: 44px; height: 44px; border: 0; background: transparent; color: var(--forest); font-size: 1.8rem; cursor: pointer; }
     .detail-kicker { color: var(--text-soft); font-weight: 700; margin: 0; }
     .detail-size { color: var(--forest); font-size: 1.15rem; }
@@ -105,7 +136,7 @@
       <h3 style="color: var(--forest); margin-top: 0; margin-bottom: 8px;">Secure Backend Import</h3>
       <p style="color: var(--text-soft); font-size: 0.92rem; margin-bottom: 16px;">Enter the admin passcode to securely retrieve current week orders from the backend server.</p>
       <form id="kitchen-auth-form" class="kitchen-form">
-        <input id="kitchen-auth-password" type="password" placeholder="Admin passcode" required autocomplete="current-password" />
+        <input id="kitchen-auth-password" type="password" placeholder="Admin passcode" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" />
         <div id="kitchen-auth-error" class="kitchen-error" hidden></div>
         <button id="kitchen-auth-submit" class="kitchen-primary" type="submit" style="margin-top: 8px;">Verify & Import Orders</button>
       </form>
