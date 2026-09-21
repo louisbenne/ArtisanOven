@@ -1,4 +1,4 @@
-const CACHE_NAME = "ao-admin-v1";
+const CACHE_NAME = "ao-admin-v2";
 const APP_SHELL = [
   "./admin.html",
   "./style.css",

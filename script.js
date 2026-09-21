@@ -675,11 +675,15 @@ function formatPizzaAmount(value) {
 
 function initPWAServiceWorker() {
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('./parent-sw.js').catch(function(err) {
-        console.debug('Service worker registration error:', err);
+    const loc = (window.location.pathname || "").toLowerCase();
+    // Only register parent-sw if on parent-order page to avoid overriding admin-sw or kitchen-sw
+    if (loc.includes('parent-order') || loc.includes('parent')) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./parent-sw.js').catch(function(err) {
+          console.debug('Service worker registration error:', err);
+        });
       });
-    });
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ao-kitchen-v2';
+const CACHE_NAME = 'ao-kitchen-v3';
 const APP_SHELL = [
   './kitchen.html',
   './style.css',

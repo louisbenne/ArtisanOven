@@ -79,14 +79,30 @@
       margin-bottom: 6px;
       letter-spacing: 0.02em;
     }
+    input, textarea, select {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default !important;
+    }
     .admin-input, .admin-select, textarea {
       width: 100%;
+      box-sizing: border-box;
       border: 1px solid rgba(31, 58, 46, 0.2);
       border-radius: 10px;
       background: #fff;
       color: var(--forest);
       padding: 12px 14px;
       font: inherit;
+      font-size: 16px !important;
+      line-height: 1.4;
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default !important;
+      touch-action: manipulation;
+      cursor: text;
+      pointer-events: auto !important;
+      -webkit-appearance: none;
+      appearance: none;
     }
     .admin-input:focus, .admin-select:focus, textarea:focus {
       outline: 2px solid rgba(198, 93, 59, 0.24);
@@ -237,7 +253,7 @@
 
       <form id="parent-access-form" novalidate>
         <label class="form-label" for="parent-access-code">Parent access code</label>
-        <input id="parent-access-code" class="admin-input" type="text" autocomplete="off" placeholder="Enter access code" required />
+        <input id="parent-access-code" class="admin-input" type="text" autocomplete="off" placeholder="Enter access code" required autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" />
         <div style="margin-top: 18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
           <button type="submit" class="parent-submit" id="parent-access-submit">Continue</button>
         </div>

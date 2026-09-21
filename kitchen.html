@@ -136,7 +136,8 @@
       <h3 style="color: var(--forest); margin-top: 0; margin-bottom: 8px;">Secure Backend Import</h3>
       <p style="color: var(--text-soft); font-size: 0.92rem; margin-bottom: 16px;">Enter the admin passcode to securely retrieve current week orders from the backend server.</p>
       <form id="kitchen-auth-form" class="kitchen-form">
-        <input id="kitchen-auth-password" type="password" placeholder="Admin passcode" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" />
+        <input type="text" name="username" value="admin" autocomplete="username" style="display:none !important;" aria-hidden="true" tabindex="-1" />
+        <input id="kitchen-auth-password" name="password" type="password" placeholder="Admin passcode" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" />
         <div id="kitchen-auth-error" class="kitchen-error" hidden></div>
         <button id="kitchen-auth-submit" class="kitchen-primary" type="submit" style="margin-top: 8px;">Verify & Import Orders</button>
       </form>

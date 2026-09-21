@@ -1482,16 +1482,32 @@ button:focus-visible,
   margin-bottom: 6px;
 }
 
+input, textarea, select {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+
 .admin-input, .admin-select, .admin-textarea {
   width: 100%;
+  box-sizing: border-box;
   padding: 12px 14px;
   border: 1.5px solid rgba(31, 58, 46, 0.2);
   border-radius: 8px;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 16px; /* Ensuring minimum 16px to prevent iOS auto-zoom & keyboard pop-up suppression */
+  line-height: 1.4;
   color: var(--text);
   background: var(--white);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+  touch-action: manipulation;
+  cursor: text;
+  pointer-events: auto !important;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .admin-input:focus, .admin-select:focus, .admin-textarea:focus {
@@ -1509,23 +1525,38 @@ button:focus-visible,
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+}
+
+.password-input-wrapper .admin-input {
+  padding-right: 48px;
 }
 
 .password-toggle-btn {
   position: absolute;
-  right: 12px;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
   background: none;
   border: none;
   color: var(--text-soft);
   cursor: pointer;
-  padding: 4px;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
+  touch-action: manipulation;
+  border-radius: 50%;
 }
 
-.password-toggle-btn:hover {
+.password-toggle-btn:hover,
+.password-toggle-btn:focus {
   color: var(--forest);
+  background: rgba(31, 58, 46, 0.08);
+  outline: none;
 }
 
 .form-help {

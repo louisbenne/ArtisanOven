@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ao-parent-v1';
+const CACHE_NAME = 'ao-parent-v2';
 const APP_SHELL = [
   './parent-order.html',
   './style.css',
