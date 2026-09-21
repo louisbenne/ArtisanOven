@@ -40,6 +40,18 @@ function initAvailabilityTracker() {
   }
 
   function fallbackToOpen() {
+    // Do not force open on error if cache exists; keep UI stable
+    const existingCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
+    if (existingCache) {
+      try {
+        const parsed = JSON.parse(existingCache);
+        if (parsed && parsed.success) {
+          updateTrackerUI(parsed);
+          return;
+        }
+      } catch (e) {}
+    }
+    // If no cache at all, default to a safe neutral state rather than forcefully opening
     if (trackerEl) {
       trackerEl.style.display = "block";
       const statusText = document.getElementById("tracker-status-text");
@@ -47,18 +59,16 @@ function initAvailabilityTracker() {
       const ordersTaken = document.getElementById("tracker-orders-taken");
       const ordersRemaining = document.getElementById("tracker-orders-remaining");
       if (statusText) {
-        statusText.textContent = "Taking Orders";
-        statusText.style.color = "var(--sage)";
+        statusText.textContent = "Checking Status...";
+        statusText.style.color = "var(--text-soft)";
       }
-      if (ordersTaken) ordersTaken.textContent = "0 of 20 pizzas claimed";
-      if (ordersRemaining) ordersRemaining.textContent = "20 pizzas remaining";
+      if (ordersTaken) ordersTaken.textContent = "Loading live status...";
+      if (ordersRemaining) ordersRemaining.textContent = "";
       if (progressFill) {
         progressFill.style.width = "0%";
-        progressFill.style.opacity = "1";
+        progressFill.style.opacity = "0.5";
       }
     }
-    if (googleFormContainer) googleFormContainer.style.display = "block";
-    if (closedMessage) closedMessage.style.display = "none";
   }
 
   // Immediate render from cache if available to prevent UI flash
@@ -74,7 +84,7 @@ function initAvailabilityTracker() {
     // Ignore JSON parse errors
   }
 
-  // If there's no API URL, just show the form directly (assuming open)
+  // If there's no API URL, show neutral state
   if (!ORDER_API_URL || ORDER_API_URL === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
     fallbackToOpen();
     return;
@@ -85,10 +95,10 @@ function initAvailabilityTracker() {
   async function fetchStatus(force = false) {
     if (isFetching) return;
     try {
-      // Client-side cache: if we fetched successfully in the last 30 seconds, reuse unless forced
+      // Client-side cache: if we fetched successfully in the last 15 seconds, reuse unless forced
       const cachedStatus = sessionStorage.getItem('STATUS_CACHE_DATA');
       const cachedTime = sessionStorage.getItem('STATUS_CACHE_TIME');
-      if (!force && cachedStatus && cachedTime && (Date.now() - parseInt(cachedTime, 10) < 30000)) {
+      if (!force && cachedStatus && cachedTime && (Date.now() - parseInt(cachedTime, 10) < 15000)) {
         try {
           updateTrackerUI(JSON.parse(cachedStatus));
           return;
@@ -114,7 +124,7 @@ function initAvailabilityTracker() {
           try {
             controller.abort();
           } catch (e) {}
-        }, 25000); // 25s timeout for Google Apps Script cold starts
+        }, 6000); // Fast 6s timeout to prevent page hanging
       }
 
       let response;
@@ -148,7 +158,7 @@ function initAvailabilityTracker() {
         fallbackToOpen();
       }
     } catch (err) {
-      // Graceful fallback for network aborts, timeouts, or transient 404s
+      // Graceful fallback for network aborts, timeouts, or transient errors without falsely opening
       fallbackToOpen();
     } finally {
       isFetching = false;
