@@ -220,15 +220,14 @@
 
     function renderItemHtml(item) {
       const done = completed.has(item.pickupId);
-      return `<div class="kitchen-item${done ? ' is-complete' : ''}" data-pickup-id="${encodeURIComponent(item.pickupId)}">
-        <span class="kitchen-item-main" style="flex:1;"><strong>${escapeHtml(item.childName)}</strong><span>${escapeHtml(item.className)} · ${escapeHtml(item.size)}</span></span>
+      return `<button class="kitchen-item${done ? ' is-complete' : ''}" data-pickup-id="${encodeURIComponent(item.pickupId)}" type="button">
+        <span class="kitchen-item-main" style="flex:1; text-align: left;"><strong>${escapeHtml(item.childName)}</strong><span>${escapeHtml(item.className)} · ${escapeHtml(item.size)}</span></span>
         <span class="kitchen-item-meta">
           <span title="${escapeHtml(item.paymentMethod || 'Other')}">${item.paymentIcon}</span>
           ${item.allergyFlag ? '<span class="allergy-badge" title="Allergy information available">⚠️</span>' : ''}
-          <button class="info-btn" type="button" data-action="info" title="View details">ℹ️</button>
           <span class="item-check">${done ? '✓' : '○'}</span>
         </span>
-      </div>`;
+      </button>`;
     }
 
     function render() {
@@ -463,20 +462,7 @@
       if (!itemEl) return;
       const pickupId = decodeURIComponent(itemEl.dataset.pickupId || '');
       const item = current.items.find((i) => i.pickupId === pickupId);
-      if (!item) return;
-
-      if (event.target.closest('[data-action="info"]') || event.target.closest('.info-btn')) {
-        showDetail(item);
-        return;
-      }
-
-      if (completed.has(item.pickupId)) {
-        completed.delete(item.pickupId);
-      } else {
-        completed.add(item.pickupId);
-      }
-      saveSessionState();
-      render();
+      if (item) showDetail(item);
     });
 
     document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { filter = button.dataset.filter; render(); }));
