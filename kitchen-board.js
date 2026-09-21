@@ -463,7 +463,13 @@
     if (fetchEmptyEl) fetchEmptyEl.addEventListener('click', handleServerImportClick);
     $('kitchen-auth-form').addEventListener('submit', handleAuthSubmit);
     $('kitchen-auth-close').addEventListener('click', () => { $('kitchen-auth-modal').hidden = true; });
+    $('kitchen-auth-modal').addEventListener('click', (event) => {
+      if (event.target === $('kitchen-auth-modal')) $('kitchen-auth-modal').hidden = true;
+    });
     $('kitchen-detail-close').addEventListener('click', () => { $('kitchen-detail').hidden = true; });
+    $('kitchen-detail').addEventListener('click', (event) => {
+      if (event.target === $('kitchen-detail')) $('kitchen-detail').hidden = true;
+    });
     $('kitchen-list').addEventListener('click', (event) => {
       const itemEl = event.target.closest('.kitchen-item');
       if (!itemEl) return;
