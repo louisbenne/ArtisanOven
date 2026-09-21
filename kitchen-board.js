@@ -220,7 +220,7 @@
 
     function renderItemHtml(item) {
       const done = completed.has(item.pickupId);
-      return `<button class="kitchen-item${done ? ' is-complete' : ''}" data-pickup-id="${encodeURIComponent(item.pickupId)}" type="button">
+      return `<button class="kitchen-item${done ? ' is-complete' : ''}" data-pickup-id="${escapeHtml(item.pickupId)}" type="button">
         <span class="kitchen-item-main" style="flex:1; text-align: left;"><strong>${escapeHtml(item.childName)}</strong><span>${escapeHtml(item.className)} · ${escapeHtml(item.size)}</span></span>
         <span class="kitchen-item-meta">
           <span title="${escapeHtml(item.paymentMethod || 'Other')}">${item.paymentIcon}</span>
@@ -276,15 +276,22 @@
       $('kitchen-detail-content').innerHTML = `<p class="detail-kicker">${escapeHtml(item.pickupId)} · ${escapeHtml(item.className)}</p>
         <h2>${escapeHtml(item.childName)}</h2><p class="detail-size">${escapeHtml(item.size)}</p>
         ${item.allergyFlag ? `<div class="detail-allergy">⚠️ ${escapeHtml(item.allergyDetails || 'Allergy information supplied')}</div>` : ''}
-        <button id="kitchen-complete" class="complete-btn">${completed.has(item.pickupId) ? 'UNDO COMPLETE' : 'ORDER COMPLETE'}</button>
+        <button id="kitchen-complete" class="complete-btn" type="button">${completed.has(item.pickupId) ? 'UNDO COMPLETE' : 'ORDER COMPLETE'}</button>
         <details><summary>More info</summary><dl><dt>Payer</dt><dd>${escapeHtml(item.payerName || '—')}</dd><dt>Payment</dt><dd>${escapeHtml(item.paymentMethod || 'Other')} (${escapeHtml(item.paid || 'Unknown')})</dd><dt>Order ID</dt><dd>${escapeHtml(item.orderId)}</dd>${item.allergyFlag ? `<dt>Allergy details</dt><dd>${escapeHtml(item.allergyDetails || '—')}</dd>` : ''}</dl></details>`;
       $('kitchen-detail').hidden = false;
-      $('kitchen-complete').addEventListener('click', () => {
-        if (completed.has(item.pickupId)) completed.delete(item.pickupId); else completed.add(item.pickupId);
-        saveSessionState();
-        $('kitchen-detail').hidden = true;
-        render();
-      });
+      const completeBtn = $('kitchen-complete');
+      if (completeBtn) {
+        completeBtn.onclick = () => {
+          if (completed.has(item.pickupId)) {
+            completed.delete(item.pickupId);
+          } else {
+            completed.add(item.pickupId);
+          }
+          saveSessionState();
+          $('kitchen-detail').hidden = true;
+          render();
+        };
+      }
     }
 
     function escapeHtml(value) {
@@ -460,9 +467,14 @@
     $('kitchen-list').addEventListener('click', (event) => {
       const itemEl = event.target.closest('.kitchen-item');
       if (!itemEl) return;
-      const pickupId = decodeURIComponent(itemEl.dataset.pickupId || '');
-      const item = current.items.find((i) => i.pickupId === pickupId);
-      if (item) showDetail(item);
+      const pickupId = itemEl.getAttribute('data-pickup-id') || itemEl.dataset.pickupId || '';
+      const item = current.items.find((i) => i.pickupId === pickupId || String(i.pickupId) === String(pickupId));
+      if (item) {
+        showDetail(item);
+      } else if (current && current.items) {
+        const fallback = current.items.find((i) => itemEl.textContent.includes(i.childName));
+        if (fallback) showDetail(fallback);
+      }
     });
 
     document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => { filter = button.dataset.filter; render(); }));
