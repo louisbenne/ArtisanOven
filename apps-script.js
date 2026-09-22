@@ -1,16 +1,16 @@
 // ============================================================================
 // ARTISAN OVEN — Operational Backend, Public API & Admin System
-// Version: 2.5.1 (Build 2026.09.22)
+// Version: 2.5.2 (Build 2026.09.22)
 //
-// SUMMARY OF UPDATES IN v2.5.1:
-// 1. Improved Email Reliability:
-//    - Moved 'SENT' status marking to after successful dispatch.
-//    - Added extractPayerEmailWithHeaders for more accurate email detection.
-//    - Improved error logging in spreadsheet.
+// SUMMARY OF UPDATES IN v2.5.2:
+// 1. Performance Optimization: 
+//    - Optimized 'getStatus' to only read relevant rows from the sheet instead of the entire range.
+//    - Faster processing of Internal Parent Orders.
+// 2. Reliability: Fixed potential OOM or timeout issues on large spreadsheets.
 // ============================================================================
 
 // ====== SCRIPT VERSION INFO ======
-var SCRIPT_VERSION = '2.5.1';
+var SCRIPT_VERSION = '2.5.2';
 var SCRIPT_BUILD = '2026.09.22';
 
 // ====== CORE DEFAULTS & CONFIGURATION ======
@@ -848,39 +848,45 @@ function doGet(e) {
       }
       
       var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-      var data = raw.getDataRange().getValues();
+      var lastRow = raw.getLastRow();
+      var startRowIndex = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
       
-      var startRow = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
       var totalPizzas = 0;
       var totalOrders = 0;
 
-      for (var r = startRow; r < data.length; r++) {
-        var row = data[r];
-        if (!row || rowIsBlank(row)) continue;
-        if (isRowDeleted(row)) continue;
+      // OPTIMIZATION: Only read rows from the current session start row onwards
+      if (lastRow > startRowIndex) {
+        var data = raw.getRange(startRowIndex + 1, 1, lastRow - startRowIndex, raw.getLastColumn()).getValues();
+        for (var r = 0; r < data.length; r++) {
+          var row = data[r];
+          if (!row || rowIsBlank(row)) continue;
+          if (isRowDeleted(row)) continue;
 
-        var stats = calculateRowPizzaStats(row);
-        
-        totalPizzas += stats.pizzaCapacity;
-        if (stats.pizzaSelections > 0) totalOrders++;
+          var stats = calculateRowPizzaStats(row);
+          totalPizzas += stats.pizzaCapacity;
+          if (stats.pizzaSelections > 0) totalOrders++;
+        }
       }
 
       var parentSheet = ss.getSheetByName('Internal Parent Orders');
-      if (parentSheet && parentSheet.getLastRow() >= 2) {
-        var parentData = parentSheet.getDataRange().getValues();
-        for (var pr = 1; pr < parentData.length; pr++) {
-          var parentRow = parentData[pr];
-          if (!parentRow || rowIsBlank(parentRow)) continue;
-          if (safeTrim(String(parentRow[16] || '')).toUpperCase() === 'TRUE') continue;
-          var parentItemsJson = safeTrim(String(parentRow[6] || '[]'));
-          try {
-            var parentItems = JSON.parse(parentItemsJson);
-            for (var pi = 0; pi < parentItems.length; pi++) {
-              var parentItem = parentItems[pi] || {};
-              totalPizzas += getPizzaCapacityValue(parentItem.size || '') * (parseInt(parentItem.qty, 10) || 0);
+      if (parentSheet) {
+        var pLastRow = parentSheet.getLastRow();
+        if (pLastRow >= 2) {
+          var parentData = parentSheet.getRange(2, 1, pLastRow - 1, parentSheet.getLastColumn()).getValues();
+          for (var pr = 0; pr < parentData.length; pr++) {
+            var parentRow = parentData[pr];
+            if (!parentRow || rowIsBlank(parentRow)) continue;
+            if (safeTrim(String(parentRow[16] || '')).toUpperCase() === 'TRUE') continue;
+            var parentItemsJson = safeTrim(String(parentRow[6] || '[]'));
+            try {
+              var parentItems = JSON.parse(parentItemsJson);
+              for (var pi = 0; pi < parentItems.length; pi++) {
+                var parentItem = parentItems[pi] || {};
+                totalPizzas += getPizzaCapacityValue(parentItem.size || '') * (parseInt(parentItem.qty, 10) || 0);
+              }
+            } catch (e) {
+              Logger.log('Error parsing Internal Parent Orders items for status: ' + e);
             }
-          } catch (e) {
-            Logger.log('Error parsing Internal Parent Orders items for status: ' + e);
           }
         }
       }
@@ -3923,31 +3929,34 @@ function getCurrentSessionOrderChecklist() {
   var settings = getSettings();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var raw = ss.getSheetByName('Form Responses 1') || ss.getSheets()[0];
-  var data = raw.getDataRange().getValues();
+  var lastRow = raw.getLastRow();
+  var data = raw.getRange(1, 1, Math.min(lastRow, 1), raw.getLastColumn()).getValues();
   var headers = data.length > 0 ? data[0] : [];
-  var startRow = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
+  var startRowIndex = Math.max(1, (parseInt(settings.sessionStartRow, 10) || 2) - 1);
   var items = [];
 
-  for (var r = startRow; r < data.length; r++) {
-    var row = data[r];
-    if (rowIsBlank(row) || isRowDeleted(row)) continue;
+  if (lastRow > startRowIndex) {
+    var sessionData = raw.getRange(startRowIndex + 1, 1, lastRow - startRowIndex, raw.getLastColumn()).getValues();
+    for (var r = 0; r < sessionData.length; r++) {
+      var row = sessionData[r];
+      if (rowIsBlank(row) || isRowDeleted(row)) continue;
 
-    var paymentStatus = resolvePaymentStatus(row, headers, row[PAYMENT_STATUS_COL]);
-    var normalizedPaymentStatus = safeTrim(paymentStatus).toLowerCase();
-    if (/^(failed|declined|rejected|cancelled|canceled|refunded|void)$/.test(normalizedPaymentStatus)) continue;
+      var paymentStatus = resolvePaymentStatus(row, headers, row[PAYMENT_STATUS_COL]);
+      var normalizedPaymentStatus = safeTrim(paymentStatus).toLowerCase();
+      if (/^(failed|declined|rejected|cancelled|canceled|refunded|void)$/.test(normalizedPaymentStatus)) continue;
 
-    var orderNum = r;
-    var qtyDigit = extractDigit(safeTrim(row[3])) || '0';
-    var allergyFlag = safeTrim(row[1]).toLowerCase() === 'yes';
-    var allergyDetails = stripHtml(safeTrim(row[2]));
-    var blocks = BRANCHES[qtyDigit] || [];
+      var orderNum = startRowIndex + 1 + r;
+      var qtyDigit = extractDigit(safeTrim(row[3])) || '0';
+      var allergyFlag = safeTrim(row[1]).toLowerCase() === 'yes';
+      var allergyDetails = stripHtml(safeTrim(row[2]));
+      var blocks = BRANCHES[qtyDigit] || [];
 
-    for (var b = 0; b < blocks.length; b++) {
-      var cols = blocks[b];
-      var sizeRaw = safeTrim(row[cols[0]]);
-      var childName = safeTrim(row[cols[1]]);
-      var className = safeTrim(row[cols[2]]);
-      if (!sizeRaw && !childName) continue;
+      for (var b = 0; b < blocks.length; b++) {
+        var cols = blocks[b];
+        var sizeRaw = safeTrim(row[cols[0]]);
+        var childName = safeTrim(row[cols[1]]);
+        var className = safeTrim(row[cols[2]]);
+        if (!sizeRaw && !childName) continue;
 
       var size = mapSize(sizeRaw);
       var classMatch = className.match(/class\s*(\d+)/i);
