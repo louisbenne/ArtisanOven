@@ -2132,6 +2132,12 @@
             if (data.success) {
               newWeekModal.style.display = "none";
               showToast("New week session initiated! Spreadsheet successfully cleared.", "success");
+              try {
+                localStorage.removeItem('STATUS_CACHE_DATA');
+                localStorage.removeItem('STATUS_CACHE_TIME');
+                sessionStorage.removeItem('STATUS_CACHE_DATA');
+                sessionStorage.removeItem('STATUS_CACHE_TIME');
+              } catch (e) {}
               loadDashboardData();
             } else {
               showToast(data.message || "Failed to start new session.", "error");

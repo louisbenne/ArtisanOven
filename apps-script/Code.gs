@@ -149,6 +149,7 @@ function saveSettings(newSettings) {
   }
   PropertiesService.getScriptProperties().setProperty('ARTISAN_SETTINGS', JSON.stringify(current));
   syncSettingsToSheet(current);
+  try { CacheService.getScriptCache().remove('SYSTEM_STATUS_CACHE'); } catch(err) {}
   return current;
 }
 

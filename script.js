@@ -39,19 +39,26 @@ function initAvailabilityTracker() {
     return;
   }
 
+  const STATUS_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
   function fallbackToOpen() {
-    // Do not force open on error if cache exists; keep UI stable
-    const existingCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
-    if (existingCache) {
-      try {
-        const parsed = JSON.parse(existingCache);
-        if (parsed && parsed.success) {
-          updateTrackerUI(parsed);
-          return;
+    // Only use cache if it was saved recently (< 2 minutes) to prevent showing stale last-week status
+    try {
+      const cacheTimeStr = sessionStorage.getItem('STATUS_CACHE_TIME') || localStorage.getItem('STATUS_CACHE_TIME');
+      const cacheTime = cacheTimeStr ? parseInt(cacheTimeStr, 10) : 0;
+      if (cacheTime && (Date.now() - cacheTime) < STATUS_CACHE_TTL_MS) {
+        const existingCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
+        if (existingCache) {
+          const parsed = JSON.parse(existingCache);
+          if (parsed && parsed.success) {
+            updateTrackerUI(parsed);
+            return;
+          }
         }
-      } catch (e) {}
-    }
-    // If no cache at all, default to a safe neutral state rather than forcefully opening
+      }
+    } catch (e) {}
+
+    // If no valid recent cache, default to a safe neutral loading state rather than forcefully opening or showing stale full status
     if (trackerEl) {
       trackerEl.style.display = "block";
       const statusText = document.getElementById("tracker-status-text");
@@ -71,14 +78,28 @@ function initAvailabilityTracker() {
     }
   }
 
-  // Immediate render from cache if available to prevent UI flash
+  // Immediate render from cache ONLY if recent (< 2 minutes) to prevent UI flash and avoid showing stale full status from previous week
   try {
-    const immediateCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
-    if (immediateCache) {
-      const parsed = JSON.parse(immediateCache);
-      if (parsed && parsed.success) {
-        updateTrackerUI(parsed);
+    const cacheTimeStr = sessionStorage.getItem('STATUS_CACHE_TIME') || localStorage.getItem('STATUS_CACHE_TIME');
+    const cacheTime = cacheTimeStr ? parseInt(cacheTimeStr, 10) : 0;
+    const isCacheRecent = cacheTime > 0 && (Date.now() - cacheTime) < STATUS_CACHE_TTL_MS;
+
+    if (isCacheRecent) {
+      const immediateCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
+      if (immediateCache) {
+        const parsed = JSON.parse(immediateCache);
+        if (parsed && parsed.success) {
+          updateTrackerUI(parsed);
+        }
       }
+    } else {
+      // Clear stale cache from old sessions or previous days
+      sessionStorage.removeItem('STATUS_CACHE_DATA');
+      sessionStorage.removeItem('STATUS_CACHE_TIME');
+      try {
+        localStorage.removeItem('STATUS_CACHE_DATA');
+        localStorage.removeItem('STATUS_CACHE_TIME');
+      } catch (e) {}
     }
   } catch (e) {
     // Ignore JSON parse errors
@@ -164,10 +185,12 @@ function initAvailabilityTracker() {
         if (data && data.success) {
           fetchSucceeded = true;
           const serialized = JSON.stringify(data);
+          const nowStr = Date.now().toString();
           sessionStorage.setItem('STATUS_CACHE_DATA', serialized);
-          sessionStorage.setItem('STATUS_CACHE_TIME', Date.now().toString());
+          sessionStorage.setItem('STATUS_CACHE_TIME', nowStr);
           try {
             localStorage.setItem('STATUS_CACHE_DATA', serialized);
+            localStorage.setItem('STATUS_CACHE_TIME', nowStr);
           } catch (e) {}
           updateTrackerUI(data);
         } else {
@@ -293,7 +316,6 @@ function initAvailabilityTracker() {
     }
   }
 
-  /*
   // Real-time visibility and focus triggers for instant status updates
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -311,7 +333,6 @@ function initAvailabilityTracker() {
       fetchStatus(true);
     });
   });
-  */
 
   // On order page: when Google Form iframe loads or records a submission, refresh immediately
   const formIframe = document.querySelector("#order-form-container iframe");
@@ -327,8 +348,8 @@ function initAvailabilityTracker() {
     });
   }
 
-  // Initial fetch triggers the adaptive loop immediately
-  // fetchStatus();
+  // Initial fetch triggers the live status update immediately
+  fetchStatus(true);
 }
 
 function initOrderEventsBanner() {
