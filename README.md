@@ -1,4 +1,4 @@
-# Artisan Oven — Website & Ordering System
+# Artisan Oven — Website & Ordering System v1
 
 Ordering system and marketing site for **[artisanoven.shop](http://www.artisanoven.shop/)**, a school pizza business. The frontend is a static, no-build HTML/CSS/JS site hosted on GitHub Pages; the backend is a Google Apps Script web app bound to a Google Sheet, providing a JSON API, capacity and session management, an admin dashboard, and transactional email.
 
