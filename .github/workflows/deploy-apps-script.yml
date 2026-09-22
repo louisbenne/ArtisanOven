@@ -23,6 +23,13 @@ jobs:
       - name: Install clasp
         run: npm install -g @google/clasp
 
+      - name: Validate Apps Script syntax
+        working-directory: apps-script
+        run: |
+          cp Code.gs Code.temp.js
+          node --check Code.temp.js
+          rm Code.temp.js
+
       - name: Configure clasp authentication
         run: |
           echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json

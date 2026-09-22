@@ -3975,6 +3975,7 @@ function getCurrentSessionOrderChecklist() {
       });
     }
   }
+}
 
   items.sort(function(a, b) {
     return a.classNumber - b.classNumber ||
