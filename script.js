@@ -9,6 +9,9 @@
 var ORDER_API_URL = window.ORDER_API_URL;
 
 function runInit() {
+  if (window.__ao_initialized) return;
+  window.__ao_initialized = true;
+
   // Keep footer year updated
   const yearEl = document.getElementById("footer-year");
   if (yearEl) {
@@ -29,10 +32,6 @@ function runInit() {
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", runInit);
-  // Also eagerly run availability tracker as soon as script evaluates if DOM nodes already exist
-  if (document.getElementById("availability-tracker") || document.getElementById("order-form-container")) {
-    initAvailabilityTracker();
-  }
 } else {
   runInit();
 }
@@ -365,17 +364,13 @@ function initAvailabilityTracker() {
   }
 
   // Initial fetch triggers the live status update immediately
-  fetchStatus(false);
-
-  // When tab becomes active or user refocuses, revalidate status
-  document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible") {
-      fetchStatus(false);
-    }
-  });
-  window.addEventListener("focus", function () {
+  // Only fetch if we don't have INITIAL_STATUS or it's old
+  if (!window.INITIAL_STATUS) {
     fetchStatus(false);
-  });
+  } else {
+    // If we have initial status, still schedule a poll later
+    scheduleNextPoll(30000);
+  }
 }
 
 function initOrderEventsBanner() {

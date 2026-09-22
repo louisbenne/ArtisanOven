@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
+import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,7 +49,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- High-Speed In-Memory Status Cache & Proxy ---
-const UPSTREAM_API_URL = process.env.ORDER_API_URL;
+const UPSTREAM_API_URL = process.env.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
 
 let statusCache = {
   data: null,
@@ -61,6 +62,10 @@ async function fetchUpstreamStatus() {
     return pendingFetchPromise;
   }
 
+  if (!UPSTREAM_API_URL || UPSTREAM_API_URL.indexOf('http') !== 0) {
+    return statusCache.data;
+  }
+
   pendingFetchPromise = (async () => {
     try {
       const url = new URL(UPSTREAM_API_URL);
@@ -70,7 +75,7 @@ async function fetchUpstreamStatus() {
       const controller = new AbortController();
       const timeout = setTimeout(() => {
         try { controller.abort(); } catch (e) {}
-      }, 15000);
+      }, 8000); // Shorter timeout for faster failover
 
       const res = await fetch(url.toString(), {
         signal: controller.signal,
@@ -87,9 +92,8 @@ async function fetchUpstreamStatus() {
         }
       }
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.warn('[Status Cache] Upstream check note:', err.message);
-      }
+      // Log errors but don't crash
+      console.warn('[Status Proxy] Upstream note:', err.message);
     } finally {
       pendingFetchPromise = null;
     }
@@ -106,26 +110,34 @@ fetchUpstreamStatus();
 app.get('/api/status', async (req, res) => {
   const force = req.query.force === 'true' || req.query.clear === 'true';
   const now = Date.now();
-  const CACHE_FRESH_MS = 6 * 1000; // Fresh for 6 seconds
+  const CACHE_FRESH_MS = 10 * 1000; // Fresh for 10 seconds
 
   if (req.query.clear === 'true') {
     statusCache.data = null;
     statusCache.timestamp = 0;
   }
 
-  if (force || !statusCache.data) {
-    // Trigger fetch but only wait if absolutely necessary (e.g. force)
-    if (force) {
-      await fetchUpstreamStatus();
-    } else {
-      // Don't block the very first request if we can help it, let the client show skeleton
+  // SWR Logic: return immediately if we have any data at all, refresh in background
+  if (statusCache.data) {
+    if (force || (now - statusCache.timestamp > CACHE_FRESH_MS)) {
       fetchUpstreamStatus();
-      // Wait a tiny bit (200ms) to see if it finishes fast, otherwise let it background
-      await new Promise(r => setTimeout(r, 200));
     }
-  } else if (now - statusCache.timestamp > CACHE_FRESH_MS) {
-    // SWR: serve cached immediately in ~1ms, revalidate in background
-    fetchUpstreamStatus();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    return res.json(statusCache.data);
+  }
+
+  // If no data, start fetch but don't wait too long
+  const fetchTask = fetchUpstreamStatus();
+  
+  if (force) {
+    await fetchTask;
+  } else {
+    // Race between fetch and a very short timeout to ensure the app stays "snappy"
+    await Promise.race([
+      fetchTask,
+      new Promise(resolve => setTimeout(resolve, 800))
+    ]);
   }
 
   res.setHeader('Content-Type', 'application/json');
@@ -135,9 +147,16 @@ app.get('/api/status', async (req, res) => {
     return res.json(statusCache.data);
   }
 
-  return res.status(503).json({
-    success: false,
-    message: "Status temporarily loading"
+  // Return a "safe" optimistic response if still loading to prevent 503 errors
+  return res.json({
+    success: true,
+    orderingOpen: true,
+    isOptimistic: true,
+    currentPizzas: 0,
+    maxPizzas: 50,
+    remainingPizzas: 50,
+    serviceTitle: "Loading...",
+    message: "Status is updating..."
   });
 });
 
@@ -157,14 +176,39 @@ app.get('/config.js', (req, res) => {
 });
 
 // Explicit route aliases for HTML pages
+
+// Helper to inject config and status into HTML
+async function serveOptimizedHtml(req, res, filename) {
+  try {
+    let html = await fs.readFile(path.join(__dirname, filename), 'utf8');
+    const configScript = `
+    <script>
+      window.ORDER_API_URL = ${JSON.stringify(UPSTREAM_API_URL)};
+      window.STATUS_API_URL = "/api/status";
+      window.INITIAL_STATUS = ${JSON.stringify(statusCache.data || null)};
+    </script>`;
+    
+    // Inject before first script or at end of head
+    if (html.includes('<script src="/config.js"></script>')) {
+      html = html.replace('<script src="/config.js"></script>', configScript);
+    } else {
+      html = html.replace('</head>', `${configScript}\n</head>`);
+    }
+
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(html);
+  } catch (err) {
+    res.sendFile(path.join(__dirname, filename));
+  }
+}
+
 app.get(['/payment', '/payment.html', '/Payment', '/Payment.html'], (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile(path.join(__dirname, 'Payment.html'));
+  serveOptimizedHtml(req, res, 'Payment.html');
 });
 
 app.get(['/order', '/order.html', '/Order', '/Order.html'], (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile(path.join(__dirname, 'order.html'));
+  serveOptimizedHtml(req, res, 'order.html');
 });
 
 app.get(['/admin', '/admin.html', '/Admin', '/Admin.html'], (req, res) => {
@@ -198,8 +242,7 @@ app.get(['/terms', '/terms.html', '/Terms', '/Terms.html'], (req, res) => {
 });
 
 app.get(['/', '/index.html'], (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile(path.join(__dirname, 'index.html'));
+  serveOptimizedHtml(req, res, 'index.html');
 });
 
 // Serve static assets with caching headers for non-HTML files
