@@ -8,7 +8,7 @@
 // ----------------------------------------------------------------------------
 var ORDER_API_URL = window.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
 
-document.addEventListener("DOMContentLoaded", function () {
+function runInit() {
   // Keep footer year updated
   const yearEl = document.getElementById("footer-year");
   if (yearEl) {
@@ -25,7 +25,17 @@ document.addEventListener("DOMContentLoaded", function () {
   initCopyButtons();
   // Setup PWA Service Worker
   initPWAServiceWorker();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", runInit);
+  // Also eagerly run availability tracker as soon as script evaluates if DOM nodes already exist
+  if (document.getElementById("availability-tracker") || document.getElementById("order-form-container")) {
+    initAvailabilityTracker();
+  }
+} else {
+  runInit();
+}
 
 function initAvailabilityTracker() {
   const trackerEl = document.getElementById("availability-tracker");
@@ -78,31 +88,44 @@ function initAvailabilityTracker() {
     }
   }
 
-  // Immediate render from cache ONLY if recent (< 2 minutes) to prevent UI flash and avoid showing stale full status from previous week
-  try {
-    const cacheTimeStr = sessionStorage.getItem('STATUS_CACHE_TIME') || localStorage.getItem('STATUS_CACHE_TIME');
-    const cacheTime = cacheTimeStr ? parseInt(cacheTimeStr, 10) : 0;
-    const isCacheRecent = cacheTime > 0 && (Date.now() - cacheTime) < STATUS_CACHE_TTL_MS;
+  // 1. Immediate render from window.INITIAL_STATUS (injected in <head> by /config.js)
+  if (window.INITIAL_STATUS && window.INITIAL_STATUS.success) {
+    updateTrackerUI(window.INITIAL_STATUS);
+    const serialized = JSON.stringify(window.INITIAL_STATUS);
+    const nowStr = Date.now().toString();
+    sessionStorage.setItem('STATUS_CACHE_DATA', serialized);
+    sessionStorage.setItem('STATUS_CACHE_TIME', nowStr);
+    try {
+      localStorage.setItem('STATUS_CACHE_DATA', serialized);
+      localStorage.setItem('STATUS_CACHE_TIME', nowStr);
+    } catch (e) {}
+  } else {
+    // 2. Immediate render from client cache ONLY if recent (< 2 minutes) to prevent UI flash
+    try {
+      const cacheTimeStr = sessionStorage.getItem('STATUS_CACHE_TIME') || localStorage.getItem('STATUS_CACHE_TIME');
+      const cacheTime = cacheTimeStr ? parseInt(cacheTimeStr, 10) : 0;
+      const isCacheRecent = cacheTime > 0 && (Date.now() - cacheTime) < STATUS_CACHE_TTL_MS;
 
-    if (isCacheRecent) {
-      const immediateCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
-      if (immediateCache) {
-        const parsed = JSON.parse(immediateCache);
-        if (parsed && parsed.success) {
-          updateTrackerUI(parsed);
+      if (isCacheRecent) {
+        const immediateCache = sessionStorage.getItem('STATUS_CACHE_DATA') || localStorage.getItem('STATUS_CACHE_DATA');
+        if (immediateCache) {
+          const parsed = JSON.parse(immediateCache);
+          if (parsed && parsed.success) {
+            updateTrackerUI(parsed);
+          }
         }
+      } else {
+        // Clear stale cache from old sessions or previous days
+        sessionStorage.removeItem('STATUS_CACHE_DATA');
+        sessionStorage.removeItem('STATUS_CACHE_TIME');
+        try {
+          localStorage.removeItem('STATUS_CACHE_DATA');
+          localStorage.removeItem('STATUS_CACHE_TIME');
+        } catch (e) {}
       }
-    } else {
-      // Clear stale cache from old sessions or previous days
-      sessionStorage.removeItem('STATUS_CACHE_DATA');
-      sessionStorage.removeItem('STATUS_CACHE_TIME');
-      try {
-        localStorage.removeItem('STATUS_CACHE_DATA');
-        localStorage.removeItem('STATUS_CACHE_TIME');
-      } catch (e) {}
+    } catch (e) {
+      // Ignore JSON parse errors
     }
-  } catch (e) {
-    // Ignore JSON parse errors
   }
 
   // If there's no API URL, show neutral state
@@ -114,10 +137,13 @@ function initAvailabilityTracker() {
   let isFetching = false;
   let pollTimer = null;
 
-  function scheduleNextPoll(delayMs) {
+  function scheduleNextPoll(delayMs = 20000) {
     if (pollTimer) clearTimeout(pollTimer);
+    if (document.hidden) return; // Do not poll when page is in background
     pollTimer = setTimeout(() => {
-      fetchStatus();
+      if (!document.hidden) {
+        fetchStatus(false);
+      }
     }, delayMs);
   }
 
@@ -125,7 +151,7 @@ function initAvailabilityTracker() {
     if (isFetching) return;
 
     const apiUrl = (typeof ORDER_API_URL !== 'undefined') ? ORDER_API_URL : (window.ORDER_API_URL || "");
-    const statusApiUrl = (typeof window.STATUS_API_URL !== 'undefined') ? window.STATUS_API_URL : "";
+    const statusApiUrl = (typeof window.STATUS_API_URL !== 'undefined') ? window.STATUS_API_URL : "/api/status";
 
     if (!statusApiUrl && (!apiUrl || apiUrl.indexOf('http') !== 0 || apiUrl === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE")) {
       fallbackToOpen();
@@ -160,13 +186,13 @@ function initAvailabilityTracker() {
     try {
       let response = null;
 
-      // 1. Try local status endpoint first if configured (sub-second local cache)
+      // 1. Try local status endpoint first (instant sub-5ms local cache)
       if (statusApiUrl) {
         try {
           const localUrl = new URL(statusApiUrl, window.location.origin);
           localUrl.searchParams.set("_t", Date.now().toString());
           if (force) localUrl.searchParams.set("force", "true");
-          response = await doFetch(localUrl.toString(), 3000);
+          response = await doFetch(localUrl.toString(), 2500);
         } catch (e) {
           // Fall back to direct upstream
         }
@@ -204,7 +230,8 @@ function initAvailabilityTracker() {
       fallbackToOpen();
     } finally {
       isFetching = false;
-      // Background polling removed as requested by user
+      // Keep availability live with periodic light background refreshes
+      scheduleNextPoll(20000);
     }
   }
 
@@ -349,7 +376,17 @@ function initAvailabilityTracker() {
   }
 
   // Initial fetch triggers the live status update immediately
-  fetchStatus(true);
+  fetchStatus(false);
+
+  // When tab becomes active or user refocuses, revalidate status
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") {
+      fetchStatus(false);
+    }
+  });
+  window.addEventListener("focus", function () {
+    fetchStatus(false);
+  });
 }
 
 function initOrderEventsBanner() {

@@ -47,14 +47,97 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// API route to provide public configuration to the client
+// --- High-Speed In-Memory Status Cache & Proxy ---
+const UPSTREAM_API_URL = process.env.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
+
+let statusCache = {
+  data: null,
+  timestamp: 0,
+  isFetching: false
+};
+
+async function fetchUpstreamStatus() {
+  if (statusCache.isFetching) return statusCache.data;
+  statusCache.isFetching = true;
+  try {
+    const url = new URL(UPSTREAM_API_URL);
+    url.searchParams.set("action", "getStatus");
+    url.searchParams.set("_t", Date.now().toString());
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      try { controller.abort(); } catch (e) {}
+    }, 6000);
+
+    const res = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: { "Accept": "application/json" }
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success) {
+        statusCache.data = data;
+        statusCache.timestamp = Date.now();
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[Status Cache] Upstream refresh failed:', err.message);
+  } finally {
+    statusCache.isFetching = false;
+  }
+  return statusCache.data;
+}
+
+// Warm up cache immediately on server launch
+fetchUpstreamStatus();
+
+// API route to provide instant live status
+app.get('/api/status', async (req, res) => {
+  const force = req.query.force === 'true' || req.query.clear === 'true';
+  const now = Date.now();
+  const CACHE_FRESH_MS = 6 * 1000; // Fresh for 6 seconds
+
+  if (req.query.clear === 'true') {
+    statusCache.data = null;
+    statusCache.timestamp = 0;
+  }
+
+  if (force || !statusCache.data) {
+    await fetchUpstreamStatus();
+  } else if (now - statusCache.timestamp > CACHE_FRESH_MS) {
+    // SWR: serve cached immediately in ~1ms, revalidate in background
+    fetchUpstreamStatus();
+  }
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+  if (statusCache.data) {
+    return res.json(statusCache.data);
+  }
+
+  return res.status(503).json({
+    success: false,
+    message: "Status temporarily loading"
+  });
+});
+
+// API route to provide public configuration and preloaded status to the client
 app.get('/config.js', (req, res) => {
   const config = {
-    ORDER_API_URL: process.env.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec"
+    ORDER_API_URL: UPSTREAM_API_URL,
+    STATUS_API_URL: "/api/status"
   };
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.send(`window.ORDER_API_URL = ${JSON.stringify(config.ORDER_API_URL)};`);
+  let js = `window.ORDER_API_URL = ${JSON.stringify(config.ORDER_API_URL)};\nwindow.STATUS_API_URL = ${JSON.stringify(config.STATUS_API_URL)};`;
+  if (statusCache.data) {
+    js += `\nwindow.INITIAL_STATUS = ${JSON.stringify(statusCache.data)};`;
+  }
+  res.send(js);
 });
 
 // Explicit route aliases for HTML pages

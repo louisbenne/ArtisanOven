@@ -2022,6 +2022,13 @@
             }
 
             if (data.success) {
+              try {
+                fetch('/api/status?clear=true&force=true', { cache: 'no-store' }).catch(() => {});
+                localStorage.removeItem('STATUS_CACHE_DATA');
+                localStorage.removeItem('STATUS_CACHE_TIME');
+                sessionStorage.removeItem('STATUS_CACHE_DATA');
+                sessionStorage.removeItem('STATUS_CACHE_TIME');
+              } catch (e) {}
               showToast("Capacity & ordering status saved successfully!", "success");
               if (data.settings && data.stats) {
                 renderDashboard(data.settings, data.stats);
@@ -2133,6 +2140,7 @@
               newWeekModal.style.display = "none";
               showToast("New week session initiated! Spreadsheet successfully cleared.", "success");
               try {
+                fetch('/api/status?clear=true&force=true', { cache: 'no-store' }).catch(() => {});
                 localStorage.removeItem('STATUS_CACHE_DATA');
                 localStorage.removeItem('STATUS_CACHE_TIME');
                 sessionStorage.removeItem('STATUS_CACHE_DATA');
