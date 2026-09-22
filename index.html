@@ -110,7 +110,7 @@
                 var dm = document.getElementById("tracker-deadline-text");
                 var cd = document.getElementById("tracker-capacity-disclaimer");
 
-                if (el) el.classList.remove("is-loading");
+                if (el && !d.isOptimistic) el.classList.remove("is-loading");
                 if (tt && (d.serviceTitle || d.serviceDate)) tt.textContent = d.serviceTitle || (d.serviceDate + " Availability");
                 if (dt && d.serviceNoticeDate) dt.textContent = d.serviceNoticeDate;
                 if (dm && d.deadlineMessage) dm.innerHTML = d.deadlineMessage;
@@ -128,11 +128,11 @@
                 }
 
                 var cur = typeof d.currentPizzas === 'number' ? d.currentPizzas : 0;
-                var max = typeof d.maxPizzas === 'number' ? d.maxPizzas : 22;
+                var max = typeof d.maxPizzas === 'number' ? d.maxPizzas : 0;
                 var rem = typeof d.remainingPizzas === 'number' ? d.remainingPizzas : Math.max(0, max - cur);
 
-                if (ot) ot.textContent = cur + " of " + max + " pizzas claimed";
-                if (or) {
+                if (ot && max > 0) ot.textContent = cur + " of " + max + " pizzas claimed";
+                if (or && max > 0) {
                   or.textContent = (rem <= 0 ? "0" : rem) + " remaining";
                   or.style.display = isClosed ? "none" : "inline-block";
                 }

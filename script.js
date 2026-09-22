@@ -249,7 +249,9 @@ function initAvailabilityTracker() {
     }
 
     if (trackerEl) {
-      trackerEl.classList.remove("is-loading");
+      if (!data.isOptimistic) {
+        trackerEl.classList.remove("is-loading");
+      }
       trackerEl.style.display = "block";
 
       const statusText = document.getElementById("tracker-status-text");

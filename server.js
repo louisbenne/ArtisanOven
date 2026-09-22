@@ -147,16 +147,16 @@ app.get('/api/status', async (req, res) => {
     return res.json(statusCache.data);
   }
 
-  // Return a "safe" optimistic response if still loading to prevent 503 errors
+  // Return a neutral response that keeps the UI in a "thinking" state if still loading
   return res.json({
     success: true,
-    orderingOpen: true,
     isOptimistic: true,
+    orderingOpen: true,
     currentPizzas: 0,
-    maxPizzas: 50,
-    remainingPizzas: 50,
-    serviceTitle: "Loading...",
-    message: "Status is updating..."
+    maxPizzas: 0, 
+    remainingPizzas: 0,
+    serviceTitle: "Connecting...",
+    message: "Refreshing live data..."
   });
 });
 
