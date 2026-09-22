@@ -1658,25 +1658,9 @@
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function() {
         navigator.serviceWorker.register("./admin-sw.js?v=4", { scope: "./", updateViaCache: 'none' })
-          .then(function(reg) {
-            try { reg.update(); } catch (e) {}
-            document.addEventListener("visibilitychange", function() {
-              if (document.visibilityState === "visible") {
-                try { reg.update(); } catch (e) {}
-              }
-            });
-          })
           .catch(function(error) {
             console.error("AO Admin PWA registration failed:", error);
           });
-
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener("controllerchange", function() {
-          if (!refreshing) {
-            refreshing = true;
-            window.location.reload();
-          }
-        });
       });
     }
   </script>
@@ -4201,7 +4185,8 @@
           kitchenLink.style.display = "inline-block";
           localStorage.setItem("ao_admin_session_token", currentAdminToken);
         }
-        startLiveSync();
+        // Background sync removed as requested by user
+        // startLiveSync();
       }
 
       function startLiveSync() {

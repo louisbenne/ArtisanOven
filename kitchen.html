@@ -193,25 +193,9 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('./kitchen-sw.js?v=5', { scope: './', updateViaCache: 'none' })
-          .then(function(reg) {
-            try { reg.update(); } catch (e) {}
-            document.addEventListener('visibilitychange', function() {
-              if (document.visibilityState === 'visible') {
-                try { reg.update(); } catch (e) {}
-              }
-            });
-          })
           .catch(function(err) {
             console.error('AO Kitchen PWA registration failed:', err);
           });
-
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', function() {
-          if (!refreshing) {
-            refreshing = true;
-            window.location.reload();
-          }
-        });
       });
     }
   </script>

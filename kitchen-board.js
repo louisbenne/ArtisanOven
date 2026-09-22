@@ -545,9 +545,10 @@
             remoteLoadInFlight = false;
           }
         }
-      }, 2000);
+      }, 10000);
     }
-    startPolling();
+    // Background sync removed as requested by user
+    // startPolling();
 
     window.addEventListener('beforeunload', () => {
       window.clearInterval(timerHandle);

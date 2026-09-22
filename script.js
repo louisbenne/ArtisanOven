@@ -181,11 +181,7 @@ function initAvailabilityTracker() {
       fallbackToOpen();
     } finally {
       isFetching = false;
-      // Adaptive down-to-the-second polling loop
-      // 1000ms when tab is active and visible; 5000ms when tab is in background; 2500ms on error
-      const isVisible = document.visibilityState === "visible";
-      const nextDelay = !fetchSucceeded ? 2500 : (isVisible ? 1000 : 5000);
-      scheduleNextPoll(nextDelay);
+      // Background polling removed as requested by user
     }
   }
 
@@ -297,6 +293,7 @@ function initAvailabilityTracker() {
     }
   }
 
+  /*
   // Real-time visibility and focus triggers for instant status updates
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -314,6 +311,7 @@ function initAvailabilityTracker() {
       fetchStatus(true);
     });
   });
+  */
 
   // On order page: when Google Form iframe loads or records a submission, refresh immediately
   const formIframe = document.querySelector("#order-form-container iframe");
@@ -330,7 +328,7 @@ function initAvailabilityTracker() {
   }
 
   // Initial fetch triggers the adaptive loop immediately
-  fetchStatus();
+  // fetchStatus();
 }
 
 function initOrderEventsBanner() {
@@ -551,7 +549,6 @@ function initOrderLookup() {
   }
 
   function renderOrderResult(orderData) {
-    const resultSection = document.getElementById("order-result-section");
     const orderIdEl = document.getElementById("result-order-id");
     const customerNameEl = document.getElementById("result-customer-name");
     const itemsListEl = document.getElementById("result-items-list");
