@@ -1,19 +1,17 @@
 // ============================================================================
 // ARTISAN OVEN — Operational Backend, Public API & Admin System
-// Version: 2.5.0 (Build 2026.09.05)
+// Version: 2.5.1 (Build 2026.09.22)
 //
-// SUMMARY OF UPDATES IN v2.5.0:
-// 1. Direct Order Confirmation (Removed Waitlist Emails & Logic):
-//    - Every customer who submits an order receives a confirmed Order ID, full
-//      order summary, website lookup link, and payment instructions.
-//    - Removed waitlist blocking and [WAITLIST] naming prefixes.
-// 2. Main Page & Event Interest Registration:
-//    - Full support for gauging interest via both event tabs and main landing page.
+// SUMMARY OF UPDATES IN v2.5.1:
+// 1. Improved Email Reliability:
+//    - Moved 'SENT' status marking to after successful dispatch.
+//    - Added extractPayerEmailWithHeaders for more accurate email detection.
+//    - Improved error logging in spreadsheet.
 // ============================================================================
 
 // ====== SCRIPT VERSION INFO ======
-var SCRIPT_VERSION = '2.5.0';
-var SCRIPT_BUILD = '2026.09.05';
+var SCRIPT_VERSION = '2.5.1';
+var SCRIPT_BUILD = '2026.09.22';
 
 // ====== CORE DEFAULTS & CONFIGURATION ======
 var YOUR_EMAIL = 'louis@benne.co.uk';
