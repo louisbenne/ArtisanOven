@@ -628,7 +628,6 @@ function initOrderLookup() {
     const methodsContainer = document.getElementById("payment-methods-container");
     const defaultTear = document.getElementById("default-tear");
     const resultCard = document.querySelector(".order-result-card");
-    const resultSection = document.getElementById("order-result-section");
 
     if (methodsContainer && resultCard && resultSection) {
       if (defaultTear) defaultTear.style.display = "none";
