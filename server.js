@@ -48,7 +48,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- High-Speed In-Memory Status Cache & Proxy ---
-const UPSTREAM_API_URL = process.env.ORDER_API_URL || "https://script.google.com/macros/s/AKfycbwIZ9GTLcelcZUdXuprJBRJlB2mnlXYC36jJdFoNdzbAeALf66Y__Wf1fMFKpVQmocQoA/exec";
+const UPSTREAM_API_URL = process.env.ORDER_API_URL;
 
 let statusCache = {
   data: null,

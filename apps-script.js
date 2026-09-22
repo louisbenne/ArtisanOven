@@ -3597,10 +3597,6 @@ function sendOrderConfirmationForRow(rowNum) {
       }
     }
 
-    // Mark as SENT immediately inside lock to prevent double processing under high pressure / concurrent triggers
-    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
-    SpreadsheetApp.flush();
-
     var orderIndex = rowNum - 1;
     var formattedOrderId = String(orderIndex);
 
@@ -3610,7 +3606,10 @@ function sendOrderConfirmationForRow(rowNum) {
     var payerRaw = firstNonEmpty(row[50], row[52]);
     var paymentMethod = mapPaymentMethod(paymentRaw);
     var payerName = safeTrim(payerRaw) || 'there';
-    var payerEmail = extractPayerEmail(row);
+    
+    // Get order headers to find email more accurately
+    var orderHeaders = raw.getRange(1, 1, 1, raw.getLastColumn()).getValues()[0];
+    var payerEmail = extractPayerEmailWithHeaders(row, orderHeaders);
 
     if (!payerEmail) {
       Logger.log('No valid email found for row ' + rowNum + ' — confirmation not sent.');
@@ -3704,6 +3703,8 @@ function sendOrderConfirmationForRow(rowNum) {
       body: body,
       htmlBody: htmlBody
     });
+    // Mark as SENT only after successful MailApp dispatch
+    raw.getRange(rowNum, CONFIRMATION_SENT_COL).setValue('SENT');
   } catch (e) {
     Logger.log('MailApp error for row ' + rowNum + ': ' + e);
     try {
@@ -3848,12 +3849,30 @@ function mapSize(raw) {
   return SIZE_MAP[key] || key;
 }
 
-function extractPayerEmail(row) {
-  for (var i = 0; i < row.length; i++) {
+function extractPayerEmailWithHeaders(row, headers) {
+  if (!row || !row.length) return '';
+  
+  // 1. Try to find a column with "email" in the header name (ignoring timestamp column)
+  if (headers && headers.length) {
+    for (var h = 1; h < headers.length; h++) {
+      var head = String(headers[h] || '').toLowerCase();
+      if (head.indexOf('email') >= 0 || head.indexOf('e-mail') >= 0) {
+        var val = safeTrim(String(row[h] || ''));
+        if (isValidEmail(val)) return val;
+      }
+    }
+  }
+
+  // 2. Fallback to searching all columns except the first one (timestamp)
+  for (var i = 1; i < row.length; i++) {
     var candidate = safeTrim(row[i]);
     if (isValidEmail(candidate)) return candidate;
   }
   return '';
+}
+
+function extractPayerEmail(row) {
+  return extractPayerEmailWithHeaders(row, []);
 }
 
 function isValidEmail(text) {
@@ -4529,9 +4548,6 @@ function sendParentOrderConfirmation(orderId) {
   var alreadySent = safeTrim(String(row[13] || ''));
   if (alreadySent === 'SENT') return;
 
-  sheet.getRange(rowNum, 14).setValue('SENT');
-  SpreadsheetApp.flush();
-
   var parentName = safeTrim(String(row[2] || 'there'));
   var parentEmail = safeTrim(String(row[3] || ''));
   var childName = safeTrim(String(row[4] || ''));
@@ -4668,9 +4684,6 @@ function sendEventConfirmation(orderId) {
 
   var alreadySent = safeTrim(String(row[12]));
   if (alreadySent === 'SENT') return;
-
-  sheet.getRange(rowNum, 13).setValue('SENT');
-  SpreadsheetApp.flush();
 
   var eventId = safeTrim(String(row[2]));
   var eventName = safeTrim(String(row[3])) || 'Special Event';
