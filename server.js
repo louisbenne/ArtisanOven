@@ -52,43 +52,51 @@ const UPSTREAM_API_URL = process.env.ORDER_API_URL || "https://script.google.com
 
 let statusCache = {
   data: null,
-  timestamp: 0,
-  isFetching: false
+  timestamp: 0
 };
+let pendingFetchPromise = null;
 
 async function fetchUpstreamStatus() {
-  if (statusCache.isFetching) return statusCache.data;
-  statusCache.isFetching = true;
-  try {
-    const url = new URL(UPSTREAM_API_URL);
-    url.searchParams.set("action", "getStatus");
-    url.searchParams.set("_t", Date.now().toString());
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      try { controller.abort(); } catch (e) {}
-    }, 6000);
-
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: { "Accept": "application/json" }
-    });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success) {
-        statusCache.data = data;
-        statusCache.timestamp = Date.now();
-        return data;
-      }
-    }
-  } catch (err) {
-    console.warn('[Status Cache] Upstream refresh failed:', err.message);
-  } finally {
-    statusCache.isFetching = false;
+  if (pendingFetchPromise) {
+    return pendingFetchPromise;
   }
-  return statusCache.data;
+
+  pendingFetchPromise = (async () => {
+    try {
+      const url = new URL(UPSTREAM_API_URL);
+      url.searchParams.set("action", "getStatus");
+      url.searchParams.set("_t", Date.now().toString());
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        try { controller.abort(); } catch (e) {}
+      }, 15000);
+
+      const res = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: { "Accept": "application/json" }
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          statusCache.data = data;
+          statusCache.timestamp = Date.now();
+          return data;
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.warn('[Status Cache] Upstream check note:', err.message);
+      }
+    } finally {
+      pendingFetchPromise = null;
+    }
+    return statusCache.data;
+  })();
+
+  return pendingFetchPromise;
 }
 
 // Warm up cache immediately on server launch
