@@ -76,10 +76,10 @@ function initAvailabilityTracker() {
       const ordersTaken = document.getElementById("tracker-orders-taken");
       const ordersRemaining = document.getElementById("tracker-orders-remaining");
       if (statusText) {
-        statusText.textContent = "Checking Status...";
-        statusText.style.color = "var(--text-soft)";
+        statusText.textContent = "Checking Live Availability...";
+        statusText.style.color = "var(--forest)";
       }
-      if (ordersTaken) ordersTaken.textContent = "Loading live status...";
+      if (ordersTaken) ordersTaken.textContent = "Loading pizza availability...";
       if (ordersRemaining) ordersRemaining.textContent = "";
       if (progressFill) {
         progressFill.style.width = "0%";
