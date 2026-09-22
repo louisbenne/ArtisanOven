@@ -68,23 +68,10 @@ function initAvailabilityTracker() {
       }
     } catch (e) {}
 
-    // If no valid recent cache, default to a safe neutral loading state rather than forcefully opening or showing stale full status
+    // If no valid recent cache, default to a safe neutral loading state
     if (trackerEl) {
+      trackerEl.classList.add("is-loading");
       trackerEl.style.display = "block";
-      const statusText = document.getElementById("tracker-status-text");
-      const progressFill = document.getElementById("tracker-progress-fill");
-      const ordersTaken = document.getElementById("tracker-orders-taken");
-      const ordersRemaining = document.getElementById("tracker-orders-remaining");
-      if (statusText) {
-        statusText.textContent = "Checking Live Availability...";
-        statusText.style.color = "var(--forest)";
-      }
-      if (ordersTaken) ordersTaken.textContent = "Loading pizza availability...";
-      if (ordersRemaining) ordersRemaining.textContent = "";
-      if (progressFill) {
-        progressFill.style.width = "0%";
-        progressFill.style.opacity = "0.5";
-      }
     }
   }
 
@@ -263,6 +250,7 @@ function initAvailabilityTracker() {
     }
 
     if (trackerEl) {
+      trackerEl.classList.remove("is-loading");
       trackerEl.style.display = "block";
 
       const statusText = document.getElementById("tracker-status-text");
@@ -271,9 +259,9 @@ function initAvailabilityTracker() {
       const ordersRemaining = document.getElementById("tracker-orders-remaining");
 
       if (data.orderingOpen) {
-        if (statusText && statusText.textContent !== "Taking Orders") {
-          statusText.textContent = "Taking Orders";
-          statusText.style.color = "var(--sage)";
+        if (statusText) {
+          statusText.textContent = (data.remainingPizzas > 0 && data.remainingPizzas <= 5) ? ("Only " + formatPizzaAmount(data.remainingPizzas) + " Left!") : "Taking Orders";
+          statusText.style.color = "var(--forest)";
         }
       } else {
         if (statusText && statusText.textContent !== "Fully Booked") {
@@ -290,7 +278,7 @@ function initAvailabilityTracker() {
         const pct = Math.min(100, Math.max(0, (current / max) * 100));
         if (progressFill) {
           progressFill.style.width = pct + "%";
-          progressFill.style.opacity = "1";
+          progressFill.style.backgroundColor = (!data.orderingOpen) ? "var(--terracotta)" : (remaining <= 5 ? "#d97706" : "var(--forest)");
         }
 
         const isMaxReached = current >= max || remaining <= 0 || !data.orderingOpen;
@@ -300,8 +288,9 @@ function initAvailabilityTracker() {
           if (ordersTaken.textContent !== takenText) ordersTaken.textContent = takenText;
         }
         if (ordersRemaining) {
-          const remText = isMaxReached ? "Fully booked" : (formatPizzaAmount(Math.max(0, remaining)) + " pizzas remaining");
+          const remText = isMaxReached ? "0 remaining" : (formatPizzaAmount(Math.max(0, remaining)) + " remaining");
           if (ordersRemaining.textContent !== remText) ordersRemaining.textContent = remText;
+          ordersRemaining.style.display = (!data.orderingOpen) ? "none" : "inline-block";
         }
       }
     }

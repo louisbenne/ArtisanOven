@@ -114,7 +114,15 @@ app.get('/api/status', async (req, res) => {
   }
 
   if (force || !statusCache.data) {
-    await fetchUpstreamStatus();
+    // Trigger fetch but only wait if absolutely necessary (e.g. force)
+    if (force) {
+      await fetchUpstreamStatus();
+    } else {
+      // Don't block the very first request if we can help it, let the client show skeleton
+      fetchUpstreamStatus();
+      // Wait a tiny bit (200ms) to see if it finishes fast, otherwise let it background
+      await new Promise(r => setTimeout(r, 200));
+    }
   } else if (now - statusCache.timestamp > CACHE_FRESH_MS) {
     // SWR: serve cached immediately in ~1ms, revalidate in background
     fetchUpstreamStatus();

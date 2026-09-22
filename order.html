@@ -77,17 +77,21 @@
 
       <section class="page-content">
         <!-- Availability Tracker -->
-        <div class="availability-tracker" id="availability-tracker" aria-live="polite" style="margin-bottom: 24px;">
+        <div class="availability-tracker is-loading" id="availability-tracker" aria-live="polite" style="margin-bottom: 24px;">
           <div class="tracker-header">
-            <span class="tracker-title" id="tracker-service-title">AVAILABILITY</span>
-            <span class="tracker-status" id="tracker-status-text">Checking Live Availability...</span>
+            <div class="tracker-title-group">
+              <span class="tracker-title" id="tracker-service-title">Live Availability</span>
+              <span class="tracker-status" id="tracker-status-text">Checking Live Status</span>
+            </div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="tracker-progress-fill" style="width: 0%; opacity: 0.5;"></div>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" id="tracker-progress-fill"></div>
+            </div>
           </div>
           <div class="tracker-footer">
-            <span id="tracker-orders-taken">Loading pizza availability...</span>
-            <span id="tracker-orders-remaining"></span>
+            <span id="tracker-orders-taken">Calculating claimed pizzas...</span>
+            <span id="tracker-orders-remaining" class="tracker-orders-remaining"></span>
           </div>
           <div class="tracker-disclaimer" id="tracker-capacity-disclaimer">
             We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.
@@ -97,10 +101,7 @@
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <span id="tracker-deadline-text">Orders will close at <strong>9:00 PM on Sunday evenings</strong>, giving us time to prepare for Tuesday.</span>
-          </div>
-          <div class="tracker-traffic-note" id="tracker-traffic-note">
-            Sorry if the website is slow, we may be experiencing high amounts of usage at this time.
+            <span id="tracker-deadline-text">Orders will close at <strong>9:00 PM on Sunday evenings</strong>.</span>
           </div>
         </div>
 
@@ -114,6 +115,7 @@
                 if (raw) d = JSON.parse(raw);
               }
               if (d && d.success) {
+                var el = document.getElementById("availability-tracker");
                 var st = document.getElementById("tracker-status-text");
                 var ot = document.getElementById("tracker-orders-taken");
                 var or = document.getElementById("tracker-orders-remaining");
@@ -123,6 +125,7 @@
                 var dm = document.getElementById("tracker-deadline-text");
                 var cd = document.getElementById("tracker-capacity-disclaimer");
 
+                if (el) el.classList.remove("is-loading");
                 if (tt && (d.serviceTitle || d.serviceDate)) tt.textContent = d.serviceTitle || (d.serviceDate + " Availability");
                 if (dt && d.serviceNoticeDate) dt.textContent = d.serviceNoticeDate;
                 if (dm && d.deadlineMessage) dm.innerHTML = d.deadlineMessage;
@@ -144,11 +147,13 @@
                 var rem = typeof d.remainingPizzas === 'number' ? d.remainingPizzas : Math.max(0, max - cur);
 
                 if (ot) ot.textContent = cur + " of " + max + " pizzas claimed";
-                if (or) or.textContent = (rem <= 0 ? "0" : rem) + " pizzas remaining";
+                if (or) {
+                  or.textContent = (rem <= 0 ? "0" : rem) + " remaining";
+                  or.style.display = isClosed ? "none" : "inline-block";
+                }
                 if (pf && max > 0) {
                   var pct = Math.min(100, Math.max(0, Math.round((cur / max) * 100)));
                   pf.style.width = pct + "%";
-                  pf.style.opacity = "1";
                   pf.style.backgroundColor = isClosed ? "var(--terracotta)" : (rem <= 5 ? "#d97706" : "var(--forest)");
                 }
               }
@@ -156,23 +161,12 @@
           })();
         </script>
 
-        <div class="form-wrapper" id="order-form-container">
-
-          <!-- =========================================
-               GOOGLE FORM CONFIGURATION
-               Replace the src URL below with your Google
-               Form's embed URL (Send → Embed <> → copy the
-               src from the generated iframe code).
-               Adjust the height attribute if your form is
-               longer or shorter than the default.
-          ========================================= -->
-
-          <!-- GOOGLE FORM EMBED START -->
-
-          <iframe title="Artisan Oven Order Form" src="https://docs.google.com/forms/d/e/1FAIpQLSdvi-I8Whsc0LR3qwic_w69_MDI1Hy6k9Q3YBvX9Rqt2IrQAA/viewform?embedded=true" style="width: 100%; min-height: 1400px; border: none;" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
-
-          <!-- GOOGLE FORM EMBED END -->
-
+        <div class="form-wrapper is-form-loading" id="order-form-container">
+          <div class="form-loader">
+            <div class="spinner"></div>
+            <p>Loading Secure Order Form...</p>
+          </div>
+          <iframe title="Artisan Oven Order Form" src="https://docs.google.com/forms/d/e/1FAIpQLSdvi-I8Whsc0LR3qwic_w69_MDI1Hy6k9Q3YBvX9Rqt2IrQAA/viewform?embedded=true" style="width: 100%; min-height: 1400px; border: none;" frameborder="0" marginheight="0" marginwidth="0" onload="this.parentElement.classList.remove('is-form-loading')">Loading…</iframe>
         </div>
 
         <!-- Return Home Section -->
