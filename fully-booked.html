@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Fully Booked — Artisan Oven</title>
+  <meta name="description" content="Artisan Oven is currently fully booked for this session. Please check back next week!" />
+  <meta property="og:title" content="Fully Booked — Artisan Oven" />
+  <meta property="og:description" content="Artisan Oven is currently fully booked for this session. Please check back next week!" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Artisan Oven" />
+  <meta name="theme-color" content="#7c2d12" />
+  <link rel="apple-touch-icon" href="admin-assets/admin-apple-touch-icon.png" />
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="/config.js"></script>
+  <style>
+    :root {
+      --primary: #7c2d12; /* Terracotta focus for closed state */
+    }
+    .fully-booked-hero {
+      background: linear-gradient(to bottom, #fef2f2, #fff);
+      padding: 60px 0;
+      text-align: center;
+      border-bottom: 1px solid #fee2e2;
+    }
+    .sold-out-badge {
+      display: inline-block;
+      background: var(--terracotta);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 99px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
+    }
+    .choice-card.is-booked {
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+    .choice-card.is-booked .choice-btn {
+      background: #94a3b8;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <span class="wordmark">
+        <span class="flame-dot" aria-hidden="true" style="background: var(--terracotta)"></span>
+        ARTISAN OVEN
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <section class="fully-booked-hero">
+      <div class="container">
+        <div class="sold-out-badge">Fully Booked</div>
+        <h1 class="hero-heading" style="color: var(--terracotta)">We've Reached Capacity</h1>
+        <p class="hero-sub">Thank you for the incredible support! All pizza slots for this session have now been claimed.</p>
+        
+        <div class="service-notice" style="border-color: var(--terracotta); background: #fffaf9; margin-top: 30px;">
+          <p class="service-notice-date" style="color: var(--terracotta)">Check back next week!</p>
+          <p class="service-notice-footnote">Orders usually open on Monday mornings.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="choices" aria-label="Available Options">
+      <div class="container">
+        <div class="choice-grid">
+
+          <div class="choice-card is-booked">
+            <span class="choice-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M24 6 L42 40 L6 40 Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+                <line x1="12" y1="12" x2="36" y2="36" stroke="currentColor" stroke-width="2.5" />
+              </svg>
+            </span>
+            <h2>ORDERING CLOSED</h2>
+            <p>We are no longer taking orders for the current session.</p>
+            <span class="choice-btn">SOLD OUT</span>
+          </div>
+
+          <a class="choice-card" href="Payment.html">
+            <span class="choice-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="17" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M24 15v18M28.5 18.5c0-2-2-3.5-4.5-3.5s-4.5 1.5-4.5 3.6c0 4.4 9 2 9 6.4 0 2.1-2 3.6-4.5 3.6s-4.5-1.5-4.5-3.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <h2>I NEED TO PAY</h2>
+            <p>Existing orders can still be paid for here.</p>
+            <span class="choice-btn">PAY NOW</span>
+          </a>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Keep the tracker at the bottom for transparency, but it will show 'Fully Booked' -->
+    <section style="padding-bottom: 60px;">
+      <div class="container">
+        <div class="availability-tracker" id="availability-tracker">
+          <div class="tracker-header">
+            <div class="tracker-title-group">
+              <span class="tracker-title">Final Tally</span>
+              <span class="tracker-status" style="color: var(--terracotta)">Fully Booked</span>
+            </div>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: 100%; background-color: var(--terracotta)"></div>
+            </div>
+          </div>
+          <div class="tracker-footer">
+            <span>Capacity Reached</span>
+            <span class="tracker-orders-remaining">0 remaining</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-brand">ARTISAN OVEN</p>
+      <div class="footer-bottom">
+        <span id="footer-year">© 2026</span> Artisan Oven &middot; <a href="terms.html" class="admin-footer-link">T&amp;Cs</a> &middot; <a href="admin.html" class="admin-footer-link">Admin</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

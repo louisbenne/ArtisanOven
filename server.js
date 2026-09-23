@@ -204,11 +204,11 @@ async function serveOptimizedHtml(req, res, filename) {
 }
 
 app.get(['/payment', '/payment.html', '/Payment', '/Payment.html'], (req, res) => {
-  res.redirect('/');
+  serveOptimizedHtml(req, res, 'Payment.html');
 });
 
 app.get(['/order', '/order.html', '/Order', '/Order.html'], (req, res) => {
-  res.redirect('/');
+  serveOptimizedHtml(req, res, 'order.html');
 });
 
 app.get(['/admin', '/admin.html', '/Admin', '/Admin.html'], (req, res) => {
@@ -239,6 +239,10 @@ app.get(['/parent-order', '/parent-order.html', '/Parent-Order', '/Parent-Order.
 app.get(['/terms', '/terms.html', '/Terms', '/Terms.html'], (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'terms.html'));
+});
+
+app.get(['/fully-booked', '/fully-booked.html'], (req, res) => {
+  serveOptimizedHtml(req, res, 'fully-booked.html');
 });
 
 app.get(['/', '/index.html'], (req, res) => {
