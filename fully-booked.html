@@ -107,6 +107,24 @@
       line-height: 1.5;
     }
 
+    .payment-button {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 14px 32px;
+      background: var(--terracotta);
+      color: var(--white);
+      text-decoration: none;
+      font-family: var(--font-display);
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      transition: background 0.2s ease, transform 0.2s ease;
+      letter-spacing: 0.05em;
+    }
+    .payment-button:hover {
+      background: var(--terracotta-deep);
+      transform: translateY(-2px);
+    }
+
     /* Footer */
     .site-footer { background: var(--forest); color: rgba(247, 243, 236, 0.85); padding: 44px 0 28px; margin-top: 40px; }
     .footer-brand { font-family: var(--font-display); font-size: 1.15rem; letter-spacing: 0.1em; color: var(--cream); margin-bottom: 18px; }
@@ -179,7 +197,10 @@
 
         <p style="margin-top:20px;">for our next round of orders.</p>
 
-        <p style="margin-top:20px;">Still need to pay for an order already placed? <a href="Payment.html" style="color: var(--terracotta-deep); text-decoration: underline;">Pay now</a>.</p>
+        <p style="margin-top:20px;">Still need to pay for an order already placed?</p>
+        <a href="Payment.html" class="payment-button">
+          PAY FOR YOUR ORDER
+        </a>
       </div>
     </div>
   </main>
