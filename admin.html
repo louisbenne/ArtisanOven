@@ -830,6 +830,13 @@
               <span class="form-help">Appears in the calendar notice banner on the homepage.</span>
             </div>
 
+            <!-- Next Opening Time (for Booked page) -->
+            <div class="form-group">
+              <label for="setting-next-opening-time">Next Opening Time (Booked Page)</label>
+              <input type="text" id="setting-next-opening-time" class="admin-input" placeholder="e.g. Tuesday 29th at 4:00 PM" />
+              <span class="form-help">Displayed on the "Fully Booked" page to tell customers when to come back.</span>
+            </div>
+
             <!-- Capacity Message -->
             <div class="form-group">
               <label for="setting-capacity-msg">Capacity Disclaimer Message</label>
@@ -2059,6 +2066,7 @@
             capacityMessage: document.getElementById("setting-capacity-msg").value.trim(),
             deadlineMessage: document.getElementById("setting-deadline-msg").value.trim(),
             fullyBookedMessage: document.getElementById("setting-fully-booked-msg").value.trim(),
+            nextOpeningTime: document.getElementById("setting-next-opening-time").value.trim(),
             ordersTeamEmail: document.getElementById("setting-orders-team-email").value.trim()
           };
 
@@ -3644,6 +3652,7 @@
         document.getElementById("setting-capacity-msg").value = settings.capacityMessage || "";
         document.getElementById("setting-deadline-msg").value = settings.deadlineMessage || "";
         document.getElementById("setting-fully-booked-msg").value = settings.fullyBookedMessage || "";
+        document.getElementById("setting-next-opening-time").value = settings.nextOpeningTime || "";
         document.getElementById("setting-orders-team-email").value = settings.ordersTeamEmail || "";
 
         // Populate New Week input defaults

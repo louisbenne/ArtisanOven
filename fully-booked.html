@@ -173,8 +173,8 @@
 
         <p>We were overwhelmed by the response — thank you to everyone who placed an order. We were <strong>fully booked</strong> for this week.</p>
 
-        <div class="closed-next">
-          Come back next week on<br>Tuesday the 29th at 4:00 PM
+        <div class="closed-next" id="next-opening-text">
+          Loading next opening time...
         </div>
 
         <p style="margin-top:20px;">for our next round of orders.</p>
@@ -190,7 +190,7 @@
       <dl class="footer-grid">
         <div>
           <dt>Email</dt>
-          <dd>artisanovenst@gmail.com</dd>
+          <dd id="footer-team-email">artisanovenst@gmail.com</dd>
         </div>
         <div>
           <dt>School Lunches</dt>
@@ -198,7 +198,7 @@
         </div>
       </dl>
       <div class="footer-bottom">
-        <span>© 2026</span> Artisan Oven
+        <span>© <span id="footer-year-el">2026</span></span> Artisan Oven
       </div>
     </div>
   </footer>
@@ -207,5 +207,38 @@
     <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12.031 0C5.389 0 0 5.39 0 12.031c0 2.124.551 4.195 1.6 6.01L.226 23.511l5.602-1.468c1.745.955 3.715 1.458 5.736 1.458h.005c6.641 0 12.034-5.391 12.034-12.033S18.216 0 12.031 0zm0 21.466c-1.802 0-3.568-.485-5.114-1.402l-.367-.218-3.799.996.999-3.704-.239-.38C2.569 15.116 2.035 13.593 2.035 12.03 2.035 6.516 6.518 2.03 12.033 2.03c2.673 0 5.187 1.042 7.078 2.934 1.89 1.892 2.932 4.406 2.932 7.081 0 5.513-4.484 9.987-9.997 9.987l-.015.034zm5.485-7.513c-.301-.151-1.779-.878-2.054-.979-.275-.101-.476-.151-.676.151-.2.301-.776.979-.952 1.18-.176.201-.352.226-.653.076-.301-.151-1.271-.469-2.42-1.498-.894-.8-1.499-1.789-1.675-2.09-.176-.301-.019-.463.131-.614.135-.135.301-.351.452-.526.151-.176.201-.301.301-.502.101-.201.05-.376-.025-.526-.075-.151-.676-1.629-.926-2.231-.243-.588-.49-.508-.676-.517-.176-.008-.376-.008-.576-.008-.2 0-.526.075-.801.376-.275.301-1.052 1.028-1.052 2.507 0 1.479 1.077 2.91 1.228 3.111.151.201 2.119 3.235 5.132 4.536 2.378 1.023 2.91 1.048 3.436 1.002.585-.051 1.779-.727 2.029-1.429.25-.702.25-1.304.176-1.429-.076-.126-.276-.202-.577-.353z" /></svg>
     Join WhatsApp
   </a>
+
+  <script src="/config.js"></script>
+  <script>
+    (function() {
+      const yearEl = document.getElementById('footer-year-el');
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+      async function loadStatus() {
+        try {
+          const res = await fetch('/api/status');
+          const data = await res.json();
+          if (data && data.success) {
+            const nextOpeningText = document.getElementById('next-opening-text');
+            if (nextOpeningText) {
+              const nextTime = data.nextOpeningTime || "Tuesday at 4:00 PM";
+              nextOpeningText.innerHTML = `Come back next week on<br>${nextTime}`;
+            }
+            const teamEmail = document.getElementById('footer-team-email');
+            if (teamEmail && data.ordersTeamEmail) {
+              teamEmail.textContent = data.ordersTeamEmail;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to load status', e);
+          const nextOpeningText = document.getElementById('next-opening-text');
+          if (nextOpeningText) {
+            nextOpeningText.innerHTML = `Come back next week on<br>Tuesday at 4:00 PM`;
+          }
+        }
+      }
+      loadStatus();
+    })();
+  </script>
 </body>
 </html>

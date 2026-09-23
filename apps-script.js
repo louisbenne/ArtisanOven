@@ -107,6 +107,7 @@ function getDefaultSettings() {
     capacityMessage: 'We have a limited number of orders while we gauge our capacity. Once we get into full swing, we’ll be able to open up to more orders.',
     deadlineMessage: 'Orders will close at 9:00 PM on Sunday evenings, giving us time to prepare for Tuesday.',
     fullyBookedMessage: "We're fully booked for this session. Please check back next time.",
+    nextOpeningTime: "Tuesday 29th at 4:00 PM",
     ordersTeamEmail: 'louis@benne.co.uk,marlowb11@icloud.com',
     sessionStartRow: 2,
     sessionId: 'session_init',
@@ -921,6 +922,7 @@ function doGet(e) {
         serviceDate: settings.serviceDate,
         serviceTitle: settings.serviceTitle,
         serviceNoticeDate: settings.serviceNoticeDate,
+        nextOpeningTime: settings.nextOpeningTime || "Tuesday at 4:00 PM",
         capacityMessage: settings.capacityMessage,
         deadlineMessage: settings.deadlineMessage,
         closedMessage: message,
@@ -3961,21 +3963,21 @@ function getCurrentSessionOrderChecklist() {
       var size = mapSize(sizeRaw);
       var classMatch = className.match(/class\s*(\d+)/i);
       var classNumber = classMatch ? parseInt(classMatch[1], 10) : 999;
-      items.push({
-        pickupId: String(orderNum) + '-' + (items.filter(function(item) {
-          return item.orderId === String(orderNum);
-        }).length + 1),
-        orderId: String(orderNum),
-        childName: childName || 'Student',
-        className: className || 'Unassigned',
-        classNumber: classNumber,
-        size: formatSizeLabel(size) || sizeRaw,
-        capacity: getPizzaCapacityValue(sizeRaw),
-        allergy: allergyFlag ? (allergyDetails || 'Flagged - confirm with parent') : ''
-      });
-    }
-  }
-}
+        items.push({
+          pickupId: String(orderNum) + '-' + (items.filter(function(item) {
+            return item.orderId === String(orderNum);
+          }).length + 1),
+          orderId: String(orderNum),
+          childName: childName || 'Student',
+          className: className || 'Unassigned',
+          classNumber: classNumber,
+          size: formatSizeLabel(size) || sizeRaw,
+          capacity: getPizzaCapacityValue(sizeRaw),
+          allergy: allergyFlag ? (allergyDetails || 'Flagged - confirm with parent') : ''
+        });
+      } // closes the blocks loop
+    } // closes the session-data loop
+  } // REQUIRED: closes `if (lastRow > startRowIndex)`
 
   items.sort(function(a, b) {
     return a.classNumber - b.classNumber ||

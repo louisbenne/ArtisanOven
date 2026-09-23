@@ -3961,21 +3961,21 @@ function getCurrentSessionOrderChecklist() {
       var size = mapSize(sizeRaw);
       var classMatch = className.match(/class\s*(\d+)/i);
       var classNumber = classMatch ? parseInt(classMatch[1], 10) : 999;
-      items.push({
-        pickupId: String(orderNum) + '-' + (items.filter(function(item) {
-          return item.orderId === String(orderNum);
-        }).length + 1),
-        orderId: String(orderNum),
-        childName: childName || 'Student',
-        className: className || 'Unassigned',
-        classNumber: classNumber,
-        size: formatSizeLabel(size) || sizeRaw,
-        capacity: getPizzaCapacityValue(sizeRaw),
-        allergy: allergyFlag ? (allergyDetails || 'Flagged - confirm with parent') : ''
-      });
-    }
-  }
-}
+        items.push({
+          pickupId: String(orderNum) + '-' + (items.filter(function(item) {
+            return item.orderId === String(orderNum);
+          }).length + 1),
+          orderId: String(orderNum),
+          childName: childName || 'Student',
+          className: className || 'Unassigned',
+          classNumber: classNumber,
+          size: formatSizeLabel(size) || sizeRaw,
+          capacity: getPizzaCapacityValue(sizeRaw),
+          allergy: allergyFlag ? (allergyDetails || 'Flagged - confirm with parent') : ''
+        });
+      } // closes the blocks loop
+    } // closes the session-data loop
+  } // REQUIRED: closes `if (lastRow > startRowIndex)`
 
   items.sort(function(a, b) {
     return a.classNumber - b.classNumber ||
