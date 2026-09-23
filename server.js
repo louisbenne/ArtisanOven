@@ -204,11 +204,11 @@ async function serveOptimizedHtml(req, res, filename) {
 }
 
 app.get(['/payment', '/payment.html', '/Payment', '/Payment.html'], (req, res) => {
-  serveOptimizedHtml(req, res, 'Payment.html');
+  res.redirect('/');
 });
 
 app.get(['/order', '/order.html', '/Order', '/Order.html'], (req, res) => {
-  serveOptimizedHtml(req, res, 'order.html');
+  res.redirect('/');
 });
 
 app.get(['/admin', '/admin.html', '/Admin', '/Admin.html'], (req, res) => {
