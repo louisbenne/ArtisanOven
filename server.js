@@ -245,6 +245,10 @@ app.get(['/fully-booked', '/fully-booked.html'], (req, res) => {
   serveOptimizedHtml(req, res, 'fully-booked.html');
 });
 
+app.get(['/live', '/live.html'], (req, res) => {
+  serveOptimizedHtml(req, res, 'live.html');
+});
+
 app.get(['/', '/index.html'], (req, res) => {
   serveOptimizedHtml(req, res, 'index.html');
 });
